@@ -132,9 +132,11 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
 
 """destroy list of filesystems or snapshots"""
 def zfs_destroy(ssh_to, filesystems):
+
+    debug("Destroying on {0}:\n{1}".format(ssh_to, "\n".join(filesystems)))
     #zfs can only destroy one filesystem at once so we use xargs and stdin
-    run(ssh_to=ssh_to, test=args.test, input="\n".join(filesystems)+"\n", cmd=
-        [ "xargs", "-d", "\\n", "-n", "1", "zfs", "destroy", "-d" ]
+    run(ssh_to=ssh_to, test=args.test, input="\0".join(filesystems), cmd=
+        [ "xargs", "-0", "-n", "1", "zfs", "destroy", "-d" ]
     )
 
 
@@ -345,6 +347,19 @@ for source_filesystem in source_filesystems:
             latest_target_snapshot=send_snapshot
 
 
+#cleanup old source snapshots
+source_destroys=[]
+for source_filesystem in source_snapshots:
+    destroy_count=len(source_snapshots[source_filesystem])-args.keep_source
+    if  destroy_count>0:
+        for snapshot in source_snapshots[source_filesystem][0:destroy_count-1]:
+            source_destroys.append(source_filesystem+"@"+snapshot)
+
+if source_destroys:
+    verbose("Destroying old snapshots on source")
+    zfs_destroy(ssh_to=args.ssh_source, filesystems=source_destroys)
+
+
 #cleanup old target snapshots
 target_destroys=[]
 for target_filesystem in target_snapshots:
@@ -357,17 +372,6 @@ if target_destroys:
     verbose("Destroying old snapshots on target")
     zfs_destroy(ssh_to=args.ssh_target, filesystems=target_destroys)
 
-#cleanup old source snapshots
-source_destroys=[]
-for source_filesystem in source_snapshots:
-    destroy_count=len(source_snapshots[source_filesystem])-args.keep_source
-    if  destroy_count>0:
-        for snapshot in source_snapshots[source_filesystem][0:destroy_count-1]:
-            source_destroys.append(source_filesystem+"@"+snapshot)
-
-if source_destroys:
-    verbose("Destroying old snapshots on source")
-    zfs_destroy(ssh_to=args.ssh_source, filesystems=source_destroys)
 
 verbose("All done")
 
