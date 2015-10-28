@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
 parser.add_argument('--ssh-cipher', default="arcfour128", help='SSH cipher to use (default  %(default)s)')
+parser.add_argument('--keep-source', default=30, help='Number of old snapshots to keep on source. Default %(default)s.')
+parser.add_argument('--keep-target', default=30, help='Number of old snapshots to keep on target. Default %(default)s.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
 parser.add_argument('target_fs',    help='Target filesystem')
 
@@ -45,7 +47,7 @@ def debug(txt):
 
 
 """run a command. specifiy ssh user@host to run remotely"""
-def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
+def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ], test=False):
 
     encoded_cmd=[]
 
@@ -59,7 +61,6 @@ def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
     #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
     for arg in cmd:
         encoded_cmd.append(arg.encode('utf-8'))
-
     #the accurate way of displaying it whould be: print encoded_cmd
     #However, we use the more human-readable way, but this is not always properly escaped!
     #(most of the time it should be copypastable however.)
@@ -67,12 +68,20 @@ def run(cmd, ssh_to=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
 
     if test:
         debug("[TEST] "+debug_txt)
-        return
     else:
         debug(debug_txt)
 
-    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE)
-    output=p.communicate()[0]
+    if input:
+        debug("INPUT:\n"+input.rstrip())
+        stdin=subprocess.PIPE
+    else:
+        stdin=None
+
+    if test:
+        return
+
+    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin)
+    output=p.communicate(input=input)[0]
     if p.returncode not in valid_exitcodes:
         raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
@@ -118,6 +127,15 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
                 vebose("Ignored: {0} ({0})".format(source))
 
     return(selected_filesystems)
+
+
+
+"""destroy list of filesystems or snapshots"""
+def zfs_destroy(ssh_to, filesystems):
+    #zfs can only destroy one filesystem at once so we use xargs and stdin
+    run(ssh_to=ssh_to, test=args.test, input="\n".join(filesystems)+"\n", cmd=
+        [ "xargs", "-d", "\\n", "-n", "1", "zfs", "destroy", "-d" ]
+    )
 
 
 #simulate snapshots for --test option
@@ -253,6 +271,9 @@ if args.test:
     args.verbose=True
     verbose("RUNNING IN TEST-MODE, NOT MAKING ACTUAL BACKUP!")
 
+if args.keep_source<1 or args.keep_target<1:
+    raise(Exception("Minimum number of snapshots to keep is 1"))
+
 #get selected filesystem on backup source
 verbose("Getting selected source filesystems for backup {0} on {1}".format(args.backup_name,args.ssh_source))
 source_filesystems=zfs_get_selected_filesystems(args.ssh_source, args.backup_name)
@@ -318,8 +339,35 @@ for source_filesystem in source_filesystems:
                 ssh_source=args.ssh_source, source_filesystem=source_filesystem, first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
                 ssh_target=args.ssh_target, target_filesystem=target_filesystem)
 
+            #update target_snapshot list for later cleanup 
+            target_snapshots[target_filesystem].append(send_snapshot)
+
             latest_target_snapshot=send_snapshot
 
+
+#cleanup old target snapshots
+target_destroys=[]
+for target_filesystem in target_snapshots:
+    destroy_count=len(target_snapshots[target_filesystem])-args.keep_target
+    if  destroy_count>0:
+        for snapshot in target_snapshots[target_filesystem][0:destroy_count-1]:
+            target_destroys.append(target_filesystem+"@"+snapshot)
+
+if target_destroys:
+    verbose("Destroying old snapshots on target")
+    zfs_destroy(ssh_to=args.ssh_target, filesystems=target_destroys)
+
+#cleanup old source snapshots
+source_destroys=[]
+for source_filesystem in source_snapshots:
+    destroy_count=len(source_snapshots[source_filesystem])-args.keep_source
+    if  destroy_count>0:
+        for snapshot in source_snapshots[source_filesystem][0:destroy_count-1]:
+            source_destroys.append(source_filesystem+"@"+snapshot)
+
+if source_destroys:
+    verbose("Destroying old snapshots on source")
+    zfs_destroy(ssh_to=args.ssh_source, filesystems=source_destroys)
 
 verbose("All done")
 
