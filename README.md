@@ -62,7 +62,7 @@ Running zfs_autobackup
 ----------------------
 There are 2 ways to run the backup:
 
-Run the script on the backup server and pull the backup:
+Run the script on the backup server and pull the data from the backupserver specfied by --ssh-source:
 ```
 root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose --compress
 Getting selected source filesystems for backup smartos01_fs1 on root@1.2.3.4
