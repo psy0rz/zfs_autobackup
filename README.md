@@ -8,17 +8,21 @@ ZFS autobackup is used to periodicly backup ZFS filesystems to other locations. 
 It has the following features:
 * Automaticly selects filesystems to backup by looking at a simple ZFS property.
 * Creates consistent snapshots.
-* Is able to "push" and "pull" the backups via SSH.
-* Also supports local backups.
-* Even supports pulling data from a source-host and pushing backup to target host by ssh.
-* Can be scheduled via a simple cronjob orrun directly from commandline.
+* Multiple backups modes: 
+ * "push" local data to a backup-server via SSH.
+ * "pull" remote data from a server via SSH and backup it locally.
+ * Backup local data on the same server.
+* Can be scheduled via a simple cronjob or run directly from commandline.
 * Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
 * Always creates new snapshots, even if the previous backup was aborted.
-* Ability to 'finish' aborted backups to see what goes wrong.
 * Checks everything and aborts on errors.
-* Only on host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
-* Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
+* Ability to 'finish' aborted backups to see what goes wrong.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
+* Easy installation:
+ * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
+ * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
+
+
 
 
 Example usage
