@@ -62,7 +62,7 @@ Running zfs_autobackup
 ----------------------
 There are 2 ways to run the backup:
 
-Run the script on the backup server and pull the data from the backupserver specfied by --ssh-source:
+Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data:
 ```
 root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose --compress
 Getting selected source filesystems for backup smartos01_fs1 on root@1.2.3.4
@@ -84,4 +84,10 @@ Destroying old snapshots on target
 All done
 ```
 
+Run the script on the server and push the data to the backup server specified by --ssh-target:
+```
+./zfs_autobackup --ssh-target root@2.2.2.2 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose  --compress 
+...
+All done
 
+```
