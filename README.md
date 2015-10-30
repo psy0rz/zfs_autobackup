@@ -13,8 +13,12 @@ It has the following features:
 * Can be scheduled via a simple cronjob orrun directly from commandline.
 * Always creates new snapshots, even if the previous backup was aborted.
 * Ability to 'finish' aborted backups to see what goes wrong.
-* Easy to debug and has a --test mode.
+* Checks everything and aborts on errors.
+* Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
+* Easy to debug and has a test-mode. Actual unix commands are printed.
 
+Usage
+=====
 
 
 
