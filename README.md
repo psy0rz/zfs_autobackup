@@ -23,8 +23,49 @@ It has the following features:
  * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
  * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
 
-Example usage
-=============
+Usage
+====
+```
+usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
+                      [--ssh-cipher SSH_CIPHER] [--keep-source KEEP_SOURCE]
+                      [--keep-target KEEP_TARGET] [--finish] [--compress]
+                      [--test] [--verbose] [--debug]
+                      backup_name target_fs
+
+ZFS autobackup v2.0
+
+positional arguments:
+  backup_name           Name of the backup (you should set the zfs property
+                        "autobackup:backup-name" to true on filesystems you
+                        want to backup
+  target_fs             Target filesystem
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ssh-source SSH_SOURCE
+                        Source host to get backup from. (user@hostname)
+                        Default local.
+  --ssh-target SSH_TARGET
+                        Target host to push backup to. (user@hostname) Default
+                        local.
+  --ssh-cipher SSH_CIPHER
+                        SSH cipher to use (default arcfour128)
+  --keep-source KEEP_SOURCE
+                        Number of old snapshots to keep on source. Default 30.
+  --keep-target KEEP_TARGET
+                        Number of old snapshots to keep on target. Default 30.
+  --finish              dont create new snapshot, just finish sending current
+                        snapshots
+  --compress            use compression during zfs send/recv
+  --test                dont change anything, just show what would be done
+                        (still does all read-only operations)
+  --verbose             verbose output
+  --debug               debug output (shows user details, decicions that are
+                        made and commands that are executed)
+```
+
+Example
+=======
 
 In this example we're going to backup a SmartOS machine called `smartos01` to our fileserver called `fs1`.
 
