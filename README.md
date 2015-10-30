@@ -18,12 +18,10 @@ It has the following features:
 * Checks everything and aborts on errors.
 * Ability to 'finish' aborted backups to see what goes wrong.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
+* Keeps latest X snapshots remote and locally. (default 30, configurable)
 * Easy installation:
  * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
  * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
-
-
-
 
 Example usage
 =============
@@ -35,7 +33,7 @@ Its important to choose a uniq and consistent backup name. In this case we name 
 Select filesystems to backup
 ----------------------------
 
-On the source zfs system set the ```autobackup:smartos01_fs1``` zfs property to true.
+On the source zfs system set the ```autobackup:smartos01_fs1``` zfs property to true:
 ```
 [root@smartos01 ~]# zfs set autobackup:smartos01_fs1=true zones
 [root@smartos01 ~]# zfs get -t filesystem autobackup:smartos01_fs1
@@ -62,6 +60,23 @@ zones/backup/fs1                                    autobackup:smartos01_fs1  fa
 
 Running zfs_autobackup
 ----------------------
+There are 2 ways to run the backup:
 
+Run the script on the backup server and pull the backup:
+```
+root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose --compress
+Getting selected source filesystems for backup smartos01_fs1 on root@1.2.3.4
+Selected: zones (direct selection)
+Selected: zones/1eb33958-72c1-11e4-af42-ff0790f603dd (inherited selection)
+Selected: zones/325dbc5e-2b90-11e3-8a3e-bfdcb1582a8d (inherited selection)
+...
+Ignoring: zones/backup (disabled)
+Ignoring: zones/backup/fs1 (disabled)
+...
+Creating source snapshot smartos01_fs1-20151030203738 on root@1.2.3.4
+Getting source snapshot-list from root@10.192.100.201
+Getting target snapshot-list from local
+
+```
 
 
