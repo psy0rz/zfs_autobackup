@@ -60,5 +60,8 @@ zones/backup/fs1                                    autobackup:smartos01_fs1  fa
 ...
 ```
 
+Running zfs_autobackup
+----------------------
+
 
 
