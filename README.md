@@ -132,3 +132,15 @@ Method 2: Run the script on the server and push the data to the backup server sp
 All done
 
 ```
+
+Monitoring with Zabbix-jobs
+===========================
+
+You can monitor backups by using my zabbix-jobs script. (https://github.com/psy0rz/stuff/tree/master/zabbix-jobs)
+
+Put this command directly after the zfs_backup command in your cronjob:
+```
+zabbix-job-status backup_smartos01_fs1 daily $?
+```
+
+This will update the zabbix server with the exitcode and will also alert you if the job didnt run for more than 2 days.
