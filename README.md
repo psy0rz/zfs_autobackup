@@ -74,9 +74,14 @@ Ignoring: zones/backup (disabled)
 Ignoring: zones/backup/fs1 (disabled)
 ...
 Creating source snapshot smartos01_fs1-20151030203738 on root@1.2.3.4
-Getting source snapshot-list from root@10.192.100.201
+Getting source snapshot-list from root@1.2.3.4
 Getting target snapshot-list from local
-
+Tranferring zones incremental backup between snapshots smartos01_fs1-20151030175345...smartos01_fs1-20151030203738
+...
+received 1.09MB stream in 1 seconds (1.09MB/sec)
+Destroying old snapshots on source
+Destroying old snapshots on target
+All done
 ```
 
 
