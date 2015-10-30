@@ -40,6 +40,7 @@ zones                                               autobackup:smartos01_fs1  tr
 zones/1eb33958-72c1-11e4-af42-ff0790f603dd          autobackup:smartos01_fs1  true                      inherited from zones
 zones/3c71a6cd-6857-407c-880c-09225ce4208e          autobackup:smartos01_fs1  true                      inherited from zones
 zones/3c905e49-81c0-4a5a-91c3-fc7996f97d47          autobackup:smartos01_fs1  true                      inherited from zones
+...
 ```
 
 Because we dont want to backup everything, we can exclude certain filesystem by setting the property to false:
