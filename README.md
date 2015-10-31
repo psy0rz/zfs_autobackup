@@ -60,8 +60,7 @@ optional arguments:
   --test                dont change anything, just show what would be done
                         (still does all read-only operations)
   --verbose             verbose output
-  --debug               debug output (shows user details, decicions that are
-                        made and commands that are executed)
+  --debug               debug output (shows commands that are executed)
 ```
 
 Example
