@@ -26,7 +26,7 @@ parser.add_argument('--finish', action='store_true', help='dont create new snaps
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
-parser.add_argument('--debug', action='store_true', help='debug output (shows user details, decicions that are made and commands that are executed)')
+parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
 args = parser.parse_args()
 
 
