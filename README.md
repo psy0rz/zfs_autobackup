@@ -100,7 +100,9 @@ zones/backup/fs1                                    autobackup:smartos01_fs1  fa
 
 Running zfs_autobackup
 ----------------------
-There are 2 ways to run the backup:
+There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
+
+First install the ssh-key on the server that you specify with --ssh-source or --ssh-target.
 
 Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data:
 ```
