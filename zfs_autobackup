@@ -17,8 +17,8 @@ parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
 parser.add_argument('--ssh-cipher', default="arcfour128", help='SSH cipher to use (default  %(default)s)')
-parser.add_argument('--keep-source', default=30, help='Number of old snapshots to keep on source. Default %(default)s.')
-parser.add_argument('--keep-target', default=30, help='Number of old snapshots to keep on target. Default %(default)s.')
+parser.add_argument('--keep-source', type=int, default=30, help='Number of old snapshots to keep on source. Default %(default)s.')
+parser.add_argument('--keep-target', type=int, default=30, help='Number of old snapshots to keep on target. Default %(default)s.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
 parser.add_argument('target_fs',    help='Target filesystem')
 
@@ -127,6 +127,16 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
                 vebose("Ignored: {0} ({0})".format(source))
 
     return(selected_filesystems)
+
+
+
+"""determine filesystems that where already backupped to the target. (used to determine cleanup list)"""
+def zfs_get_backupped_filesystems(ssh_to, backup_name, target_fs):
+    #get all target filesystems that have the backup property and have a receive autobackup property
+    target_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=[
+        "zfs", "get", "-r", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "received,inherited", "-H", "autobackup:"+backup_name, taget_fs
+    ])
+
 
 
 
