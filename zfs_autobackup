@@ -218,7 +218,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     source_cmd.extend(["zfs", "send", "-p" ])
 
-    if args.verbose:
+    if args.debug:
         source_cmd.append("-v")
 
     if not first_snapshot:
