@@ -369,6 +369,8 @@ for source_filesystem in source_filesystems:
                 ssh_target=args.ssh_target, target_filesystem=target_filesystem)
 
             #update target_snapshot list for later cleanup 
+            if not target_filesystem in target_snapshots:
+                target_snapshots[target_filesystem]=[]
             target_snapshots[target_filesystem].append(send_snapshot)
 
             latest_target_snapshot=send_snapshot
