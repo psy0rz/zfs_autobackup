@@ -204,9 +204,22 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
 
 
-"""transfer a zfs snapshot from source to target. both can be either local or via ssh."""
+"""transfer a zfs snapshot from source to target. both can be either local or via ssh.
+
+specify buffer_size to use mbuffer (or alike) to apply buffering where neccesary
+
+local to local:
+local send -> local buffer -> local receive
+
+local to remote and remote to local: 
+local send -> local buffer -> ssh -> remote buffer -> remote receive
+remote send -> remote buffer -> ssh -> local buffer -> local receive
+
+remote to remote:
+remote send -> remote buffer -> ssh -> local buffer -> ssh -> remote buffer -> remote receive
+"""
 def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
-                 ssh_target, target_filesystem):
+                 ssh_target, target_filesystem, buffer_size=None):
 
     #### build source command
     source_cmd=[]
@@ -228,6 +241,10 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         source_cmd.extend([ "-i", first_snapshot ])
 
     source_cmd.append(source_filesystem + "@" + second_snapshot)
+
+    # if ssh_source != "local":
+    #     #add buffer
+    #     source_cmd.append("|dd")
 
 
     #### build target command
