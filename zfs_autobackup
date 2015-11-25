@@ -233,6 +233,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     source_cmd.extend(["zfs", "send", "-p" ])
 
+    #only verbose in debug mode, lots of output
     if args.debug:
         source_cmd.append("-v")
 
@@ -259,7 +260,8 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     target_cmd.extend(["zfs", "recv", "-u" ])
 
-    if args.verbose:
+    #also verbose in --verbose mode so we can see the transfer speed when its completed
+    if args.verbose or args.debug:
         target_cmd.append("-v")
 
     target_cmd.append(target_filesystem)
