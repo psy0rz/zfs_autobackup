@@ -198,6 +198,8 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
         if ssh_to in test_snapshots:
             for filesystem in filesystems:
                 if filesystem in test_snapshots[ssh_to]:
+                    if not filesystem in ret:
+                        ret[filesystem]=[]
                     ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
     return(ret)
