@@ -374,7 +374,7 @@ for source_filesystem in source_filesystems:
 
             #target snapshots that come BEFORE last target snapshot are obsolete
             latest_target_index=target_snapshots[target_filesystem].index(latest_target_snapshot)
-            target_obsolete_snapshots[target_filesystem]=target_snapshots[target_filesystem][0:latest_source_index]
+            target_obsolete_snapshots[target_filesystem]=target_snapshots[target_filesystem][0:latest_target_index]
         else:
             #initial mode, send all snapshots, nothing is obsolete:
             latest_target_snapshot=None
