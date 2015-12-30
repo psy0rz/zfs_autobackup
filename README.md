@@ -68,7 +68,7 @@ Example
 
 In this example we're going to backup a SmartOS machine called `smartos01` to our fileserver called `fs1`.
 
-Its important to choose a uniq and consistent backup name. In this case we name our backup: `smartos01_fs1`.
+Its important to choose a unique and consistent backup name. In this case we name our backup: `smartos01_fs1`.
 
 Select filesystems to backup
 ----------------------------
