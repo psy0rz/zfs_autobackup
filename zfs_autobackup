@@ -11,26 +11,6 @@ import pprint
 import cStringIO
 import time
 
-###### parse arguments
-import argparse
-parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
-parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
-parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-parser.add_argument('--ssh-cipher', default="arcfour128", help='SSH cipher to use (default  %(default)s)')
-parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
-parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
-parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
-parser.add_argument('target_fs',    help='Target filesystem')
-
-parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
-parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
-
-parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
-parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
-parser.add_argument('--verbose', action='store_true', help='verbose output')
-parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
-args = parser.parse_args()
-
 
 def error(txt):
     print(txt, file=sys.stderr)
@@ -132,28 +112,28 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
 
 
 
-"""determine filesystems that where already backupped to the target. (used to determine cleanup list)"""
-def zfs_get_backupped_filesystems(ssh_to, backup_name, target_fs):
-    #get all target filesystems that have the backup property and have a receive autobackup property
-    target_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=[
-        "zfs", "get", "-r", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "received,inherited", "-H", "autobackup:"+backup_name, taget_fs
-    ])
+"""deferred destroy list of snapshots (in @format). """
+def zfs_destroy_snapshots(ssh_to, snapshots):
 
-
-
-
-"""destroy list of filesystems or snapshots (in @format) """
-def zfs_destroy(ssh_to, filesystems):
-
-    # debug("Destroying on {0}:\n{1}".format(ssh_to, "\n".join(filesystems)))
     #zfs can only destroy one filesystem at once so we use xargs and stdin
-    run(ssh_to=ssh_to, test=args.test, input="\0".join(filesystems), cmd=
+    run(ssh_to=ssh_to, test=args.test, input="\0".join(snapshots), cmd=
         [ "xargs", "-0", "-n", "1", "zfs", "destroy", "-d" ]
     )
 
+"""destroy list of filesystems """
+def zfs_destroy(ssh_to, filesystems, recursive=False):
+
+    cmd=[ "xargs", "-0", "-n", "1", "zfs", "destroy" ]
+
+    if recursive:
+        cmd.append("-r")
+
+    #zfs can only destroy one filesystem at once so we use xargs and stdin
+    run(ssh_to=ssh_to, test=args.test, input="\0".join(filesystems), cmd=cmd)
 
 #simulate snapshots for --test option
 test_snapshots={}
+
 
 
 """create snapshot on multiple filesystems at once (atomicly)"""
@@ -300,7 +280,84 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
 
 
+"""get filesystems that where already backupped to a target. """
+def zfs_get_backupped_filesystems(ssh_to, backup_name, target_fs):
+    #get all target filesystems that have received or inherited the backup propert, under the target_fs tree
+    ret=run(ssh_to=ssh_to, tab_split=False, cmd=[
+        "zfs", "get", "-r", "-t",  "volume,filesystem", "-o", "name", "-s", "received,inherited", "-H", "autobackup:"+backup_name, target_fs
+    ])
+
+    return(ret)
+
+
+
+"""get filesystems that where once backupped to target but are no longer selected on source
+
+these are filesystems that are not in the list in target_filesystems. 
+
+this happens when filesystems are destroyed or unselected on the source.
+"""
+def get_stale_backupped_filesystems(ssh_to, backup_name, target_fs, target_filesystems):
+
+    backupped_filesystems=zfs_get_backupped_filesystems(ssh_to=ssh_to, backup_name=backup_name, target_fs=target_fs)
+
+    #determine backupped filesystems that are not in target_filesystems anymore
+    stale_backupped_filesystems=[]
+    for backupped_filesystem in backupped_filesystems:
+        if backupped_filesystem not in target_filesystems:
+            stale_backupped_filesystems.append(backupped_filesystem)
+
+    return(stale_backupped_filesystems)
+
+
+now=time.time()
+"""determine list of snapshot (in @format) to destroy, according to age"""
+def determine_destroy_list(snapshots, days):
+    ret=[]
+    for filesystem in snapshots:
+        for snapshot in snapshots[filesystem]:
+            time_str=re.findall("^.*-([0-9]*)$", snapshot)[0]
+            if len(time_str)==14:
+                #new format:
+                time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
+            else:
+                time_secs=int(time_str)
+                # verbose("time_secs"+time_str)
+            if (now-time_secs) > (24 * 3600 * days):
+                ret.append(filesystem+"@"+snapshot)
+
+    return(ret)
+
+
 ################################################################## ENTRY POINT
+
+
+
+############## parse arguments
+import argparse
+parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
+parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
+parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
+parser.add_argument('--ssh-cipher', default="arcfour128", help='SSH cipher to use (default  %(default)s)')
+parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
+parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
+parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
+parser.add_argument('target_fs',    help='Target filesystem')
+
+parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
+parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
+
+parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
+
+parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
+parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
+parser.add_argument('--verbose', action='store_true', help='verbose output')
+parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
+args = parser.parse_args()
+
+
+
+############## data gathering section
 
 if args.test:
     args.verbose=True
@@ -316,7 +373,7 @@ if not source_filesystems:
     sys.exit(1)
 
 
-#determine target filesystems
+#determine target filesystems (just append args.target_fs prefix)
 target_filesystems=[]
 for source_filesystem in source_filesystems:
     target_filesystems.append(args.target_fs+"/"+source_filesystem)
@@ -327,7 +384,7 @@ if not args.no_snapshot:
     verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
     zfs_create_snapshot(args.ssh_source, source_filesystems, new_snapshot_name)
 
-#determine all snapshots of all selected filesystems on both source and target
+#get all snapshots of all selected filesystems on both source and target
 verbose("Getting source snapshot-list from {0}".format(args.ssh_source))
 source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
 debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
@@ -345,6 +402,10 @@ debug("Target snapshots: " + str(pprint.pformat(target_snapshots)))
 #obsolete snapshots that may be removed
 source_obsolete_snapshots={}
 target_obsolete_snapshots={}
+
+
+
+############## backup section
 
 #determine which snapshots to send for each filesystem
 for source_filesystem in source_filesystems:
@@ -395,36 +456,46 @@ for source_filesystem in source_filesystems:
 
                 latest_target_snapshot=send_snapshot
 
+
+
+############## cleanup section
 #we only do cleanups after everything is complete, to keep everything consistent (same snapshots everywhere)
 
-#get list of snapshot (in @format) to destroy
-now=time.time()
-def get_destroy_list(snapshots, days):
-    ret=[]
-    for filesystem in snapshots:
-        for snapshot in snapshots[filesystem]:
-            time_str=re.findall("^.*-([0-9]*)$", snapshot)[0]
-            if len(time_str)==14:
-                #new format:
-                time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
-            else:
-                time_secs=int(time_str)
-                # verbose("time_secs"+time_str)
-            if (now-time_secs) > (24 * 3600 * days):
-                ret.append(filesystem+"@"+snapshot)
 
-    return(ret)
+#find stale backups on target that have become obsolete
+verbose("Getting stale filesystems and snapshots from {0}".format(args.ssh_target))
+stale_target_filesystems=get_stale_backupped_filesystems(ssh_to=args.ssh_target, backup_name=args.backup_name, target_fs=args.target_fs, target_filesystems=target_filesystems)
+debug("Stale target filesystems: {0}".format("\n".join(stale_target_filesystems)))
+
+stale_target_snapshots=zfs_get_snapshots(args.ssh_target, stale_target_filesystems, args.backup_name)
+debug("Stale target snapshots: " + str(pprint.pformat(stale_target_snapshots)))
+target_obsolete_snapshots.update(stale_target_snapshots)
+
+#determine stale filesystems that have no snapshots left (the can be destroyed)
+#TODO: prevent destroying filesystems that have underlying filesystems that are still active.
+stale_target_destroys=[]
+for stale_target_filesystem in stale_target_filesystems:
+    if stale_target_filesystem not in stale_target_snapshots:
+            stale_target_destroys.append(stale_target_filesystem)
+
+if stale_target_destroys:
+    if args.destroy_stale:
+        verbose("Destroying stale filesystems on target {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
+        zfs_destroy(ssh_to=args.ssh_target, filesystems=stale_target_destroys, recursive=True)
+    else:
+        verbose("Stale filesystems on {0}, use --destroy-stale to destroy:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
 
 
-source_destroys=get_destroy_list(source_obsolete_snapshots, args.keep_source)
+#now actually destroy the old snapshots
+source_destroys=determine_destroy_list(source_obsolete_snapshots, args.keep_source)
 if source_destroys:
     verbose("Destroying old snapshots on source {0}:\n{1}".format(args.ssh_source, "\n".join(source_destroys)))
-    zfs_destroy(ssh_to=args.ssh_source, filesystems=source_destroys)
+    zfs_destroy_snapshots(ssh_to=args.ssh_source, snapshots=source_destroys)
 
-target_destroys=get_destroy_list(target_obsolete_snapshots, args.keep_target)
+target_destroys=determine_destroy_list(target_obsolete_snapshots, args.keep_target)
 if target_destroys:
     verbose("Destroying old snapshots on target {0}:\n{1}".format(args.ssh_target, "\n".join(target_destroys)))
-    zfs_destroy(ssh_to=args.ssh_target, filesystems=target_destroys)
+    zfs_destroy_snapshots(ssh_to=args.ssh_target, snapshots=target_destroys)
 
 
 verbose("All done")
