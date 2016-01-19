@@ -134,6 +134,20 @@ All done
 
 ```
 
+Restore example
+===============
+
+Restoring can be done with simple zfs commands. For example, use this to restore a specific SmartOS disk image to a temporary restore location:
+
+
+```
+root@fs1:/home/psy#  zfs send fs1/zones/backup/zfsbackups/smartos01.server.com/zones/a3abd6c8-24c6-4125-9e35-192e2eca5908-disk0@smartos01_fs1-20160110000003 | ssh root@2.2.2.2 "zfs recv zones/restore"
+```
+
+After that you can rename the disk image from the temporary location to the location of a new SmartOS machine you've created.
+
+
+
 Monitoring with Zabbix-jobs
 ===========================
 
