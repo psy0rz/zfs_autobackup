@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*- 
+# -*- coding: utf8 -*-
 
 from __future__ import print_function
 import os
@@ -195,7 +195,7 @@ specify buffer_size to use mbuffer (or alike) to apply buffering where neccesary
 local to local:
 local send -> local buffer -> local receive
 
-local to remote and remote to local: 
+local to remote and remote to local:
 local send -> local buffer -> ssh -> remote buffer -> remote receive
 remote send -> remote buffer -> ssh -> local buffer -> local receive
 
@@ -271,12 +271,12 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     if source_proc.returncode:
         raise(subprocess.CalledProcessError(source_proc.returncode, source_cmd))
 
-    #zfs recv sometimes gives an exitcode 1 while the transfer was succesfull, therefore we ignore exit 1's and do an extra check to see if the snapshot is there.    
+    #zfs recv sometimes gives an exitcode 1 while the transfer was succesfull, therefore we ignore exit 1's and do an extra check to see if the snapshot is there.
     if target_proc.returncode and target_proc.returncode!=1:
         raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
 
     debug("Verifying if snapshot exists on target")
-    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])    
+    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])
 
 
 
@@ -293,7 +293,7 @@ def zfs_get_backupped_filesystems(ssh_to, backup_name, target_fs):
 
 """get filesystems that where once backupped to target but are no longer selected on source
 
-these are filesystems that are not in the list in target_filesystems. 
+these are filesystems that are not in the list in target_filesystems.
 
 this happens when filesystems are destroyed or unselected on the source.
 """
@@ -348,6 +348,7 @@ parser.add_argument('--no-snapshot', action='store_true', help='dont create new 
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
 
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
+parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes.')
 
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
@@ -451,8 +452,14 @@ for source_filesystem in source_filesystems:
                     ssh_target=args.ssh_target, target_filesystem=target_filesystem)
 
                 #now that we succesfully transferred this snapshot, the previous snapshot is obsolete:
-                target_obsolete_snapshots[target_filesystem].append(latest_target_snapshot)
-                source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
+                if latest_target_snapshot:
+                    target_obsolete_snapshots[target_filesystem].append(latest_target_snapshot)
+                    source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
+                #we just received a new filesytem?
+                else:
+                    if args.clear_refreservation:
+                        debug("Clearing refreservation to save space.")
+                        run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "refreservation=none", target_filesystem ])
 
                 latest_target_snapshot=send_snapshot
 
@@ -499,4 +506,3 @@ if target_destroys:
 
 
 verbose("All done")
-
