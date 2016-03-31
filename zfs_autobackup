@@ -349,6 +349,8 @@ parser.add_argument('--no-send', action='store_true', help='dont send snapshots 
 
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
 parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes.')
+parser.add_argument('--clear-mountpoint', action='store_true', help='Clear mountpoint property, to prevent the received filesystem from mounting over existing filesystems.')
+parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
 
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
@@ -446,7 +448,14 @@ for source_filesystem in source_filesystems:
 
         #now actually send the snapshots
         if not args.no_send:
+
+            if send_snapshots and args.rollback and latest_target_snapshot:
+                #roll back any changes on target
+                debug("Rolling back target to latest snapshot.")
+                run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
+
             for send_snapshot in send_snapshots:
+
                 zfs_transfer(
                     ssh_source=args.ssh_source, source_filesystem=source_filesystem, first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
                     ssh_target=args.ssh_target, target_filesystem=target_filesystem)
@@ -460,6 +469,10 @@ for source_filesystem in source_filesystems:
                     if args.clear_refreservation:
                         debug("Clearing refreservation to save space.")
                         run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "refreservation=none", target_filesystem ])
+
+                    if args.clear_mountpoint:
+                        debug("Clearing mountpoint property to prevent mounting in the wrong place.")
+                        run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "inherit", "mountpoint", target_filesystem ])
 
                 latest_target_snapshot=send_snapshot
 
