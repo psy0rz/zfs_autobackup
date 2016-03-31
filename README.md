@@ -139,7 +139,8 @@ Tips
 ----
 
  * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback.
-
+ * Use ```--clear-refreservation``` to save space on your backup server.
+ * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console. 
 
 Restore example
 ===============
