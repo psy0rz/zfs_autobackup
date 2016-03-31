@@ -98,6 +98,7 @@ zones/backup/fs1                                    autobackup:smartos01_fs1  fa
 ...
 ```
 
+
 Running zfs_autobackup
 ----------------------
 There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
@@ -133,6 +134,12 @@ Method 2: Run the script on the server and push the data to the backup server sp
 All done
 
 ```
+
+Tips
+----
+
+ * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback.
+
 
 Restore example
 ===============
