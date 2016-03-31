@@ -28,8 +28,10 @@ Usage
 ```
 usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--ssh-cipher SSH_CIPHER] [--keep-source KEEP_SOURCE]
-                      [--keep-target KEEP_TARGET] [--finish] [--compress]
-                      [--test] [--verbose] [--debug]
+                      [--keep-target KEEP_TARGET] [--no-snapshot] [--no-send]
+                      [--destroy-stale] [--clear-refreservation]
+                      [--clear-mountpoint] [--rollback] [--compress] [--test]
+                      [--verbose] [--debug]
                       backup_name target_fs
 
 ZFS autobackup v2.0
@@ -51,16 +53,32 @@ optional arguments:
   --ssh-cipher SSH_CIPHER
                         SSH cipher to use (default arcfour128)
   --keep-source KEEP_SOURCE
-                        Number of old snapshots to keep on source. Default 30.
+                        Number of days to keep old snapshots on source.
+                        Default 30.
   --keep-target KEEP_TARGET
-                        Number of old snapshots to keep on target. Default 30.
-  --finish              dont create new snapshot, just finish sending current
-                        snapshots
-  --compress            use compression during zfs send/recv
-  --test                dont change anything, just show what would be done
-                        (still does all read-only operations)
-  --verbose             verbose output
-  --debug               debug output (shows commands that are executed)
+                        Number of days to keep old snapshots on target.
+                        Default 30.
+  --no-snapshot         dont create new snapshot (usefull for finishing
+                        uncompleted backups, or cleanups)
+  --no-send             dont send snapshots (usefull to only do a cleanup)
+  --destroy-stale       Destroy stale backups that have no more snapshots. Be
+                        sure to verify the output before using this!
+  --clear-refreservation
+                        Set refreservation property to none for new                                                                                                                                                                                                            
+                        filesystems. Usefull when backupping SmartOS volumes.                                                                                                                                                                                                  
+  --clear-mountpoint    Clear mountpoint property, to prevent the received                                                                                                                                                                                                     
+                        filesystem from mounting over existing filesystems.                                                                                                                                                                                                    
+  --rollback            Rollback changes on the target before starting a                                                                                                                                                                                                       
+                        backup. (normally you can prevent changes by setting                                                                                                                                                                                                   
+                        the readonly property on the target_fs to on)                                                                                                                                                                                                          
+  --compress            use compression during zfs send/recv                                                                                                                                                                                                                   
+  --test                dont change anything, just show what would be done                                                                                                                                                                                                     
+                        (still does all read-only operations)                                                                                                                                                                                                                  
+  --verbose             verbose output                                                                                                                                                                                                                                         
+  --debug               debug output (shows commands that are executed)                                             
+  
+
+
 ```
 
 Example
@@ -138,7 +156,7 @@ All done
 Tips
 ----
 
- * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback.
+ * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
  * Use ```--clear-refreservation``` to save space on your backup server.
  * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console. 
 
