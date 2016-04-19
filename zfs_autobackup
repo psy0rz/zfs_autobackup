@@ -348,8 +348,8 @@ parser.add_argument('--no-snapshot', action='store_true', help='dont create new 
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
 
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes.')
-parser.add_argument('--clear-mountpoint', action='store_true', help='Clear mountpoint property, to prevent the received filesystem from mounting over existing filesystems.')
+parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
+parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
 
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
@@ -471,8 +471,8 @@ for source_filesystem in source_filesystems:
                         run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "refreservation=none", target_filesystem ])
 
                     if args.clear_mountpoint:
-                        debug("Clearing mountpoint property to prevent mounting in the wrong place.")
-                        run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "inherit", "mountpoint", target_filesystem ])
+                        debug("Setting canmount=noauto to prevent auto-mounting in the wrong place. (ignoring errors)")
+                        run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "canmount=noauto", target_filesystem ], valid_exitcodes= [0, 1] )
 
                 latest_target_snapshot=send_snapshot
 
