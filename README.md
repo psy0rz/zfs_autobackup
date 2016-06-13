@@ -81,8 +81,8 @@ optional arguments:
 
 ```
 
-Example
-=======
+Backup example
+==============
 
 In this example we're going to backup a SmartOS machine called `smartos01` to our fileserver called `fs1`.
 
@@ -171,6 +171,18 @@ root@fs1:/home/psy#  zfs send fs1/zones/backup/zfsbackups/smartos01.server.com/z
 ```
 
 After that you can rename the disk image from the temporary location to the location of a new SmartOS machine you've created.
+
+Snapshotting example
+====================
+
+Sending huge snapshots cant be resumed when a connection is interrupted: Next time zfs_autobackup is started, the whole snapshot will be transferred again. For this reason you might want to have multiple small snapshots.
+
+The --no-send option can be usefull for this. This way you can already create small snapshots every few hours:
+````
+[root@smartos2 ~]# zfs_autobackup --ssh-source root@smartos1 smartos1_freenas1 zones --verbose --ssh-cipher chacha20-poly1305@openssh.com --no-send 
+````
+
+Later when our freenas1 server is ready we can use the same command without the --no-send at freenas1. At that point the server will receive all the small snapshots up to that point.
 
 
 
