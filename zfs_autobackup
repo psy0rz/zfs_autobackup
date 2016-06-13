@@ -329,6 +329,11 @@ def determine_destroy_list(snapshots, days):
     return(ret)
 
 
+def lstrip_path(path, count):
+    return("/".join(path.split("/")[count:]))
+
+
+
 ################################################################## ENTRY POINT
 
 
@@ -347,10 +352,14 @@ parser.add_argument('target_fs',    help='Target filesystem')
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
 
+parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+
+
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
 parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
 parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
+
 
 parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
@@ -372,14 +381,15 @@ source_filesystems=zfs_get_selected_filesystems(args.ssh_source, args.backup_nam
 
 #nothing todo
 if not source_filesystems:
-    error("No filesystems source selected, please set autobackup:{0} on {1}".format(args.backup_name,args.ssh_source))
+    error("No filesystems source selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(args.backup_name,args.ssh_source))
     sys.exit(1)
 
 
-#determine target filesystems (just append args.target_fs prefix)
+#determine target filesystems
 target_filesystems=[]
 for source_filesystem in source_filesystems:
-    target_filesystems.append(args.target_fs+"/"+source_filesystem)
+    #append args.target_fs prefix and strip args.strip_path paths from source_filesystem
+    target_filesystems.append(args.target_fs + "/" + lstrip_path(source_filesystem, args.strip_path))
 
 #create new snapshot?
 if not args.no_snapshot:
@@ -412,7 +422,7 @@ target_obsolete_snapshots={}
 
 #determine which snapshots to send for each filesystem
 for source_filesystem in source_filesystems:
-    target_filesystem=args.target_fs+"/"+source_filesystem
+    target_filesystem=args.target_fs + "/" + lstrip_path(source_filesystem, args.strip_path)
 
     if source_filesystem not in source_snapshots:
         #this happens if you use --no-snapshot and there are new filesystems without snapshots
