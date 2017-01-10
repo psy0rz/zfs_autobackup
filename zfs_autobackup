@@ -37,7 +37,9 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
 
     #use ssh?
     if ssh_to != "local":
-        encoded_cmd.extend(["ssh", "-c", args.ssh_cipher, ssh_to])
+        encoded_cmd.extend(["ssh", ssh_to])
+        if args.ssh_cipher:
+            encoded_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
             encoded_cmd.append("-C")
 
@@ -213,7 +215,9 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     source_cmd=[]
 
     if ssh_source != "local":
-        source_cmd.extend([ "ssh", "-c", args.ssh_cipher, ssh_source ])
+        source_cmd.extend([ "ssh", ssh_source ])
+        if args.ssh_cipher:
+            source_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
             source_cmd.append("-C")
 
@@ -240,7 +244,9 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     target_cmd=[]
 
     if ssh_target != "local":
-        target_cmd.extend([ "ssh", "-c", args.ssh_cipher, ssh_target ])
+        target_cmd.extend([ "ssh", ssh_target ])
+        if args.ssh_cipher:
+            target_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
             target_cmd.append("-C")
 
@@ -347,7 +353,7 @@ import argparse
 parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-parser.add_argument('--ssh-cipher', default="arcfour128", help='SSH cipher to use (default  %(default)s)')
+parser.add_argument('--ssh-cipher', default=None, help='SSH cipher to use (default  %(default)s)')
 parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
 parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
@@ -447,7 +453,14 @@ for source_filesystem in source_filesystems:
             latest_target_snapshot=target_snapshots[target_filesystem][-1]
 
             if latest_target_snapshot not in source_snapshots[source_filesystem]:
-                raise(Exception("Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot))
+        	#cant find latest target anymore. find first common snapshot and inform user
+        	error="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
+        	for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
+        	    if latest_target_snapshot in source_snapshots[source_filesystem]:
+        		error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
+        		break
+            
+                raise(Exception(error))
 
             #send all new source snapshots that come AFTER the last target snapshot
             latest_source_index=source_snapshots[source_filesystem].index(latest_target_snapshot)
