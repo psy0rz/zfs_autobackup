@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 
+#(C) Edwin Eefting edwin@datux.nl - Released under GPL v2.
+
 from __future__ import print_function
 import os
 import sys
@@ -157,6 +159,8 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
 
 """get names of all snapshots for specified filesystems belonging to backup_name
 
+if backup_name=None it will get all snapshots
+
 return[filesystem_name]=[ "snashot1", "snapshot2", ... ]
 """
 def zfs_get_snapshots(ssh_to, filesystems, backup_name):
@@ -170,7 +174,7 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
     ret={}
     for snapshot in snapshots:
         (filesystem, snapshot_name)=snapshot.split("@")
-        if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
+        if not backup_name or re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
             if not filesystem in ret:
                 ret[filesystem]=[]
             ret[filesystem].append(snapshot_name)
@@ -352,7 +356,8 @@ parser.add_argument('target_fs',    help='Target filesystem')
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
 
-parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+parser.add_argument('--strip-path', default=0, type=int, help='number of directories to strip from path (1 when cloning zones between 2 SmartOS machines for HA setup)')
+parser.add_argument('--other-snapshots', default=0, type=int, help='send other snapshots as well, not just the ones created by zfs_autobackup.')
 
 
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
@@ -397,15 +402,20 @@ if not args.no_snapshot:
     verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
     zfs_create_snapshot(args.ssh_source, source_filesystems, new_snapshot_name)
 
+if args.other_snapshots:
+    snapshot_filter=args.backup_name
+else:
+    snapshot_filter=None
+
 #get all snapshots of all selected filesystems on both source and target
 verbose("Getting source snapshot-list from {0}".format(args.ssh_source))
-source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
+source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, snapshot_filter)
 debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
 
 target_snapshots={}
 try:
     verbose("Getting target snapshot-list from {0}".format(args.ssh_target))
-    target_snapshots=zfs_get_snapshots(args.ssh_target, target_filesystems, args.backup_name)
+    target_snapshots=zfs_get_snapshots(args.ssh_target, target_filesystems, snapshot_filter)
 except subprocess.CalledProcessError:
     verbose("(ignoring errors, probably initial backup for this filesystem)")
     pass
