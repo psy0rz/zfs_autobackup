@@ -228,7 +228,10 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         verbose("Tranferring "+source_filesystem+" incremental backup between snapshots "+first_snapshot+"..."+second_snapshot)
         source_cmd.extend([ "-i", first_snapshot ])
     # FIXME needs attention
-    source_cmd.append(source_filesystem.replace(' ', '\ ') + "@" + second_snapshot)
+    if ssh_source != "local":
+        source_cmd.append(source_filesystem.replace(' ', '\ ') + "@" + second_snapshot)
+    else:
+        source_cmd.append(source_filesystem + "@" + second_snapshot)
 
     # if ssh_source != "local":
     #     #add buffer
@@ -251,8 +254,10 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     if args.verbose or args.debug:
         target_cmd.append("-v")
     # FIXME needs attention
-    target_cmd.append(target_filesystem.replace(' ', '\ '))
-
+    if ssh_target != "local":
+        target_cmd.append(target_filesystem.replace(' ', '\ '))
+    else:
+        target_cmd.append(target_filesystem)
 
     #### make sure parent on target exists
     parent_filesystem= "/".join(target_filesystem.split("/")[:-1])
