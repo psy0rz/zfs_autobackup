@@ -443,13 +443,13 @@ for source_filesystem in source_filesystems:
             latest_target_snapshot=target_snapshots[target_filesystem][-1]
 
             if latest_target_snapshot not in source_snapshots[source_filesystem]:
-        	#cant find latest target anymore. find first common snapshot and inform user
-        	error="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
-        	for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
-        	    if latest_target_snapshot in source_snapshots[source_filesystem]:
-        		error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
-        		break
-            
+            #cant find latest target anymore. find first common snapshot and inform user
+            error="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
+            for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
+                if latest_target_snapshot in source_snapshots[source_filesystem]:
+                error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
+                break
+
                 raise(Exception(error))
 
             #send all new source snapshots that come AFTER the last target snapshot
