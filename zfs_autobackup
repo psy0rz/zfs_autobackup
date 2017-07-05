@@ -288,7 +288,9 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
 
     debug("Verifying if snapshot exists on target")
-    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])
+    run(ssh_to=ssh_target, input=target_filesystem+"@"+second_snapshot + "\0", cmd=
+        [ "xargs", "-0", "-n", "1", "zfs", "list" ]
+    )
 
 
 
