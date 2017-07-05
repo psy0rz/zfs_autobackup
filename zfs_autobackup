@@ -274,7 +274,6 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     else:
         debug(debug_txt)
 
-    # FIXME could break on spaces
     source_proc=subprocess.Popen(source_cmd, env=os.environ, stdout=subprocess.PIPE)
     target_proc=subprocess.Popen(target_cmd, env=os.environ, stdin=source_proc.stdout)
     source_proc.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
@@ -538,7 +537,7 @@ target_obsolete_snapshots.update(stale_target_snapshots)
 stale_target_destroys=[]
 for stale_target_filesystem in stale_target_filesystems:
     if stale_target_filesystem not in stale_target_snapshots:
-            stale_target_destroys.append(stale_target_filesystem)
+        stale_target_destroys.append(stale_target_filesystem)
 
 if stale_target_destroys:
     if args.destroy_stale:
