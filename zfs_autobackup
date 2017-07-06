@@ -443,14 +443,14 @@ for source_filesystem in source_filesystems:
             latest_target_snapshot=target_snapshots[target_filesystem][-1]
 
             if latest_target_snapshot not in source_snapshots[source_filesystem]:
-            #cant find latest target anymore. find first common snapshot and inform user
-            error="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
-            for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
-                if latest_target_snapshot in source_snapshots[source_filesystem]:
-                error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
-                break
+                #cant find latest target anymore. find first common snapshot and inform user
+                error="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
+                for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
+                    if latest_target_snapshot in source_snapshots[source_filesystem]:
+                    error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
+                    break
 
-                raise(Exception(error))
+                    raise(Exception(error))
 
             #send all new source snapshots that come AFTER the last target snapshot
             latest_source_index=source_snapshots[source_filesystem].index(latest_target_snapshot)
@@ -480,8 +480,10 @@ for source_filesystem in source_filesystems:
             for send_snapshot in send_snapshots:
 
                 zfs_transfer(
-                    ssh_source=args.ssh_source, source_filesystem=source_filesystem, first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
-                    ssh_target=args.ssh_target, target_filesystem=target_filesystem)
+                    ssh_source=args.ssh_source, source_filesystem=source_filesystem,
+                    first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
+                    ssh_target=args.ssh_target, target_filesystem=target_filesystem
+                )
 
                 #now that we succesfully transferred this snapshot, the previous snapshot is obsolete:
                 if latest_target_snapshot:
