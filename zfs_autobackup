@@ -454,10 +454,10 @@ for source_filesystem in source_filesystems:
                 error="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
                 for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
                     if latest_target_snapshot in source_snapshots[source_filesystem]:
-                    error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
-                    break
+                        error=error+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
+                        break
 
-                    raise(Exception(error))
+                raise(Exception(error))
 
             #send all new source snapshots that come AFTER the last target snapshot
             latest_source_index=source_snapshots[source_filesystem].index(latest_target_snapshot)
