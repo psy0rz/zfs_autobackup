@@ -164,12 +164,13 @@ return[filesystem_name]=[ "snashot1", "snapshot2", ... ]
 """
 def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
+    ret={}
+
     if filesystems:
         snapshots=run(ssh_to=ssh_to, input="\0".join(filesystems), valid_exitcodes=[ 0,1 ], cmd=
             [ "xargs", "-0", "-n", "1", "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name" ]
         )
 
-        ret={}
         for snapshot in snapshots:
             (filesystem, snapshot_name)=snapshot.split("@")
             if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
@@ -186,7 +187,7 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
                             ret[filesystem]=[]
                         ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
-        return(ret)
+    return(ret)
 
 
 
