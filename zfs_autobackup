@@ -186,7 +186,7 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
                             ret[filesystem]=[]
                         ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
-    return(ret)
+        return(ret)
 
 
 
