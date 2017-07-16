@@ -164,26 +164,28 @@ return[filesystem_name]=[ "snashot1", "snapshot2", ... ]
 """
 def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
-    snapshots=run(ssh_to=ssh_to, input="\0".join(filesystems), valid_exitcodes=[ 0,1 ], cmd=
-        [ "xargs", "-0", "-n", "1", "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name" ]
-    )
-
     ret={}
-    for snapshot in snapshots:
-        (filesystem, snapshot_name)=snapshot.split("@")
-        if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
-            if not filesystem in ret:
-                ret[filesystem]=[]
-            ret[filesystem].append(snapshot_name)
 
-    #also add any test-snapshots that where created with --test mode
-    if args.test:
-        if ssh_to in test_snapshots:
-            for filesystem in filesystems:
-                if filesystem in test_snapshots[ssh_to]:
-                    if not filesystem in ret:
-                        ret[filesystem]=[]
-                    ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
+    if filesystems:
+        snapshots=run(ssh_to=ssh_to, input="\0".join(filesystems), valid_exitcodes=[ 0,1 ], cmd=
+            [ "xargs", "-0", "-n", "1", "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name" ]
+        )
+
+        for snapshot in snapshots:
+            (filesystem, snapshot_name)=snapshot.split("@")
+            if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
+                if not filesystem in ret:
+                    ret[filesystem]=[]
+                ret[filesystem].append(snapshot_name)
+
+        #also add any test-snapshots that where created with --test mode
+        if args.test:
+            if ssh_to in test_snapshots:
+                for filesystem in filesystems:
+                    if filesystem in test_snapshots[ssh_to]:
+                        if not filesystem in ret:
+                            ret[filesystem]=[]
+                        ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
     return(ret)
 
