@@ -14,7 +14,7 @@ It has the following features:
   * Backup local data on the same server.
 * Can be scheduled via a simple cronjob or run directly from commandline.
 * Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
-* Always creates new snapshots, even if the previous backup was aborted.
+* Always creates a new snapshot before starting. 
 * Checks everything and aborts on errors.
 * Ability to 'finish' aborted backups to see what goes wrong.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
