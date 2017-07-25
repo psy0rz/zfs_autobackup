@@ -9,9 +9,9 @@ It has the following features:
 * Automaticly selects filesystems to backup by looking at a simple ZFS property.
 * Creates consistent snapshots.
 * Multiple backups modes: 
- * "push" local data to a backup-server via SSH.
- * "pull" remote data from a server via SSH and backup it locally.
- * Backup local data on the same server.
+  * "push" local data to a backup-server via SSH.
+  * "pull" remote data from a server via SSH and backup it locally.
+  * Backup local data on the same server.
 * Can be scheduled via a simple cronjob or run directly from commandline.
 * Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
 * Always creates new snapshots, even if the previous backup was aborted.
@@ -20,8 +20,8 @@ It has the following features:
 * Easy to debug and has a test-mode. Actual unix commands are printed.
 * Keeps latest X snapshots remote and locally. (default 30, configurable)
 * Easy installation:
- * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
- * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
+  * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
+  * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
 
 Usage
 ====
