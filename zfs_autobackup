@@ -33,6 +33,7 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
 
     encoded_cmd=[]
 
+
     #use ssh?
     if ssh_to != "local":
         encoded_cmd.extend(["ssh", ssh_to])
@@ -41,14 +42,22 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
         if args.compress:
             encoded_cmd.append("-C")
 
-    #make sure the command gets all the data in utf8 format:
-    #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
-    for arg in cmd:
-        encoded_cmd.append(arg.encode('utf-8'))
+
+        #make sure the command gets all the data in utf8 format:
+        #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
+        for arg in cmd:
+            #add single quotes for remote commands to support spaces and other wierd stuff (remote commands are executed in a shell)
+            encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
+
+    else:
+        for arg in cmd:
+            encoded_cmd.append(arg.encode('utf-8'))
+
+
     #the accurate way of displaying it whould be: print encoded_cmd
     #However, we use the more human-readable way, but this is not always properly escaped!
     #(most of the time it should be copypastable however.)
-    debug_txt="# "+encoded_cmd[0]+" '"+("' '".join(encoded_cmd[1:]))+"'"
+    debug_txt="# "+" ".join(encoded_cmd)
 
     if test:
         debug("[TEST] "+debug_txt)
