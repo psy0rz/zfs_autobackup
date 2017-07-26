@@ -157,9 +157,10 @@ test_snapshots={}
 """create snapshot on multiple filesystems at once (atomicly)"""
 def zfs_create_snapshot(ssh_to, filesystems, snapshot):
 
-    snapshots=[]
+    cmd=[ "zfs", "snapshot" ]
+
     for filesystem in filesystems:
-        snapshots.append(filesystem+"@"+snapshot)
+        cmd.append(filesystem+"@"+snapshot)
 
         #in testmode we dont actually make changes, so keep them in a list to simulate
         if args.test:
@@ -169,9 +170,7 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
                 test_snapshots[ssh_to][filesystem]=[]
             test_snapshots[ssh_to][filesystem].append(snapshot)
 
-    run(ssh_to=ssh_to, test=args.test, input="\0".join(snapshots), cmd=
-        [ "xargs", "-0", "-n", "1", "zfs", "snapshot" ]
-    )
+    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
 
 
 """get names of all snapshots for specified filesystems belonging to backup_name
@@ -184,9 +183,13 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
     if filesystems:
         #TODO: get rid of ugly errors for non-existing target filesystems
-        snapshots=run(ssh_to=ssh_to, input="\0".join(filesystems), valid_exitcodes=[ 0,1 ], cmd=
-            [ "xargs", "-0", "-n", "1", "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name" ]
-        )
+        cmd=[
+            "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name"
+        ]
+        cmd.extend(filesystems)
+
+        snapshots=run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0,1 ])
+
 
         for snapshot in snapshots:
             (filesystem, snapshot_name)=snapshot.split("@")
@@ -265,11 +268,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         if first_snapshot:
             source_cmd.extend([ "-i", first_snapshot ])
 
-        # FIXME needs attention
-        if ssh_source != "local":
-            source_cmd.append(source_filesystem.replace(' ', '\ ') + "@" + second_snapshot)
-        else:
-            source_cmd.append(source_filesystem + "@" + second_snapshot)
+        source_cmd.append(source_filesystem + "@" + second_snapshot)
 
         verbose(txt)
 
@@ -293,19 +292,13 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         target_cmd.append("-s")
 
 
-    # FIXME needs attention
-    if ssh_target != "local":
-        target_cmd.append(target_filesystem.replace(' ', '\ '))
-    else:
-        target_cmd.append(target_filesystem)
+    target_cmd.append(target_filesystem)
 
 
 
     #### make sure parent on target exists
     parent_filesystem= "/".join(target_filesystem.split("/")[:-1])
-    run(ssh_to=ssh_target, test=args.test, input=parent_filesystem + "\0", cmd=
-        [ "xargs", "-0", "-n", "1", "zfs", "create" ,"-p" ]
-    )
+    run(ssh_to=ssh_target, cmd=[ "zfs", "create" ,"-p", parent_filesystem ], test=args.test)
 
     ### execute pipe
     debug_txt="# "+source_cmd[0]+" '"+("' '".join(source_cmd[1:]))+"'" + " | " + target_cmd[0]+" '"+("' '".join(target_cmd[1:]))+"'"
@@ -329,9 +322,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
 
     debug("Verifying if snapshot exists on target")
-    run(ssh_to=ssh_target, input=target_filesystem+"@"+second_snapshot + "\0", cmd=
-        [ "xargs", "-0", "-n", "1", "zfs", "list" ]
-    )
+    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])
 
 
 
@@ -510,10 +501,8 @@ def zfs_autobackup():
                 if send_snapshots and args.rollback and latest_target_snapshot:
                     #roll back any changes on target
                     debug("Rolling back target to latest snapshot.")
+                    run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
 
-                    run(ssh_to=args.ssh_target, test=args.test, input=target_filesystem+"@"+latest_target_snapshot + "\0", cmd=
-                        [ "xargs", "-0", "-n", "1", "zfs", "rollback" ]
-                    )
 
                 for send_snapshot in send_snapshots:
 
@@ -541,17 +530,13 @@ def zfs_autobackup():
                         if args.clear_refreservation:
                             debug("Clearing refreservation to save space.")
 
-                            run(ssh_to=args.ssh_target, test=args.test, input=target_filesystem + "\0", cmd=
-                                [ "xargs", "-0", "-n", "1", "zfs", "set", "refreservation=none" ]
-                            )
+                            run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "refreservation=none", target_filesystem ])
 
 
                         if args.clear_mountpoint:
                             debug("Setting canmount=noauto to prevent auto-mounting in the wrong place. (ignoring errors)")
 
-                            run(ssh_to=args.ssh_target, test=args.test, input=target_filesystem + "\0", valid_exitcodes= [0, 1], cmd=
-                                [ "xargs", "-0", "-n", "1", "zfs", "set", "canmount=noauto" ]
-                            )
+                            run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "canmount=noauto", target_filesystem ], valid_exitcodes= [0, 1] )
 
 
                     latest_target_snapshot=send_snapshot
