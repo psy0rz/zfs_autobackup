@@ -45,9 +45,11 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
 
         #make sure the command gets all the data in utf8 format:
         #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
+        encoded_cmd.append('"')
         for arg in cmd:
             #add single quotes for remote commands to support spaces and other wierd stuff (remote commands are executed in a shell)
             encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
+        encoded_cmd.append('"')
 
     else:
         for arg in cmd:
