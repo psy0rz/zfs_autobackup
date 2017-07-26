@@ -606,7 +606,7 @@ def zfs_autobackup():
 
 # parse arguments
 import argparse
-parser = argparse.ArgumentParser(description='ZFS autobackup v2.0')
+parser = argparse.ArgumentParser(description='ZFS autobackup v2.1')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
 parser.add_argument('--ssh-cipher', default=None, help='SSH cipher to use (default  %(default)s)')

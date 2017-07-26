@@ -8,13 +8,14 @@ ZFS autobackup is used to periodicly backup ZFS filesystems to other locations. 
 It has the following features:
 * Automaticly selects filesystems to backup by looking at a simple ZFS property.
 * Creates consistent snapshots.
-* Multiple backups modes: 
+* Multiple backups modes:
   * "push" local data to a backup-server via SSH.
   * "pull" remote data from a server via SSH and backup it locally.
   * Backup local data on the same server.
 * Can be scheduled via a simple cronjob or run directly from commandline.
+* Supports resuming of interrupted transfers. (via the zfs extensible_dataset feature)
 * Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
-* Always creates a new snapshot before starting. 
+* Always creates a new snapshot before starting.
 * Checks everything and aborts on errors.
 * Ability to 'finish' aborted backups to see what goes wrong.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
@@ -29,12 +30,12 @@ Usage
 usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--ssh-cipher SSH_CIPHER] [--keep-source KEEP_SOURCE]
                       [--keep-target KEEP_TARGET] [--no-snapshot] [--no-send]
-                      [--destroy-stale] [--clear-refreservation]
-                      [--clear-mountpoint] [--rollback] [--compress] [--test]
-                      [--verbose] [--debug]
+                      [--resume] [--strip-path STRIP_PATH] [--destroy-stale]
+                      [--clear-refreservation] [--clear-mountpoint]
+                      [--rollback] [--compress] [--test] [--verbose] [--debug]
                       backup_name target_fs
 
-ZFS autobackup v2.0
+ZFS autobackup v2.1
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
@@ -51,7 +52,7 @@ optional arguments:
                         Target host to push backup to. (user@hostname) Default
                         local.
   --ssh-cipher SSH_CIPHER
-                        SSH cipher to use (default arcfour128)
+                        SSH cipher to use (default None)
   --keep-source KEEP_SOURCE
                         Number of days to keep old snapshots on source.
                         Default 30.
@@ -61,24 +62,29 @@ optional arguments:
   --no-snapshot         dont create new snapshot (usefull for finishing
                         uncompleted backups, or cleanups)
   --no-send             dont send snapshots (usefull to only do a cleanup)
+  --resume              support resuming of interrupted transfers by using the
+                        zfs extensible_dataset feature (both zpools should
+                        have it enabled)
+  --strip-path STRIP_PATH
+                        number of directory to strip from path (use 1 when
+                        cloning zones between 2 SmartOS machines)
   --destroy-stale       Destroy stale backups that have no more snapshots. Be
                         sure to verify the output before using this!
   --clear-refreservation
-                        Set refreservation property to none for new                                                                                                                                                                                                            
-                        filesystems. Usefull when backupping SmartOS volumes.                                                                                                                                                                                                  
-  --clear-mountpoint    Clear mountpoint property, to prevent the received                                                                                                                                                                                                     
-                        filesystem from mounting over existing filesystems.                                                                                                                                                                                                    
-  --rollback            Rollback changes on the target before starting a                                                                                                                                                                                                       
-                        backup. (normally you can prevent changes by setting                                                                                                                                                                                                   
-                        the readonly property on the target_fs to on)                                                                                                                                                                                                          
-  --compress            use compression during zfs send/recv                                                                                                                                                                                                                   
-  --test                dont change anything, just show what would be done                                                                                                                                                                                                     
-                        (still does all read-only operations)                                                                                                                                                                                                                  
-  --verbose             verbose output                                                                                                                                                                                                                                         
-  --debug               debug output (shows commands that are executed)                                             
-  
-
-
+                        Set refreservation property to none for new
+                        filesystems. Usefull when backupping SmartOS volumes.
+                        (recommended)
+  --clear-mountpoint    Sets canmount=noauto property, to prevent the received
+                        filesystem from mounting over existing filesystems.
+                        (recommended)
+  --rollback            Rollback changes on the target before starting a
+                        backup. (normally you can prevent changes by setting
+                        the readonly property on the target_fs to on)
+  --compress            use compression during zfs send/recv
+  --test                dont change anything, just show what would be done
+                        (still does all read-only operations)
+  --verbose             verbose output
+  --debug               debug output (shows commands that are executed)
 ```
 
 Backup example
@@ -147,7 +153,7 @@ All done
 
 Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target:
 ```
-./zfs_autobackup --ssh-target root@2.2.2.2 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose  --compress 
+./zfs_autobackup --ssh-target root@2.2.2.2 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose  --compress
 ...
 All done
 
@@ -158,7 +164,7 @@ Tips
 
  * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
  * Use ```--clear-refreservation``` to save space on your backup server.
- * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console. 
+ * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console.
 
 Restore example
 ===============
@@ -179,7 +185,7 @@ Sending huge snapshots cant be resumed when a connection is interrupted: Next ti
 
 The --no-send option can be usefull for this. This way you can already create small snapshots every few hours:
 ````
-[root@smartos2 ~]# zfs_autobackup --ssh-source root@smartos1 smartos1_freenas1 zones --verbose --ssh-cipher chacha20-poly1305@openssh.com --no-send 
+[root@smartos2 ~]# zfs_autobackup --ssh-source root@smartos1 smartos1_freenas1 zones --verbose --ssh-cipher chacha20-poly1305@openssh.com --no-send
 ````
 
 Later when our freenas1 server is ready we can use the same command without the --no-send at freenas1. At that point the server will receive all the small snapshots up to that point.
