@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
-
-
-
-
 from __future__ import print_function
 import os
 import sys
@@ -18,171 +14,170 @@ import time
 def error(txt):
     print(txt, file=sys.stderr)
 
-
-
 def verbose(txt):
     if args.verbose:
         print(txt)
-
-
 
 def debug(txt):
     if args.debug:
         print(txt)
 
 
-"""run a command. specifiy ssh user@host to run remotely"""
-def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ], test=False):
+class Node(Object):
+    """an endpoint that contains zfs filesystems. can be local or remote"""
 
-    encoded_cmd=[]
+    def __init__(self, ssh_to='local'):
+        self.backup_name=backup_name
+        self.ssh_to=ssh_to
+
+    def run(cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
+        """run a command on the node"""
+
+        encoded_cmd=[]
+
+        #use ssh?
+        if self.ssh_to != "local":
+            encoded_cmd.extend(["ssh", self.ssh_to])
+            if args.ssh_cipher:
+                encoded_cmd.extend(["-c", args.ssh_cipher])
+            if args.compress:
+                encoded_cmd.append("-C")
+
+            #make sure the command gets all the data in utf8 format:
+            #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
+            for arg in cmd:
+                #add single quotes for remote commands to support spaces and other wierd stuff (remote commands are executed in a shell)
+                encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
+
+        else:
+            for arg in cmd:
+                encoded_cmd.append(arg.encode('utf-8'))
+
+        #debug and test stuff
+        debug_txt="# "+" ".join(encoded_cmd)
+
+        if test:
+            debug("[SKIPPING] "+debug_txt)
+        else:
+            debug(debug_txt)
+
+        if input:
+            debug("INPUT:\n"+input.rstrip())
+            stdin=subprocess.PIPE
+        else:
+            stdin=None
+
+        if test:
+            return
+
+        #execute and parse/return results
+        p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin)
+        output=p.communicate(input=input)[0]
+        if p.returncode not in valid_exitcodes:
+            raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
+
+        lines=output.splitlines()
+        if not tab_split:
+            return(lines)
+        else:
+            ret=[]
+            for line in lines:
+                ret.append(line.split("\t"))
+            return(ret)
 
 
-    #use ssh?
-    if ssh_to != "local":
-        encoded_cmd.extend(["ssh", ssh_to])
-        if args.ssh_cipher:
-            encoded_cmd.extend(["-c", args.ssh_cipher])
-        if args.compress:
-            encoded_cmd.append("-C")
+    def zfs_get_selected_filesystems():
+        """determine filesystems that should be backupped by looking at the special autobackup-property"""
+
+        #get all source filesystems that have the backup property
+        source_filesystems=self.run(tab_split=True, cmd=[
+            "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+args.backup_name
+        ])
+
+        #determine filesystems that should be actually backupped
+        selected_filesystems=[]
+        direct_filesystems=[]
+        for source_filesystem in source_filesystems:
+            (name,value,source)=source_filesystem
+            if value=="false":
+                verbose("Ignoring: {0} (disabled)".format(name))
+
+            else:
+                if source=="local":
+                    selected_filesystems.append(name)
+                    direct_filesystems.append(name)
+                    verbose("Selected: {0} (direct selection)".format(name))
+                elif source.find("inherited from ")==0:
+                    inherited_from=re.sub("^inherited from ", "", source)
+                    if inherited_from in direct_filesystems:
+                        selected_filesystems.append(name)
+                        verbose("Selected: {0} (inherited selection)".format(name))
+                    else:
+                        verbose("Ignored: {0} (already a backup)".format(name))
+                else:
+                    vebose("Ignored: {0} ({0})".format(source))
+
+        return(selected_filesystems)
 
 
-        #make sure the command gets all the data in utf8 format:
-        #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
-        for arg in cmd:
-            #add single quotes for remote commands to support spaces and other wierd stuff (remote commands are executed in a shell)
-            encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
+    def zfs_get_resumable_filesystems(filesystems):
+        """determine filesystems that can be resumed via receive_resume_token (should be executed on target)"""
 
-    else:
-        for arg in cmd:
-            encoded_cmd.append(arg.encode('utf-8'))
+        cmd=[ "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value", "-H", "receive_resume_token" ]
+        cmd.extend(filesystems)
 
+        resumable_filesystems=self.run(tab_split=True, cmd=cmd)
 
-    #the accurate way of displaying it whould be: print encoded_cmd
-    #However, we use the more human-readable way, but this is not always properly escaped!
-    #(most of the time it should be copypastable however.)
-    debug_txt="# "+" ".join(encoded_cmd)
+        ret={}
 
-    if test:
-        debug("[TEST] "+debug_txt)
-    else:
-        debug(debug_txt)
+        for (resumable_filesystem,token) in resumable_filesystems:
+            if token!='-':
+                ret[resumable_filesystem]=token
 
-    if input:
-        debug("INPUT:\n"+input.rstrip())
-        stdin=subprocess.PIPE
-    else:
-        stdin=None
-
-    if test:
-        return
-
-    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin)
-    output=p.communicate(input=input)[0]
-    if p.returncode not in valid_exitcodes:
-        raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
-
-    lines=output.splitlines()
-    if not tab_split:
-        return(lines)
-    else:
-        ret=[]
-        for line in lines:
-            ret.append(line.split("\t"))
         return(ret)
 
 
-"""determine filesystems that should be backupped by looking at the special autobackup-property"""
-def zfs_get_selected_filesystems(ssh_to, backup_name):
-    #get all source filesystems that have the backup property
-    source_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=[
-        "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+backup_name
-    ])
+    def zfs_destroy_snapshots(snapshots):
+        """deferred destroy list of snapshots (in @format). """
 
-    #determine filesystems that should be actually backupped
-    selected_filesystems=[]
-    direct_filesystems=[]
-    for source_filesystem in source_filesystems:
-        (name,value,source)=source_filesystem
-        if value=="false":
-            verbose("Ignoring: {0} (disabled)".format(name))
-
-        else:
-            if source=="local":
-                selected_filesystems.append(name)
-                direct_filesystems.append(name)
-                verbose("Selected: {0} (direct selection)".format(name))
-            elif source.find("inherited from ")==0:
-                inherited_from=re.sub("^inherited from ", "", source)
-                if inherited_from in direct_filesystems:
-                    selected_filesystems.append(name)
-                    verbose("Selected: {0} (inherited selection)".format(name))
-                else:
-                    verbose("Ignored: {0} (already a backup)".format(name))
-            else:
-                vebose("Ignored: {0} ({0})".format(source))
-
-    return(selected_filesystems)
+        #zfs can only destroy one filesystem at once so we use xargs and stdin
+        self.run(test=args.test, input="\0".join(snapshots), cmd=
+            [ "xargs", "-0", "-n", "1", "zfs", "destroy", "-d" ]
+        )
 
 
-"""determine filesystems that can be resumed via receive_resume_token"""
-def zfs_get_resumable_filesystems(ssh_to, filesystems):
+    def zfs_destroy(filesystems, recursive=False):
+        """destroy list of filesystems """
 
-    cmd=[ "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value", "-H", "receive_resume_token" ]
-    cmd.extend(filesystems)
+        cmd=[ "xargs", "-0", "-n", "1", "zfs", "destroy" ]
 
-    #TODO: get rid of ugly errors for non-existing target filesystems
-    resumable_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=cmd, valid_exitcodes= [ 0,1 ] )
+        if recursive:
+            cmd.append("-r")
 
-    ret={}
-
-    for (resumable_filesystem,token) in resumable_filesystems:
-        if token!='-':
-            ret[resumable_filesystem]=token
-
-    return(ret)
+        #zfs can only destroy one filesystem at once so we use xargs and stdin
+        self.run(test=args.test, input="\0".join(filesystems), cmd=cmd)
 
 
-"""deferred destroy list of snapshots (in @format). """
-def zfs_destroy_snapshots(ssh_to, snapshots):
+    #simulate snapshots for --test option
+    #FIXME
+    test_snapshots={}
+    def zfs_create_snapshot(filesystems, snapshot):
+        """create snapshot on multiple filesystems at once (atomicly)"""
 
-    #zfs can only destroy one filesystem at once so we use xargs and stdin
-    run(ssh_to=ssh_to, test=args.test, input="\0".join(snapshots), cmd=
-        [ "xargs", "-0", "-n", "1", "zfs", "destroy", "-d" ]
-    )
+        cmd=[ "zfs", "snapshot" ]
 
-"""destroy list of filesystems """
-def zfs_destroy(ssh_to, filesystems, recursive=False):
+        for filesystem in filesystems:
+            cmd.append(filesystem+"@"+snapshot)
 
-    cmd=[ "xargs", "-0", "-n", "1", "zfs", "destroy" ]
+            #in testmode we dont actually make changes, so keep them in a list to simulate
+            if args.test:
+                if not ssh_to in test_snapshots:
+                    test_snapshots[ssh_to]={}
+                if not filesystem in test_snapshots[ssh_to]:
+                    test_snapshots[ssh_to][filesystem]=[]
+                test_snapshots[ssh_to][filesystem].append(snapshot)
 
-    if recursive:
-        cmd.append("-r")
-
-    #zfs can only destroy one filesystem at once so we use xargs and stdin
-    run(ssh_to=ssh_to, test=args.test, input="\0".join(filesystems), cmd=cmd)
-
-#simulate snapshots for --test option
-test_snapshots={}
-
-
-
-"""create snapshot on multiple filesystems at once (atomicly)"""
-def zfs_create_snapshot(ssh_to, filesystems, snapshot):
-
-    cmd=[ "zfs", "snapshot" ]
-
-    for filesystem in filesystems:
-        cmd.append(filesystem+"@"+snapshot)
-
-        #in testmode we dont actually make changes, so keep them in a list to simulate
-        if args.test:
-            if not ssh_to in test_snapshots:
-                test_snapshots[ssh_to]={}
-            if not filesystem in test_snapshots[ssh_to]:
-                test_snapshots[ssh_to][filesystem]=[]
-            test_snapshots[ssh_to][filesystem].append(snapshot)
-
-    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
+        run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
 
 
 """get names of all snapshots for specified filesystems belonging to backup_name

@@ -23,6 +23,10 @@ It has the following features:
 * Easy installation:
   * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
   * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
+* Tested on:
+  * SmartOS
+  * FreeNAS
+  * (others should work as well)
 
 Usage
 ====
