@@ -166,6 +166,16 @@ Tips
  * Use ```--clear-refreservation``` to save space on your backup server.
  * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console.
 
+Troubleshooting
+----------------
+
+`cannot receive incremental stream: invalid backup stream` 
+
+This usually means you've created a new snapshot on the target side during a backup. 
+ * Solution 1: Restart zfs_autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
+ * Solution 2: Destroy the newly created snapshot and restart zfs_autobackup. 
+
+
 Restore example
 ===============
 
