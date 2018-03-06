@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # -*- coding: utf8 -*-
 
 
@@ -165,23 +165,32 @@ test_snapshots={}
 
 
 
-"""create snapshot on multiple filesystems at once (atomicly)"""
+"""create snapshot on multiple filesystems at once (atomicly per pool)"""
 def zfs_create_snapshot(ssh_to, filesystems, snapshot):
 
-    cmd=[ "zfs", "snapshot" ]
 
+    #collect per pool, zfs can only take atomic snapshots per pool
+    pools={}
     for filesystem in filesystems:
-        cmd.append(filesystem+"@"+snapshot)
+        pool=filesystem.split('/')[0]
+        if pool not in pools:
+            pools[pool]=[]
+        pools[pool].append(filesystem)
 
-        #in testmode we dont actually make changes, so keep them in a list to simulate
-        if args.test:
-            if not ssh_to in test_snapshots:
-                test_snapshots[ssh_to]={}
-            if not filesystem in test_snapshots[ssh_to]:
-                test_snapshots[ssh_to][filesystem]=[]
-            test_snapshots[ssh_to][filesystem].append(snapshot)
+    for pool in pools:
+        cmd=[ "zfs", "snapshot" ]
+        for filesystem in pools[pool]:
+            cmd.append(filesystem+"@"+snapshot)
 
-    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
+            #in testmode we dont actually make changes, so keep them in a list to simulate
+            if args.test:
+                if not ssh_to in test_snapshots:
+                    test_snapshots[ssh_to]={}
+                if not filesystem in test_snapshots[ssh_to]:
+                    test_snapshots[ssh_to][filesystem]=[]
+                test_snapshots[ssh_to][filesystem].append(snapshot)
+
+        run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
 
 
 """get names of all snapshots for specified filesystems belonging to backup_name
