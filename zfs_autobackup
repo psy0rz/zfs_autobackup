@@ -38,7 +38,7 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
 
     #use ssh?
     if ssh_to != "local":
-        encoded_cmd.extend(["ssh", ssh_to])
+        encoded_cmd.extend([ "ssh", "-o", "ControlMaster=auto", "-o", "ControlPersist=600s", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", ssh_to ])
         if args.ssh_cipher:
             encoded_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
@@ -263,7 +263,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     source_cmd=[]
 
     if ssh_source != "local":
-        source_cmd.extend([ "ssh", ssh_source ])
+        source_cmd.extend([ "ssh", "-o", "ControlMaster=auto", "-o", "ControlPersist=600s", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", ssh_source ])
         if args.ssh_cipher:
             source_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
@@ -302,7 +302,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     target_cmd=[]
 
     if ssh_target != "local":
-        target_cmd.extend([ "ssh", ssh_target ])
+        target_cmd.extend([ "ssh", "-o", "ControlMaster=auto", "-o", "ControlPersist=600s", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", ssh_target ])
         if args.ssh_cipher:
             target_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
