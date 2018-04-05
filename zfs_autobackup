@@ -31,7 +31,7 @@ def debug(txt):
 
 
 """run a command. specifiy ssh user@host to run remotely"""
-def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ], test=False):
+def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ], test=False, return_exitcode=False):
 
     encoded_cmd=[]
 
@@ -79,6 +79,9 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
     output=p.communicate(input=input)[0]
     if p.returncode not in valid_exitcodes:
         raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
+
+    if return_exitcode:
+        return(p.returncode)
 
     lines=output.splitlines()
     if not tab_split:
