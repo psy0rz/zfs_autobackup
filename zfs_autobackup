@@ -611,6 +611,17 @@ def zfs_autobackup():
         verbose("Destroying old snapshots on target {0}:\n{1}".format(args.ssh_target, "\n".join(target_destroys)))
         zfs_destroy_snapshots(ssh_to=args.ssh_target, snapshots=target_destroys)
 
+    if args.ssh_source != "local":
+        verbose("Disconnect ssh_source")
+        code=run(test=args.test, valid_exitcodes=[0, 255], return_exitcode=True, cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "check", args.ssh_source ])
+        if code == 0:
+            code=run(test=args.test, valid_exitcodes=[0, 255], cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "exit", args.ssh_source ])
+
+    if args.ssh_target != "local":
+        verbose("Disconnect ssh_target")
+        code=run(test=args.test, valid_exitcodes=[0, 255], return_exitcode=True, cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "check", args.ssh_target ])
+        if code == 0:
+            run(test=args.test, valid_exitcodes=[0, 255], cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "exit", args.ssh_target ])
 
     verbose("All done")
 
