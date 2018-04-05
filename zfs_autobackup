@@ -75,7 +75,7 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
     if test:
         return
 
-    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin)
+    p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin, stderr=subprocess.STDOUT)
     output=p.communicate(input=input)[0]
     if p.returncode not in valid_exitcodes:
         raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
