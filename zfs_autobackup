@@ -93,6 +93,15 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
         return(ret)
 
 
+
+"""Close open SSH connections"""
+def run_ssh_close(ssh_host, test=False):
+    code=run(test=test, valid_exitcodes=[0, 255], return_exitcode=True, cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "check", ssh_host ])
+    if code == 0:
+        code=run(test=test, valid_exitcodes=[0, 255], cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "exit", ssh_host ])
+
+
+
 """determine filesystems that should be backupped by looking at the special autobackup-property"""
 def zfs_get_selected_filesystems(ssh_to, backup_name):
     #get all source filesystems that have the backup property
@@ -613,15 +622,11 @@ def zfs_autobackup():
 
     if args.ssh_source != "local":
         verbose("Disconnect ssh_source")
-        code=run(test=args.test, valid_exitcodes=[0, 255], return_exitcode=True, cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "check", args.ssh_source ])
-        if code == 0:
-            code=run(test=args.test, valid_exitcodes=[0, 255], cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "exit", args.ssh_source ])
+        run_ssh_close(ssh_host=args.ssh_source, test=args.test)
 
     if args.ssh_target != "local":
         verbose("Disconnect ssh_target")
-        code=run(test=args.test, valid_exitcodes=[0, 255], return_exitcode=True, cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "check", args.ssh_target ])
-        if code == 0:
-            run(test=args.test, valid_exitcodes=[0, 255], cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "exit", args.ssh_target ])
+        run_ssh_close(ssh_host=args.ssh_target, test=args.test)
 
     verbose("All done")
 
