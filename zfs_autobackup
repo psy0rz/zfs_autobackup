@@ -307,6 +307,11 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     target_cmd.extend(["zfs", "recv", "-u" ])
 
+    # filter certain properties on receive (usefull for linux->freebsd in some cases)
+    if args.filter_properties:
+        for filter_property in args.filter_properties:
+            target_cmd.extend([ "-x" , filter_property ])
+
     #also verbose in --verbose mode so we can see the transfer speed when its completed
     if args.verbose or args.debug:
         target_cmd.append("-v")
@@ -636,6 +641,7 @@ parser.add_argument('--strip-path', default=0, type=int, help='number of directo
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
 parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
 parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
+parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
 
 
