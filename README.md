@@ -77,6 +77,10 @@ optional arguments:
   --clear-mountpoint    Sets canmount=noauto property, to prevent the received
                         filesystem from mounting over existing filesystems.
                         (recommended)
+  --filter-properties FILTER_PROPERTIES
+                        Filter properties when receiving filesystems. Can be
+                        specified multiple times. (Example: If you send data
+                        from Linux to FreeNAS, you should filter xattr)
   --rollback            Rollback changes on the target before starting a
                         backup. (normally you can prevent changes by setting
                         the readonly property on the target_fs to on)
@@ -174,6 +178,13 @@ Troubleshooting
 This usually means you've created a new snapshot on the target side during a backup. 
  * Solution 1: Restart zfs_autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
  * Solution 2: Destroy the newly created snapshot and restart zfs_autobackup. 
+
+
+`internal error: Invalid argument` 
+
+In some cases (Linux -> FreeBSD) this means certain properties are not fully supported on the target system.
+
+Try using something like: --filter-properties xattr
 
 
 Restore example
