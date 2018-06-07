@@ -633,7 +633,7 @@ parser.add_argument('target_fs',    help='Target filesystem')
 
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
-parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled)')
+parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
 
 parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
 
