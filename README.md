@@ -29,14 +29,15 @@ Usage
 ====
 ```
 usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
-                      [--ssh-cipher SSH_CIPHER] [--keep-source KEEP_SOURCE]
-                      [--keep-target KEEP_TARGET] [--no-snapshot] [--no-send]
-                      [--resume] [--strip-path STRIP_PATH] [--destroy-stale]
+                      [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
+                      [--no-snapshot] [--no-send] [--resume]
+                      [--strip-path STRIP_PATH] [--destroy-stale]
                       [--clear-refreservation] [--clear-mountpoint]
-                      [--rollback] [--compress] [--test] [--verbose] [--debug]
+                      [--filter-properties FILTER_PROPERTIES] [--rollback]
+                      [--test] [--verbose] [--debug]
                       backup_name target_fs
 
-ZFS autobackup v2.1
+ZFS autobackup v2.2
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
@@ -52,8 +53,6 @@ optional arguments:
   --ssh-target SSH_TARGET
                         Target host to push backup to. (user@hostname) Default
                         local.
-  --ssh-cipher SSH_CIPHER
-                        SSH cipher to use (default None)
   --keep-source KEEP_SOURCE
                         Number of days to keep old snapshots on source.
                         Default 30.
@@ -65,7 +64,10 @@ optional arguments:
   --no-send             dont send snapshots (usefull to only do a cleanup)
   --resume              support resuming of interrupted transfers by using the
                         zfs extensible_dataset feature (both zpools should
-                        have it enabled)
+                        have it enabled) Disadvantage is that you need to use
+                        zfs recv -A if another snapshot is created on the
+                        target during a receive. Otherwise it will keep
+                        failing.
   --strip-path STRIP_PATH
                         number of directory to strip from path (use 1 when
                         cloning zones between 2 SmartOS machines)
@@ -85,7 +87,6 @@ optional arguments:
   --rollback            Rollback changes on the target before starting a
                         backup. (normally you can prevent changes by setting
                         the readonly property on the target_fs to on)
-  --compress            use compression during zfs send/recv
   --test                dont change anything, just show what would be done
                         (still does all read-only operations)
   --verbose             verbose output
@@ -136,7 +137,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data:
 ```
-root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose --compress
+root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose 
 Getting selected source filesystems for backup smartos01_fs1 on root@1.2.3.4
 Selected: zones (direct selection)
 Selected: zones/1eb33958-72c1-11e4-af42-ff0790f603dd (inherited selection)
@@ -182,7 +183,7 @@ Host *
     ControlPersist 3600
 ```
 
-This will make all your ssh connection persistent and greatly speed up zfs_autobackup for jobs with short intervals.
+This will make all your ssh connections persistent and greatly speed up zfs_autobackup for jobs with short intervals.
 
 Thanks @mariusvw :)
 
@@ -196,9 +197,12 @@ Host smartos04
     Hostname 1.2.3.4
     Port 1234
     user root
+    Compression yes 
 ```
 
 This way you can just specify smartos04
+
+Also uses compression on slow links.
 
 Look in man ssh_config for many more options.
 
