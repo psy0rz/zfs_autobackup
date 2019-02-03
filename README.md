@@ -200,7 +200,7 @@ Host smartos04
 
 This way you can just specify smartos04
 
-
+Look in man ssh_config for many more options.
 
 Troubleshooting
 ===============
