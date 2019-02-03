@@ -171,6 +171,37 @@ Tips
  * Use ```--clear-refreservation``` to save space on your backup server.
  * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console.
 
+Speeding up SSH and prevent connection flooding
+-----------------------------------------------
+
+Add this to your ~/.ssh/config:
+```
+Host *
+    ControlPath ~/.ssh/control-master-%r@%h:%p
+    ControlMaster auto
+    ControlPersist 3600
+```
+
+This will make all your ssh connection persistent and greatly speed up zfs_autobackup for jobs with short intervals.
+
+Thanks @mariusvw :)
+
+
+Specifying ssh port or options
+------------------------------
+
+The correct way to do this is by creating ~/.ssh/config:
+```
+Host smartos04
+    Hostname 1.2.3.4
+    Port 1234
+    user root
+```
+
+This way you can just specify smartos04
+
+
+
 Troubleshooting
 ----------------
 
