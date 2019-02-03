@@ -6,8 +6,8 @@ Introduction
 ZFS autobackup is used to periodicly backup ZFS filesystems to other locations. This is done using the very effcient zfs send and receive commands.
 
 It has the following features:
-* Automaticly selects filesystems to backup by looking at a simple ZFS property.
-* Creates consistent snapshots.
+* Automaticly selects filesystems to backup by looking at a simple ZFS property. (recursive)
+* Creates consistent snapshots. (takes all snapshots at once, atomic.)
 * Multiple backups modes:
   * "push" local data to a backup-server via SSH.
   * "pull" remote data from a server via SSH and backup it locally.
@@ -23,6 +23,7 @@ It has the following features:
 * Easy installation:
   * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
   * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
+  * No seperate config files or properties. Just one command you can copy/paste in your backup script.
 
 Usage
 ====
@@ -173,14 +174,14 @@ Tips
 Troubleshooting
 ----------------
 
-`cannot receive incremental stream: invalid backup stream` 
+`cannot receive incremental stream: invalid backup stream`
 
-This usually means you've created a new snapshot on the target side during a backup. 
+This usually means you've created a new snapshot on the target side during a backup.
  * Solution 1: Restart zfs_autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
- * Solution 2: Destroy the newly created snapshot and restart zfs_autobackup. 
+ * Solution 2: Destroy the newly created snapshot and restart zfs_autobackup.
 
 
-`internal error: Invalid argument` 
+`internal error: Invalid argument`
 
 In some cases (Linux -> FreeBSD) this means certain properties are not fully supported on the target system.
 
