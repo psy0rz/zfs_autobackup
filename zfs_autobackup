@@ -35,10 +35,6 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
     #use ssh?
     if ssh_to != "local":
         encoded_cmd.extend(["ssh", ssh_to])
-        if args.ssh_cipher:
-            encoded_cmd.extend(["-c", args.ssh_cipher])
-        if args.compress:
-            encoded_cmd.append("-C")
 
 
         #make sure the command gets all the data in utf8 format:
@@ -257,10 +253,6 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     if ssh_source != "local":
         source_cmd.extend([ "ssh", ssh_source ])
-        if args.ssh_cipher:
-            source_cmd.extend(["-c", args.ssh_cipher])
-        if args.compress:
-            source_cmd.append("-C")
 
     source_cmd.extend(["zfs", "send",  ])
 
@@ -296,10 +288,6 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
     if ssh_target != "local":
         target_cmd.extend([ "ssh", ssh_target ])
-        if args.ssh_cipher:
-            target_cmd.extend(["-c", args.ssh_cipher])
-        if args.compress:
-            target_cmd.append("-C")
 
     target_cmd.extend(["zfs", "recv", "-u" ])
 
@@ -621,7 +609,6 @@ import argparse
 parser = argparse.ArgumentParser(description='ZFS autobackup v2.1')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-parser.add_argument('--ssh-cipher', default=None, help='SSH cipher to use (default  %(default)s)')
 parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
 parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
@@ -641,7 +628,6 @@ parser.add_argument('--filter-properties', action='append', help='Filter propert
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
 
 
-parser.add_argument('--compress', action='store_true', help='use compression during zfs send/recv')
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
 parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
