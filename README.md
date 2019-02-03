@@ -165,7 +165,7 @@ All done
 ```
 
 Tips
-----
+====
 
  * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
  * Use ```--clear-refreservation``` to save space on your backup server.
@@ -200,10 +200,10 @@ Host smartos04
 
 This way you can just specify smartos04
 
-
+Look in man ssh_config for many more options.
 
 Troubleshooting
-----------------
+===============
 
 `cannot receive incremental stream: invalid backup stream`
 
