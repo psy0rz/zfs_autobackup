@@ -329,12 +329,13 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     source_proc.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
     target_proc.communicate()
 
-    if source_proc.returncode:
-        raise(subprocess.CalledProcessError(source_proc.returncode, source_cmd))
+    if not args.ignore_transfer_errors:
+        if source_proc.returncode:
+            raise(subprocess.CalledProcessError(source_proc.returncode, source_cmd))
 
-    #zfs recv sometimes gives an exitcode 1 while the transfer was succesfull, therefore we ignore exit 1's and do an extra check to see if the snapshot is there.
-    if target_proc.returncode and target_proc.returncode!=1:
-        raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
+        #zfs recv sometimes gives an exitcode 1 while the transfer was succesfull, therefore we ignore exit 1's and do an extra check to see if the snapshot is there.
+        if target_proc.returncode and target_proc.returncode!=1:
+            raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
 
     debug("Verifying if snapshot exists on target")
     run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])
@@ -626,6 +627,7 @@ parser.add_argument('--clear-refreservation', action='store_true', help='Set ref
 parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
 parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
+parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
 
 
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
