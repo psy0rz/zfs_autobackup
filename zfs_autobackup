@@ -27,14 +27,14 @@ def debug(txt):
 
 
 """run a command. specifiy ssh user@host to run remotely"""
-def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ], test=False, return_exitcode=False):
+def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ], test=False):
 
     encoded_cmd=[]
 
 
     #use ssh?
     if ssh_to != "local":
-        encoded_cmd.extend([ "ssh", "-o", "ControlMaster=auto", "-o", "ControlPersist=600s", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", ssh_to ])
+        encoded_cmd.extend(["ssh", ssh_to])
         if args.ssh_cipher:
             encoded_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
@@ -76,9 +76,6 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
     if p.returncode not in valid_exitcodes:
         raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
-    if return_exitcode:
-        return(p.returncode)
-
     lines=output.splitlines()
     if not tab_split:
         return(lines)
@@ -87,15 +84,6 @@ def run(cmd, input=None, ssh_to="local", tab_split=False, valid_exitcodes=[ 0 ],
         for line in lines:
             ret.append(line.split("\t"))
         return(ret)
-
-
-
-"""Close open SSH connections"""
-def run_ssh_close(ssh_host, test=False):
-    code=run(test=test, valid_exitcodes=[0, 255], return_exitcode=True, cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "check", ssh_host ])
-    if code == 0:
-        code=run(test=test, valid_exitcodes=[0, 255], cmd=[ "ssh", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", "-O", "exit", ssh_host ])
-
 
 
 """determine filesystems that should be backupped by looking at the special autobackup-property"""
@@ -268,7 +256,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     source_cmd=[]
 
     if ssh_source != "local":
-        source_cmd.extend([ "ssh", "-o", "ControlMaster=auto", "-o", "ControlPersist=600s", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", ssh_source ])
+        source_cmd.extend([ "ssh", ssh_source ])
         if args.ssh_cipher:
             source_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
@@ -307,7 +295,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     target_cmd=[]
 
     if ssh_target != "local":
-        target_cmd.extend([ "ssh", "-o", "ControlMaster=auto", "-o", "ControlPersist=600s", "-o", "ControlPath=~/.ssh/control-master-%r@%h:%p", ssh_target ])
+        target_cmd.extend([ "ssh", ssh_target ])
         if args.ssh_cipher:
             target_cmd.extend(["-c", args.ssh_cipher])
         if args.compress:
@@ -621,13 +609,6 @@ def zfs_autobackup():
         verbose("Destroying old snapshots on target {0}:\n{1}".format(args.ssh_target, "\n".join(target_destroys)))
         zfs_destroy_snapshots(ssh_to=args.ssh_target, snapshots=target_destroys)
 
-    if args.ssh_source != "local":
-        verbose("Disconnect ssh_source")
-        run_ssh_close(ssh_host=args.ssh_source, test=args.test)
-
-    if args.ssh_target != "local":
-        verbose("Disconnect ssh_target")
-        run_ssh_close(ssh_host=args.ssh_target, test=args.test)
 
     verbose("All done")
 
