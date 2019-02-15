@@ -98,11 +98,13 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
             verbose("Ignoring: {0} (disabled)".format(name))
 
         else:
-            if source=="local":
-                selected_filesystems.append(name)
+            if source=="local" and ( value=="true" or value=="child"):
                 direct_filesystems.append(name)
+                
+            if source=="local" and value=="true":
+                selected_filesystems.append(name)
                 verbose("Selected: {0} (direct selection)".format(name))
-            elif source.find("inherited from ")==0:
+            elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
                 inherited_from=re.sub("^inherited from ", "", source)
                 if inherited_from in direct_filesystems:
                     selected_filesystems.append(name)
@@ -110,7 +112,7 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
                 else:
                     verbose("Ignored: {0} (already a backup)".format(name))
             else:
-                vebose("Ignored: {0} ({0})".format(source))
+                verbose("Ignored: {0} ({0})".format(source))
 
     return(selected_filesystems)
 
@@ -486,11 +488,17 @@ def zfs_autobackup():
 
                 if latest_target_snapshot not in source_snapshots[source_filesystem]:
                     #cant find latest target anymore. find first common snapshot and inform user
-                    error_msg="Cant find latest target snapshot on source, did you destroy it accidently? "+source_filesystem+"@"+latest_target_snapshot
+                    error_msg="Cant find latest target snapshot on source, did you destroy/rename it?"
+                    error_msg=error_msg+"\nLatest on target : "+target_filesystem+"@"+latest_target_snapshot
+                    error_msg=error_msg+"\nMissing on source: "+source_filesystem+"@"+latest_target_snapshot
+                    found=False
                     for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
                         if latest_target_snapshot in source_snapshots[source_filesystem]:
-                            error_msg=error_msg+"\nYou could solve this by rolling back to: "+target_filesystem+"@"+latest_target_snapshot;
+                            error_msg=error_msg+"\nYou could solve this by rolling back to this common snapshot on target: "+target_filesystem+"@"+latest_target_snapshot
+                            found=True
                             break
+                    if not found:
+                        error_msg=error_msg+"\nAlso could not find an earlier common snapshot to rollback to."
 
                     raise(Exception(error_msg))
 
@@ -637,5 +645,12 @@ parser.add_argument('--debug', action='store_true', help='debug output (shows co
 #note args is the only global variable we use, since its a global readonly setting anyway
 args = parser.parse_args()
 
-
-zfs_autobackup()
+try:
+    zfs_autobackup()
+except Exception as e:
+    if args.debug:
+        raise
+    else:
+        print("* ABORTED *")
+        print(str(e))
+        
