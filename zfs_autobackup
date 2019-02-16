@@ -100,7 +100,7 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
         else:
             if source=="local" and ( value=="true" or value=="child"):
                 direct_filesystems.append(name)
-                
+
             if source=="local" and value=="true":
                 selected_filesystems.append(name)
                 verbose("Selected: {0} (direct selection)".format(name))
@@ -222,6 +222,27 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
                         ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
     return(ret)
+
+
+def default_tag():
+    return("zfs_autobackup:"+args.backup_name)
+
+"""hold a snapshot so it cant be destroyed accidently by admin or other processes"""
+def zfs_hold_snapshot(ssh_to, snapshot, tag=None):
+    cmd=[
+        "zfs", "hold", tag or default_tag(), snapshot
+    ]
+
+    run(ssh_to=ssh_to, test=args.test, tab_split=False, cmd=cmd, valid_exitcodes=[ 0, 1 ])
+
+
+"""release a snapshot"""
+def zfs_release_snapshot(ssh_to, snapshot, tag=None):
+    cmd=[
+        "zfs", "release", tag or default_tag(), snapshot
+    ]
+
+    run(ssh_to=ssh_to, test=args.test, tab_split=False, cmd=cmd, valid_exitcodes=[ 0, 1 ])
 
 
 
@@ -536,6 +557,9 @@ def zfs_autobackup():
                     else:
                         resume_token=None
 
+                    #hold the snapshot we're sending on the source
+                    zfs_hold_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+send_snapshot)
+
                     zfs_transfer(
                         ssh_source=args.ssh_source, source_filesystem=source_filesystem,
                         first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
@@ -543,11 +567,17 @@ def zfs_autobackup():
                         resume_token=resume_token
                     )
 
+                    #hold the snapshot we just send to the target
+                    zfs_hold_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+send_snapshot)
+
 
 
                     #now that we succesfully transferred this snapshot, the previous snapshot is obsolete:
                     if latest_target_snapshot:
+                        zfs_release_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+latest_target_snapshot)
                         target_obsolete_snapshots[target_filesystem].append(latest_target_snapshot)
+
+                        zfs_release_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+latest_target_snapshot)
                         source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
                     #we just received a new filesytem?
                     else:
@@ -653,4 +683,3 @@ except Exception as e:
     else:
         print("* ABORTED *")
         print(str(e))
-        
