@@ -280,7 +280,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     source_cmd.extend(["zfs", "send",  ])
 
     #only verbose in debug mode, lots of output
-    if args.debug:
+    if args.debug or args.verbose:
         source_cmd.append("-v")
 
 
@@ -418,6 +418,25 @@ def lstrip_path(path, count):
     return("/".join(path.split("/")[count:]))
 
 
+"""get list of filesystems that are changed, compared to the latest snapshot"""
+def zfs_get_unchanged_filesystems(ssh_to, snapshots):
+
+    ret=[]
+    for ( filesystem, snapshot_list ) in snapshots.items():
+        latest_snapshot=snapshot_list[-1]
+
+        cmd=[
+            "zfs", "get","-H" ,"-ovalue", "written@"+latest_snapshot, filesystem
+        ]
+
+        output=run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
+
+        if output[0]=="0B":
+            ret.append(filesystem)
+            verbose("No changes on {}".format(filesystem))
+
+    return(ret)
+
 
 def zfs_autobackup():
 
@@ -449,16 +468,6 @@ def zfs_autobackup():
         target_filesystems.append(args.target_fs + "/" + lstrip_path(source_filesystem, args.strip_path))
 
 
-    ### creating snapshots
-    # this is one of the first things we do, so that in case of failures we still have snapshots.
-
-    #create new snapshot?
-    if not args.no_snapshot:
-        new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
-        verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
-        zfs_create_snapshot(args.ssh_source, source_filesystems, new_snapshot_name)
-
-
     ### get resumable transfers
     resumable_target_filesystems={}
     if args.resume:
@@ -467,12 +476,42 @@ def zfs_autobackup():
         debug("Resumable filesystems: "+str(pprint.pformat(resumable_target_filesystems)))
 
 
-    ### get all snapshots of all selected filesystems on both source and target
-
+    ### get all snapshots of all selected filesystems
     verbose("Getting source snapshot-list from {0}".format(args.ssh_source))
     source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
     debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
 
+
+    #create new snapshot?
+    if not args.no_snapshot:
+        #determine which filesystems changed since last snapshot
+        if not args.allow_empty:
+            verbose("Determining unchanged filesystems")
+            unchanged_filesystems=zfs_get_unchanged_filesystems(args.ssh_source, source_snapshots)
+        else:
+            unchanged_filesystems=[]
+
+        snapshot_filesystems=[]
+        for source_filesystem in source_filesystems:
+            if source_filesystem not in unchanged_filesystems:
+                snapshot_filesystems.append(source_filesystem)
+
+
+        #create snapshot
+        if snapshot_filesystems:
+            new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
+            verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
+            zfs_create_snapshot(args.ssh_source, snapshot_filesystems, new_snapshot_name)
+        else:
+            verbose("No changes at all, not creating snapshot.")
+
+
+        #add it to the list of source filesystems
+        for snapshot_filesystem in snapshot_filesystems:
+            source_snapshots.setdefault(snapshot_filesystem,[]).append(new_snapshot_name)
+
+
+    #### get target snapshots
     target_snapshots={}
     try:
         verbose("Getting target snapshot-list from {0}".format(args.ssh_target))
@@ -655,8 +694,8 @@ parser.add_argument('target_fs',    help='Target filesystem')
 
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
+parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
 parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
-
 parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
 
 
