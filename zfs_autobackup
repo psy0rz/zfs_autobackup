@@ -263,7 +263,6 @@ remote send -> remote buffer -> ssh -> local buffer -> local receive
 remote to remote:
 remote send -> remote buffer -> ssh -> local buffer -> ssh -> remote buffer -> remote receive
 
-TODO: can we string together all the zfs sends and recvs, so that we only need to use 1 ssh connection? should be faster if there are many small snaphots
 
 
 
@@ -278,6 +277,15 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         source_cmd.extend([ "ssh", ssh_source ])
 
     source_cmd.extend(["zfs", "send",  ])
+
+    #all kind of performance options:
+    source_cmd.append("-L") # large block support
+    source_cmd.append("-e") # WRITE_EMBEDDED, more compact stream
+    source_cmd.append("-c") # use compressed WRITE records
+    if not args.resume:
+        source_cmd.append("-D") # dedupped stream, sends less duplicate data
+
+
 
     #only verbose in debug mode, lots of output
     if args.debug or args.verbose:
