@@ -95,7 +95,7 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
     for source_filesystem in source_filesystems:
         (name,value,source)=source_filesystem
         if value=="false":
-            verbose("Ignoring: {0} (disabled)".format(name))
+            verbose("Ignored : {0} (disabled)".format(name))
 
         else:
             if source=="local" and ( value=="true" or value=="child"):
@@ -110,9 +110,9 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
                     selected_filesystems.append(name)
                     verbose("Selected: {0} (inherited selection)".format(name))
                 else:
-                    verbose("Ignored: {0} (already a backup)".format(name))
+                    verbose("Ignored : {0} (already a backup)".format(name))
             else:
-                verbose("Ignored: {0} ({0})".format(source))
+                verbose("Ignored : {0} (only childs)".format(name))
 
     return(selected_filesystems)
 
@@ -251,6 +251,8 @@ def zfs_release_snapshot(ssh_to, snapshot, tag=None):
 
 TODO:
 
+(parially implemented, local buffer is a bit more annoying to do)
+
 buffering: specify buffer_size to use mbuffer (or alike) to apply buffering where neccesary
 
 local to local:
@@ -288,7 +290,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
 
     #only verbose in debug mode, lots of output
-    if args.debug or args.verbose:
+    if args.debug :
         source_cmd.append("-v")
 
 
@@ -313,6 +315,10 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
             source_cmd.append(source_filesystem + "@" + second_snapshot)
 
         verbose(txt)
+
+    if args.buffer and args.ssh_source!="local":
+        source_cmd.append("|mbuffer -m {}".format(args.buffer))
+
 
     #### build target command
     target_cmd=[]
@@ -340,6 +346,8 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
     else:
         target_cmd.append(target_filesystem)
 
+    if args.buffer and  args.ssh_target!="local":
+        target_cmd.append("|mbuffer -m {}".format(args.buffer))
 
 
     #### make sure parent on target exists
@@ -705,6 +713,7 @@ parser.add_argument('--no-send', action='store_true', help='dont send snapshots 
 parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
 parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
 parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G)')
 
 
 parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
