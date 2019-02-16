@@ -137,7 +137,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data:
 ```
-root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose 
+root@fs1:/home/psy# ./zfs_autobackup --ssh-source root@1.2.3.4 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose
 Getting selected source filesystems for backup smartos01_fs1 on root@1.2.3.4
 Selected: zones (direct selection)
 Selected: zones/1eb33958-72c1-11e4-af42-ff0790f603dd (inherited selection)
@@ -197,7 +197,7 @@ Host smartos04
     Hostname 1.2.3.4
     Port 1234
     user root
-    Compression yes 
+    Compression yes
 ```
 
 This way you can just specify smartos04
@@ -235,17 +235,6 @@ root@fs1:/home/psy#  zfs send fs1/zones/backup/zfsbackups/smartos01.server.com/z
 
 After that you can rename the disk image from the temporary location to the location of a new SmartOS machine you've created.
 
-Snapshotting example
-====================
-
-Sending huge snapshots cant be resumed when a connection is interrupted: Next time zfs_autobackup is started, the whole snapshot will be transferred again. For this reason you might want to have multiple small snapshots.
-
-The --no-send option can be usefull for this. This way you can already create small snapshots every few hours:
-````
-[root@smartos2 ~]# zfs_autobackup --ssh-source root@smartos1 smartos1_freenas1 zones --verbose --ssh-cipher chacha20-poly1305@openssh.com --no-send
-````
-
-Later when our freenas1 server is ready we can use the same command without the --no-send at freenas1. At that point the server will receive all the small snapshots up to that point.
 
 
 
