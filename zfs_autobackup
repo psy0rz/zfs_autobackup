@@ -143,6 +143,11 @@ def zfs_destroy_snapshots(ssh_to, snapshots):
         [ "xargs", "-0", "-n", "1", "zfs", "destroy", "-d" ]
     )
 
+def zfs_destroy_bookmark(ssh_to, bookmark):
+
+    #zfs can only destroy one filesystem at once so we use xargs and stdin
+    run(ssh_to=ssh_to, test=args.test, valid_exitcodes=[ 0,1 ], cmd=[ "zfs", "destroy", bookmark ])
+
 """destroy list of filesystems """
 def zfs_destroy(ssh_to, filesystems, recursive=False):
 
@@ -174,15 +179,15 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
     for pool in pools:
         cmd=[ "zfs", "snapshot" ]
         for filesystem in pools[pool]:
-            cmd.append(filesystem+"@"+snapshot)
+            cmd.append(filesystem+snapshot)
 
-            #in testmode we dont actually make changes, so keep them in a list to simulate
-            if args.test:
-                if not ssh_to in test_snapshots:
-                    test_snapshots[ssh_to]={}
-                if not filesystem in test_snapshots[ssh_to]:
-                    test_snapshots[ssh_to][filesystem]=[]
-                test_snapshots[ssh_to][filesystem].append(snapshot)
+            # #in testmode we dont actually make changes, so keep them in a list to simulate
+            # if args.test:
+            #     if not ssh_to in test_snapshots:
+            #         test_snapshots[ssh_to]={}
+            #     if not filesystem in test_snapshots[ssh_to]:
+            #         test_snapshots[ssh_to][filesystem]=[]
+            #     test_snapshots[ssh_to][filesystem].append(snapshot)
 
         run(ssh_to=ssh_to, tab_split=False, cmd=cmd, test=args.test)
 
@@ -191,14 +196,19 @@ def zfs_create_snapshot(ssh_to, filesystems, snapshot):
 
 return[filesystem_name]=[ "snashot1", "snapshot2", ... ]
 """
-def zfs_get_snapshots(ssh_to, filesystems, backup_name):
+def zfs_get_snapshots(ssh_to, filesystems, backup_name, also_bookmarks=False):
 
     ret={}
 
     if filesystems:
+        if also_bookmarks:
+            fstype="snapshot,bookmark"
+        else:
+            fstype="snapshot"
+
         #TODO: get rid of ugly errors for non-existing target filesystems
         cmd=[
-            "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name"
+            "zfs", "list", "-d", "1", "-r", "-t" ,fstype, "-H", "-o", "name", "-s", "createtxg"
         ]
         cmd.extend(filesystems)
 
@@ -206,22 +216,52 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name):
 
 
         for snapshot in snapshots:
-            (filesystem, snapshot_name)=snapshot.split("@")
-            if re.match("^"+backup_name+"-[0-9]*$", snapshot_name):
-                if not filesystem in ret:
-                    ret[filesystem]=[]
-                ret[filesystem].append(snapshot_name)
+            if snapshot.index("@")!=-1:
+                (filesystem, snapshot_name)=snapshot.split("@")
+                snapshot_name="@"+snapshot_name
+            else:
+                (filesystem, snapshot_name)=snapshot.split("#")
+                snapshot_name="#"+snapshot_name
 
+            if re.match("^[@#]"+backup_name+"-[0-9]*$", snapshot_name):
+                ret.setdefault(filesystem,[]).append(snapshot_name)
+
+        #TODO: get rid of this or make a more generic caching/testing system. (is it still needed, since the allow_empty-function?)
         #also add any test-snapshots that where created with --test mode
-        if args.test:
-            if ssh_to in test_snapshots:
-                for filesystem in filesystems:
-                    if filesystem in test_snapshots[ssh_to]:
-                        if not filesystem in ret:
-                            ret[filesystem]=[]
-                        ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
+        # if args.test:
+        #     if ssh_to in test_snapshots:
+        #         for filesystem in filesystems:
+        #             if filesystem in test_snapshots[ssh_to]:
+        #                 if not filesystem in ret:
+        #                     ret[filesystem]=[]
+        #                 ret[filesystem].extend(test_snapshots[ssh_to][filesystem])
 
     return(ret)
+
+
+# """get names of all bookmarks for specified filesystems belonging to backup_name
+#
+# return[filesystem_name]=[ "bookmark1", "bookmark2", ... ]
+# """
+# def zfs_get_bookmarks(ssh_to, filesystems, backup_name):
+#
+#     ret={}
+#
+#     if filesystems:
+#         #TODO: get rid of ugly errors for non-existing target filesystems
+#         cmd=[
+#             "zfs", "list", "-d", "1", "-r", "-t" ,"bookmark", "-H", "-o", "name", "-s", "createtxg"
+#         ]
+#         cmd.extend(filesystems)
+#
+#         bookmarks=run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
+#
+#         for bookmark in bookmarks:
+#             (filesystem, bookmark_name)=bookmark.split("#")
+#             if re.match("^"+backup_name+"-[0-9]*$", bookmark_name):
+#                 ret.setdefault(filesystem,[]).append(bookmark_name)
+#
+#     return(ret)
 
 
 def default_tag():
@@ -244,6 +284,15 @@ def zfs_release_snapshot(ssh_to, snapshot, tag=None):
 
     run(ssh_to=ssh_to, test=args.test, tab_split=False, cmd=cmd, valid_exitcodes=[ 0, 1 ])
 
+
+"""bookmark a snapshot"""
+def zfs_bookmark_snapshot(ssh_to, snapshot):
+    (filesystem, snapshot_name)=snapshot.split("@")
+    cmd=[
+        "zfs", "bookmark", snapshot, '#'+snapshot_name
+    ]
+
+    run(ssh_to=ssh_to, test=args.test, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
 
 
 """transfer a zfs snapshot from source to target. both can be either local or via ssh.
@@ -333,7 +382,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         for filter_property in args.filter_properties:
             target_cmd.extend([ "-x" , filter_property ])
 
-    #also verbose in --verbose mode so we can see the transfer speed when its completed
+    #also verbose in --verbose moqde so we can see the transfer speed when its completed
     if args.verbose or args.debug:
         target_cmd.append("-v")
 
@@ -424,7 +473,7 @@ def determine_destroy_list(snapshots, days):
             else:
                 time_secs=int(time_str)
                 # verbose("time_secs"+time_str)
-            if (now-time_secs) > (24 * 3600 * days):
+            if (now-time_secs) >= (24 * 3600 * days):
                 ret.append(filesystem+"@"+snapshot)
 
     return(ret)
@@ -435,14 +484,14 @@ def lstrip_path(path, count):
 
 
 """get list of filesystems that are changed, compared to the latest snapshot"""
-def zfs_get_unchanged_filesystems(ssh_to, snapshots):
+def zfs_get_unchanged_filesystems(ssh_to, filesystems):
 
     ret=[]
-    for ( filesystem, snapshot_list ) in snapshots.items():
+    for ( filesystem, snapshot_list ) in filesystems.items():
         latest_snapshot=snapshot_list[-1]
 
         cmd=[
-            "zfs", "get","-H" ,"-ovalue", "written@"+latest_snapshot, filesystem
+            "zfs", "get","-H" ,"-ovalue", "written"+latest_snapshot, filesystem
         ]
 
         output=run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
@@ -496,6 +545,8 @@ def zfs_autobackup():
     verbose("Getting source snapshot-list from {0}".format(args.ssh_source))
     source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
     debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
+    # source_bookmarks=zfs_get_bookmarks(args.ssh_source, source_filesystems, args.backup_name)
+    # debug("Source bookmarks: " + str(pprint.pformat(source_bookmarks)))
 
 
     #create new snapshot?
@@ -515,7 +566,7 @@ def zfs_autobackup():
 
         #create snapshot
         if snapshot_filesystems:
-            new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
+            new_snapshot_name="@"+args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
             verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
             zfs_create_snapshot(args.ssh_source, snapshot_filesystems, new_snapshot_name)
         else:
@@ -559,14 +610,22 @@ def zfs_autobackup():
             if target_filesystem in target_snapshots and target_snapshots[target_filesystem]:
                 #incremental mode, determine what to send and what is obsolete
 
-                #latest succesfully send snapshot, should be common on both source and target
+                #latest succesfully sent snapshot, should be common on both source and target (at least a bookmark on source)
                 latest_target_snapshot=target_snapshots[target_filesystem][-1]
+                latest_target_bookmark='#'+latest_target_snapshot[1:]
 
-                if latest_target_snapshot not in source_snapshots[source_filesystem]:
+                #find our starting snapshot/bookmark:
+                if latest_target_snapshot in source_snapshots[source_filesystem]:
+                    latest_source_index=source_snapshots[source_filesystem].index(latest_target_snapshot)
+                    source_bookmark=latest_target_snapshot
+                elif latest_target_bookmark not in source_snapshots[source_filesystem]:
+                    latest_source_index=source_snapshots[source_filesystem].index(latest_target_bookmark)
+                    source_bookmark=latest_target_bookmark
+                else:
                     #cant find latest target anymore. find first common snapshot and inform user
-                    error_msg="Cant find latest target snapshot on source, did you destroy/rename it?"
-                    error_msg=error_msg+"\nLatest on target : "+target_filesystem+"@"+latest_target_snapshot
-                    error_msg=error_msg+"\nMissing on source: "+source_filesystem+"@"+latest_target_snapshot
+                    error_msg="Cant find latest target snapshot or bookmark on source, did you destroy/rename it?"
+                    error_msg=error_msg+"\nLatest on target : "+target_filesystem+latest_target_snapshot
+                    error_msg=error_msg+"\nMissing on source: "+source_filesystem+latest_target_bookmark
                     found=False
                     for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
                         if latest_target_snapshot in source_snapshots[source_filesystem]:
@@ -579,7 +638,6 @@ def zfs_autobackup():
                     raise(Exception(error_msg))
 
                 #send all new source snapshots that come AFTER the last target snapshot
-                latest_source_index=source_snapshots[source_filesystem].index(latest_target_snapshot)
                 send_snapshots=source_snapshots[source_filesystem][latest_source_index+1:]
 
                 #source snapshots that come BEFORE last target snapshot are obsolete
@@ -590,6 +648,7 @@ def zfs_autobackup():
                 target_obsolete_snapshots[target_filesystem]=target_snapshots[target_filesystem][0:latest_target_index]
             else:
                 #initial mode, send all snapshots, nothing is obsolete:
+                source_bookmark=None
                 latest_target_snapshot=None
                 send_snapshots=source_snapshots[source_filesystem]
                 target_obsolete_snapshots[target_filesystem]=[]
@@ -601,7 +660,7 @@ def zfs_autobackup():
                 if send_snapshots and args.rollback and latest_target_snapshot:
                     #roll back any changes on target
                     debug("Rolling back target to latest snapshot.")
-                    run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
+                    run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+latest_target_snapshot ])
 
 
                 for send_snapshot in send_snapshots:
@@ -613,27 +672,34 @@ def zfs_autobackup():
                         resume_token=None
 
                     #hold the snapshot we're sending on the source
-                    zfs_hold_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+send_snapshot)
+                    zfs_hold_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+send_snapshot)
 
                     zfs_transfer(
                         ssh_source=args.ssh_source, source_filesystem=source_filesystem,
-                        first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
+                        first_snapshot=source_bookmark, second_snapshot=send_snapshot,
                         ssh_target=args.ssh_target, target_filesystem=target_filesystem,
                         resume_token=resume_token
                     )
 
-                    #hold the snapshot we just send to the target
-                    zfs_hold_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+send_snapshot)
+                    #hold the snapshot we just send on the target
+                    zfs_hold_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+send_snapshot)
+
+                    #bookmark the snapshot we just send on the source, so we can also release and mark it obsolete.
+                    zfs_bookmark_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+send_snapshot)
+                    zfs_release_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+send_snapshot)
+                    source_obsolete_snapshots[source_filesystem].append(send_snapshot)
 
 
-
-                    #now that we succesfully transferred this snapshot, the previous snapshot is obsolete:
+                    #now that we succesfully transferred this snapshot, the previous target snapshot is obsolete:
                     if latest_target_snapshot:
                         zfs_release_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+latest_target_snapshot)
                         target_obsolete_snapshots[target_filesystem].append(latest_target_snapshot)
 
-                        zfs_release_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+latest_target_snapshot)
-                        source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
+                        #delete previous bookmark
+                        zfs_destroy_bookmark(ssh_to=args.ssh_source, bookmark=source_filesystem+"#"+latest_target_snapshot)
+
+                        # zfs_release_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+latest_target_snapshot)
+                        # source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
                     #we just received a new filesytem?
                     else:
                         if args.clear_refreservation:
