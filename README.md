@@ -200,7 +200,7 @@ Host smartos04
     Compression yes
 ```
 
-This way you can just specify smartos04
+This way you can just specify "smartos04" as host.
 
 Also uses compression on slow links.
 
@@ -236,8 +236,6 @@ root@fs1:/home/psy#  zfs send fs1/zones/backup/zfsbackups/smartos01.server.com/z
 After that you can rename the disk image from the temporary location to the location of a new SmartOS machine you've created.
 
 
-
-
 Monitoring with Zabbix-jobs
 ===========================
 
@@ -249,3 +247,35 @@ zabbix-job-status backup_smartos01_fs1 daily $?
 ```
 
 This will update the zabbix server with the exitcode and will also alert you if the job didnt run for more than 2 days.
+
+
+Backuping up a proxmox cluster with HA replication
+==================================================
+
+Due to the nature of proxmox we had to make a few enhancements to zfs_autobackup. This will probably also benefit other systems that use their own replication in combination with zfs_autobackup.
+
+All data under rpool/data can be on multiple nodes of the cluster. The naming of those filesystem is unique over the whole cluster. Because of this we should backup rpool/data of all nodes to the same destination. This way we wont have duplicate backups of the filesystems that are replicated. Because of various options, you can even migrate hosts and zfs_autobackup will be fine. (and it will get the next backup from the new node automaticly)
+
+
+In the example below we have 3 nodes, named h4, h5 and h6.
+
+The backup will go to a machine named smartos03.
+
+Preparing the proxmox nodes
+---------------------------
+
+On each node select the filesystems as following:
+```
+root@h4:~# zfs set autobackup:h4_smartos03=true rpool
+root@h4:~# zfs set autobackup:h4_smartos03=false rpool/data
+root@h4:~# zfs set autobackup:data_smartos03=child rpool/data
+
+```
+
+* rpool will be backuped the usual way, and is named h4_smartos03. (each node will have a unique name)
+* rpool/data will be excluded from the usual backup
+* The CHILDREN of rpool/data be selected for a cluster wide backup named data_smartos03. (each node uses the same backup name)
+
+
+Preparing the backup server
+---------------------------
