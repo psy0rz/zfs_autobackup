@@ -95,7 +95,7 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
     for source_filesystem in source_filesystems:
         (name,value,source)=source_filesystem
         if value=="false":
-            verbose("Ignored : {0} (disabled)".format(name))
+            verbose("* Ignored : {0} (disabled)".format(name))
 
         else:
             if source=="local" and ( value=="true" or value=="child"):
@@ -103,16 +103,16 @@ def zfs_get_selected_filesystems(ssh_to, backup_name):
 
             if source=="local" and value=="true":
                 selected_filesystems.append(name)
-                verbose("Selected: {0} (direct selection)".format(name))
+                verbose("* Selected: {0} (direct selection)".format(name))
             elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
                 inherited_from=re.sub("^inherited from ", "", source)
                 if inherited_from in direct_filesystems:
                     selected_filesystems.append(name)
-                    verbose("Selected: {0} (inherited selection)".format(name))
+                    verbose("* Selected: {0} (inherited selection)".format(name))
                 else:
-                    verbose("Ignored : {0} (already a backup)".format(name))
+                    verbose("* Ignored : {0} (already a backup)".format(name))
             else:
-                verbose("Ignored : {0} (only childs)".format(name))
+                verbose("* Ignored : {0} (only childs)".format(name))
 
     return(selected_filesystems)
 
@@ -434,24 +434,40 @@ def lstrip_path(path, count):
     return("/".join(path.split("/")[count:]))
 
 
-"""get list of filesystems that are changed, compared to the latest snapshot"""
-def zfs_get_unchanged_filesystems(ssh_to, snapshots):
+"""get list of filesystems that are changed, compared to specified latest snapshot. """
+def zfs_get_unchanged_snapshots(ssh_to, snapshots):
 
     ret=[]
     for ( filesystem, snapshot_list ) in snapshots.items():
         latest_snapshot=snapshot_list[-1]
 
-        cmd=[
-            "zfs", "get","-H" ,"-ovalue", "written@"+latest_snapshot, filesystem
-        ]
+        if ignore_replicated:
+            cmd=[ "zfs", "get","-H" ,"-ovalue", "written", filesystem ]
+        else:
+            cmd=[ "zfs", "get","-H" ,"-ovalue", "written@"+latest_snapshot, filesystem ]
+
 
         output=run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
 
-        if output[0]=="0B":
+        if output[0]=="0B" or output[0]=="0":
             ret.append(filesystem)
-            verbose("No changes on {}".format(filesystem))
 
     return(ret)
+
+"""get filesytems that are have changed since any snapshot."""
+def zfs_get_unchanged_filesystems(ssh_to, filesystems):
+
+    ret=[]
+    cmd=[ "zfs", "get","-H" ,"-oname,value", "written" ]
+    cmd.extend(filesystems)
+    output=run(ssh_to=ssh_to, tab_split=True, cmd=cmd, valid_exitcodes=[ 0 ])
+
+    for ( filesystem , written ) in output:
+        if written=="0B" or written=="0":
+            ret.append(filesystem)
+
+    return(ret)
+
 
 
 def zfs_autobackup():
@@ -473,9 +489,19 @@ def zfs_autobackup():
 
     #nothing todo
     if not source_filesystems:
-        error("No filesystems source selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(args.backup_name,args.ssh_source))
+        error("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(args.backup_name,args.ssh_source))
         sys.exit(1)
 
+    if args.ignore_replicated:
+        replicated_filesystems=zfs_get_unchanged_filesystems(args.ssh_source, source_filesystems)
+        for replicated_filesystem in replicated_filesystems:
+            if replicated_filesystem in source_filesystems:
+                source_filesystems.remove(replicated_filesystem)
+                verbose("* Already replicated: {}".format(replicated_filesystem))
+
+    if not source_filesystems:
+        verbose("Nothing to do, all filesystems are already replicated.")
+        sys.exit(0)
 
     # determine target filesystems
     target_filesystems=[]
@@ -501,9 +527,10 @@ def zfs_autobackup():
     #create new snapshot?
     if not args.no_snapshot:
         #determine which filesystems changed since last snapshot
-        if not args.allow_empty:
-            verbose("Determining unchanged filesystems")
-            unchanged_filesystems=zfs_get_unchanged_filesystems(args.ssh_source, source_snapshots)
+        if not args.allow_empty and not args.ignore_replicated:
+            #determine which filesystemn are unchanged since OUR snapshots. (not since ANY snapshot)
+            unchanged_filesystems=zfs_get_unchanged_snapshots(args.ssh_source, source_snapshots)
+
         else:
             unchanged_filesystems=[]
 
@@ -511,9 +538,10 @@ def zfs_autobackup():
         for source_filesystem in source_filesystems:
             if source_filesystem not in unchanged_filesystems:
                 snapshot_filesystems.append(source_filesystem)
+            else:
+                verbose("* Not snapshotting {}, no changes found.".format(source_filesystem))
 
-
-        #create snapshot
+        #create snapshots
         if snapshot_filesystems:
             new_snapshot_name=args.backup_name+"-"+time.strftime("%Y%m%d%H%M%S")
             verbose("Creating source snapshot {0} on {1} ".format(new_snapshot_name, args.ssh_source))
@@ -552,7 +580,7 @@ def zfs_autobackup():
 
         if source_filesystem not in source_snapshots:
             #this happens if you use --no-snapshot and there are new filesystems without snapshots
-            verbose("Skipping source filesystem {0}, no snapshots found".format(source_filesystem))
+            verbose("* Skipping source filesystem {0}, no snapshots found".format(source_filesystem))
         else:
 
             #incremental or initial send?
@@ -575,6 +603,10 @@ def zfs_autobackup():
                             break
                     if not found:
                         error_msg=error_msg+"\nAlso could not find an earlier common snapshot to rollback to."
+                    else:
+                        if args.ignore_new:
+                            verbose("* Skipping source filesystem {0}, target already has newer snapshots.".format(source_filesystem))
+                            continue
 
                     raise(Exception(error_msg))
 
@@ -613,7 +645,8 @@ def zfs_autobackup():
                         resume_token=None
 
                     #hold the snapshot we're sending on the source
-                    zfs_hold_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+send_snapshot)
+                    if not args.no_holds:
+                        zfs_hold_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+send_snapshot)
 
                     zfs_transfer(
                         ssh_source=args.ssh_source, source_filesystem=source_filesystem,
@@ -711,6 +744,10 @@ parser.add_argument('target_fs',    help='Target filesystem')
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
 parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
+parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
+parser.add_argument('--no-holds', action='store_true',  help='Do lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
+parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
+
 parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
 parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
 parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G)')
@@ -731,11 +768,16 @@ parser.add_argument('--debug', action='store_true', help='debug output (shows co
 #note args is the only global variable we use, since its a global readonly setting anyway
 args = parser.parse_args()
 
+if args.ignore_replicated and args.allow_empty:
+    print("Cannot use allow_empty with ignore_replicated.")
+    sys.exit(1)
+
+
 try:
     zfs_autobackup()
 except Exception as e:
     if args.debug:
         raise
     else:
-        print("* ABORTED *")
+        print("ABORTED")
         print(str(e))
