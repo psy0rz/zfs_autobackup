@@ -8,7 +8,7 @@ import traceback
 import subprocess
 import pprint
 import time
-
+import shlex
 
 def error(txt):
     print(txt, file=sys.stderr)
@@ -145,7 +145,6 @@ def zfs_destroy_snapshots(ssh_to, snapshots):
 
 def zfs_destroy_bookmark(ssh_to, bookmark):
 
-    #zfs can only destroy one filesystem at once so we use xargs and stdin
     run(ssh_to=ssh_to, test=args.test, valid_exitcodes=[ 0,1 ], cmd=[ "zfs", "destroy", bookmark ])
 
 """destroy list of filesystems """
@@ -216,7 +215,7 @@ def zfs_get_snapshots(ssh_to, filesystems, backup_name, also_bookmarks=False):
 
 
         for snapshot in snapshots:
-            if snapshot.index("@")!=-1:
+            if "@" in snapshot:
                 (filesystem, snapshot_name)=snapshot.split("@")
                 snapshot_name="@"+snapshot_name
             else:
@@ -353,15 +352,20 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         verbose("RESUMING "+txt)
 
     else:
-        source_cmd.append("-p")
+        # source_cmd.append("-p")
 
         if first_snapshot:
-            source_cmd.extend([ "-i", first_snapshot ])
+            source_cmd.append( "-i")
+            #TODO: fix these horrible escaping hacks
+            if ssh_source != "local":
+                source_cmd.append( "'"+first_snapshot+"'" )
+            else:
+                source_cmd.append( first_snapshot )
 
         if ssh_source != "local":
-            source_cmd.append("'" + source_filesystem + "@" + second_snapshot + "'")
+            source_cmd.append("'" + source_filesystem + second_snapshot + "'")
         else:
-            source_cmd.append(source_filesystem + "@" + second_snapshot)
+            source_cmd.append(source_filesystem + second_snapshot)
 
         verbose(txt)
 
@@ -426,7 +430,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
             raise(subprocess.CalledProcessError(target_proc.returncode, target_cmd))
 
     debug("Verifying if snapshot exists on target")
-    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+"@"+second_snapshot ])
+    run(ssh_to=ssh_target, cmd=["zfs", "list", target_filesystem+second_snapshot ])
 
 
 
@@ -474,7 +478,7 @@ def determine_destroy_list(snapshots, days):
                 time_secs=int(time_str)
                 # verbose("time_secs"+time_str)
             if (now-time_secs) >= (24 * 3600 * days):
-                ret.append(filesystem+"@"+snapshot)
+                ret.append(filesystem+snapshot)
 
     return(ret)
 
@@ -489,6 +493,9 @@ def zfs_get_unchanged_filesystems(ssh_to, filesystems):
     ret=[]
     for ( filesystem, snapshot_list ) in filesystems.items():
         latest_snapshot=snapshot_list[-1]
+
+        #make sure its a snapshot and not a bookmark
+        latest_snapshot="@"+latest_snapshot[:1]
 
         cmd=[
             "zfs", "get","-H" ,"-ovalue", "written"+latest_snapshot, filesystem
@@ -543,7 +550,7 @@ def zfs_autobackup():
 
     ### get all snapshots of all selected filesystems
     verbose("Getting source snapshot-list from {0}".format(args.ssh_source))
-    source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name)
+    source_snapshots=zfs_get_snapshots(args.ssh_source, source_filesystems, args.backup_name, also_bookmarks=True)
     debug("Source snapshots: " + str(pprint.pformat(source_snapshots)))
     # source_bookmarks=zfs_get_bookmarks(args.ssh_source, source_filesystems, args.backup_name)
     # debug("Source bookmarks: " + str(pprint.pformat(source_bookmarks)))
@@ -612,13 +619,13 @@ def zfs_autobackup():
 
                 #latest succesfully sent snapshot, should be common on both source and target (at least a bookmark on source)
                 latest_target_snapshot=target_snapshots[target_filesystem][-1]
-                latest_target_bookmark='#'+latest_target_snapshot[1:]
 
                 #find our starting snapshot/bookmark:
+                latest_target_bookmark='#'+latest_target_snapshot[1:]
                 if latest_target_snapshot in source_snapshots[source_filesystem]:
                     latest_source_index=source_snapshots[source_filesystem].index(latest_target_snapshot)
                     source_bookmark=latest_target_snapshot
-                elif latest_target_bookmark not in source_snapshots[source_filesystem]:
+                elif latest_target_bookmark in source_snapshots[source_filesystem]:
                     latest_source_index=source_snapshots[source_filesystem].index(latest_target_bookmark)
                     source_bookmark=latest_target_bookmark
                 else:
@@ -629,7 +636,7 @@ def zfs_autobackup():
                     found=False
                     for latest_target_snapshot in reversed(target_snapshots[target_filesystem]):
                         if latest_target_snapshot in source_snapshots[source_filesystem]:
-                            error_msg=error_msg+"\nYou could solve this by rolling back to this common snapshot on target: "+target_filesystem+"@"+latest_target_snapshot
+                            error_msg=error_msg+"\nYou could solve this by rolling back to this common snapshot on target: "+target_filesystem+latest_target_snapshot
                             found=True
                             break
                     if not found:
@@ -690,13 +697,14 @@ def zfs_autobackup():
                     source_obsolete_snapshots[source_filesystem].append(send_snapshot)
 
 
-                    #now that we succesfully transferred this snapshot, the previous target snapshot is obsolete:
+                    #now that we succesfully transferred this snapshot, cleanup the previous stuff
                     if latest_target_snapshot:
-                        zfs_release_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+latest_target_snapshot)
+                        #dont need the latest_target_snapshot anymore
+                        zfs_release_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+latest_target_snapshot)
                         target_obsolete_snapshots[target_filesystem].append(latest_target_snapshot)
 
                         #delete previous bookmark
-                        zfs_destroy_bookmark(ssh_to=args.ssh_source, bookmark=source_filesystem+"#"+latest_target_snapshot)
+                        zfs_destroy_bookmark(ssh_to=args.ssh_source, bookmark=source_filesystem+source_bookmark)
 
                         # zfs_release_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+latest_target_snapshot)
                         # source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
@@ -715,7 +723,7 @@ def zfs_autobackup():
 
 
                     latest_target_snapshot=send_snapshot
-
+                    source_bookmark='#'+latest_target_snapshot[1:]
 
 
     ############## cleanup section
