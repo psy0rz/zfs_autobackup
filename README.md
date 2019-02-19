@@ -279,3 +279,7 @@ root@h4:~# zfs set autobackup:data_smartos03=child rpool/data
 
 Preparing the backup server
 ---------------------------
+
+Extra options needed for proxmox with HA:
+* --no-holds: To allow proxmox to destroy our snapshots if a VM migrates to another node.
+* --ignore-replicated: To ignore the replicated filesystems of proxmox on the receiving nodes. (only backup from the node where the VM is active)
