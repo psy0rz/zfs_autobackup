@@ -283,3 +283,19 @@ Preparing the backup server
 Extra options needed for proxmox with HA:
 * --no-holds: To allow proxmox to destroy our snapshots if a VM migrates to another node.
 * --ignore-replicated: To ignore the replicated filesystems of proxmox on the receiving nodes. (only backup from the node where the VM is active)
+
+
+I use the following backup script on the backup server:
+```
+for H in h4 h5 h6; do
+  echo "################################### DATA $H"
+  #backup data filesystems to a common place
+  ./zfs_autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --no-holds  $@
+  zabbix-job-status backup_$H""_data_smartos03 daily $? >/dev/null 2>/dev/null
+
+  echo "################################### RPOOL $H"
+  #backup rpool to own place
+  ./zfs_autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint  --resume --ignore-transfer-errors $@
+  zabbix-job-status backup_$H""_smartos03 daily $? >/dev/null 2>/dev/null
+done
+```

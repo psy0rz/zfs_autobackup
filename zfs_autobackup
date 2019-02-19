@@ -719,10 +719,10 @@ def zfs_autobackup():
             stale_target_destroys.append(stale_target_filesystem)
 
     if stale_target_destroys:
-        if args.destroy_stale:
-            verbose("Destroying stale filesystems on target {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
-            zfs_destroy(ssh_to=args.ssh_target, filesystems=stale_target_destroys, recursive=True)
-        else:
+        # if args.destroy_stale:
+        #     verbose("Destroying stale filesystems on target {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
+        #     zfs_destroy(ssh_to=args.ssh_target, filesystems=stale_target_destroys, recursive=True)
+        # else:
             verbose("Stale filesystems on {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
 
 
