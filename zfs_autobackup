@@ -378,15 +378,24 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
 
 
 
-"""get filesystems that where already backupped to a target. """
-def zfs_get_backupped_filesystems(ssh_to, backup_name, target_fs):
-    #get all target filesystems that have received or inherited the backup propert, under the target_fs tree
+#NOTE: unreliable when using with autobackup:bla=child
+# """get filesystems that where already backupped to a target. """
+# def zfs_get_backupped_filesystems(ssh_to, backup_name, target_path):
+#     #get all target filesystems that have received or inherited the backup propert, under the target_path tree
+#     ret=run(ssh_to=ssh_to, tab_split=False, valid_exitcodes=[ 0,1 ], cmd=[
+#         "zfs", "get", "-r", "-t",  "volume,filesystem", "-o", "name", "-s", "received,inherited", "-H", "autobackup:"+backup_name, target_path
+#     ])
+#
+#     return(ret)
+
+"""get existing filesystems """
+def zfs_get_existing_filesystems(ssh_to, target_path):
+    #get all target filesystems that have received or inherited the backup propert, under the target_path tree
     ret=run(ssh_to=ssh_to, tab_split=False, valid_exitcodes=[ 0,1 ], cmd=[
-        "zfs", "get", "-r", "-t",  "volume,filesystem", "-o", "name", "-s", "received,inherited", "-H", "autobackup:"+backup_name, target_fs
+        "zfs", "list", "-r", "-t",  "volume,filesystem", "-o", "name", "-H", target_path
     ])
 
     return(ret)
-
 
 
 """get filesystems that where once backupped to target but are no longer selected on source
@@ -395,7 +404,7 @@ these are filesystems that are not in the list in target_filesystems.
 
 this happens when filesystems are destroyed or unselected on the source.
 """
-def get_stale_backupped_filesystems(ssh_to, backup_name, target_fs, target_filesystems, existing_target_filesystems):
+def get_stale_backupped_filesystems(ssh_to, backup_name, target_path, target_filesystems, existing_target_filesystems):
 
 
 
@@ -498,29 +507,32 @@ def zfs_autobackup():
     # determine target filesystems
     target_filesystems=[]
     for source_filesystem in source_filesystems:
-        #append args.target_fs prefix and strip args.strip_path paths from source_filesystem
-        target_filesystems.append(args.target_fs + "/" + lstrip_path(source_filesystem, args.strip_path))
+        #append args.target_path prefix and strip args.strip_path paths from source_filesystem
+        target_filesystems.append(args.target_path + "/" + lstrip_path(source_filesystem, args.strip_path))
     debug("Wanted target filesystems:\n"+str(pprint.pformat(target_filesystems)))
 
     # get actual existing target filesystems. (including ones that might not be in the backupset anymore)
     verbose("Getting existing target filesystems")
-    existing_target_filesystems=zfs_get_backupped_filesystems(ssh_to=args.ssh_target, backup_name=args.backup_name, target_fs=args.target_fs)
+    existing_target_filesystems=zfs_get_existing_filesystems(ssh_to=args.ssh_target, target_path=args.target_path)
     debug("Existing target filesystems:\n"+str(pprint.pformat(existing_target_filesystems)))
+    common_target_filesystems=list(set(target_filesystems) & set(existing_target_filesystems))
+    debug("Common target filesystems (target filesystems that also exist on source):\n"+str(pprint.pformat(common_target_filesystems)))
 
 
     ### get resumable transfers from target
     resumable_target_filesystems={}
-    if args.resume and existing_target_filesystems:
+    if args.resume:
         verbose("Checking for aborted transfers that can be resumed")
-        resumable_target_filesystems=zfs_get_resumable_filesystems(args.ssh_target, existing_target_filesystems)
+        #Important: use target_filesystem, not existing_target_filesystems (during initial transfer its resumable but doesnt exsit yet)
+        resumable_target_filesystems=zfs_get_resumable_filesystems(args.ssh_target, target_filesystems)
         debug("Resumable filesystems:\n"+str(pprint.pformat(resumable_target_filesystems)))
 
 
     ### get existing target snapshots
     target_snapshots={}
-    if existing_target_filesystems:
+    if common_target_filesystems:
         verbose("Getting target snapshot-list from {0}".format(args.ssh_target))
-        target_snapshots=zfs_get_snapshots(args.ssh_target, existing_target_filesystems, args.backup_name)
+        target_snapshots=zfs_get_snapshots(args.ssh_target, common_target_filesystems, args.backup_name)
         # except subprocess.CalledProcessError:
         #     verbose("(ignoring errors, probably initial backup for this filesystem)")
         #     pass
@@ -576,7 +588,7 @@ def zfs_autobackup():
 
     #determine which snapshots to send for each filesystem
     for source_filesystem in source_filesystems:
-        target_filesystem=args.target_fs + "/" + lstrip_path(source_filesystem, args.strip_path)
+        target_filesystem=args.target_path + "/" + lstrip_path(source_filesystem, args.strip_path)
 
         if source_filesystem not in source_snapshots:
             #this happens if you use --no-snapshot and there are new filesystems without snapshots
@@ -692,7 +704,7 @@ def zfs_autobackup():
 
     #find stale backups on target that have become obsolete
     # verbose("Getting stale filesystems and snapshots from {0}".format(args.ssh_target))
-    stale_target_filesystems=get_stale_backupped_filesystems(ssh_to=args.ssh_target, backup_name=args.backup_name, target_fs=args.target_fs, target_filesystems=target_filesystems, existing_target_filesystems=existing_target_filesystems)
+    stale_target_filesystems=get_stale_backupped_filesystems(ssh_to=args.ssh_target, backup_name=args.backup_name, target_path=args.target_path, target_filesystems=target_filesystems, existing_target_filesystems=existing_target_filesystems)
     debug("Stale target filesystems: {0}".format("\n".join(stale_target_filesystems)))
 
     stale_target_snapshots=zfs_get_snapshots(args.ssh_target, stale_target_filesystems, args.backup_name)
@@ -740,7 +752,7 @@ parser.add_argument('--ssh-target', default="local", help='Target host to push b
 parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
 parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
-parser.add_argument('target_fs',    help='Target filesystem')
+parser.add_argument('target_path',    help='Target path')
 
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
@@ -758,7 +770,7 @@ parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale 
 parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
 parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
 parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
-parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_fs to on)')
+parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
 parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
 
 
