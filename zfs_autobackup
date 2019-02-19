@@ -723,7 +723,7 @@ def zfs_autobackup():
             verbose("Destroying stale filesystems on target {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
             zfs_destroy(ssh_to=args.ssh_target, filesystems=stale_target_destroys, recursive=True)
         else:
-            verbose("Stale filesystems on {0}, use --destroy-stale to destroy:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
+            verbose("Stale filesystems on {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
 
 
     #now actually destroy the old snapshots
@@ -766,7 +766,7 @@ parser.add_argument('--strip-path', default=0, type=int, help='number of directo
 parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
 
 
-parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
+# parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
 parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
 parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
 parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
