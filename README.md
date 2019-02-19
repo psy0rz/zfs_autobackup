@@ -6,7 +6,9 @@ Introduction
 ZFS autobackup is used to periodicly backup ZFS filesystems to other locations. This is done using the very effcient zfs send and receive commands.
 
 It has the following features:
-* Automaticly selects filesystems to backup by looking at a simple ZFS property. (recursive)
+* Works across operating systems: Tested with Linux, FreeBSD/FreeNAS and SmartOS.
+* Works in combination with existing replication systems. (Like Proxmox HA)
+* Automatically selects filesystems to backup by looking at a simple ZFS property. (recursive)
 * Creates consistent snapshots. (takes all snapshots at once, atomic.)
 * Multiple backups modes:
   * "push" local data to a backup-server via SSH.
@@ -20,10 +22,11 @@ It has the following features:
 * Ability to 'finish' aborted backups to see what goes wrong.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
 * Keeps latest X snapshots remote and locally. (default 30, configurable)
+* Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
 * Easy installation:
   * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
-  * Written in python and uses zfs-commands, no 3rd party dependencys or libraries.
-  * No seperate config files or properties. Just one command you can copy/paste in your backup script.
+  * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
+  * No separate config files or properties. Just one command you can copy/paste in your backup script.
 
 Usage
 ====
