@@ -33,20 +33,22 @@ Usage
 ```
 usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
-                      [--no-snapshot] [--no-send] [--resume]
-                      [--strip-path STRIP_PATH] [--destroy-stale]
+                      [--no-snapshot] [--no-send] [--allow-empty]
+                      [--ignore-replicated] [--no-holds] [--ignore-new]
+                      [--resume] [--strip-path STRIP_PATH] [--buffer BUFFER]
                       [--clear-refreservation] [--clear-mountpoint]
                       [--filter-properties FILTER_PROPERTIES] [--rollback]
-                      [--test] [--verbose] [--debug]
-                      backup_name target_fs
+                      [--ignore-transfer-errors] [--test] [--verbose]
+                      [--debug]
+                      backup_name target_path
 
-ZFS autobackup v2.2
+ZFS autobackup v2.3
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
                         "autobackup:backup-name" to true on filesystems you
                         want to backup
-  target_fs             Target filesystem
+  target_path           Target path
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -65,6 +67,14 @@ optional arguments:
   --no-snapshot         dont create new snapshot (usefull for finishing
                         uncompleted backups, or cleanups)
   --no-send             dont send snapshots (usefull to only do a cleanup)
+  --allow-empty         if nothing has changed, still create empty snapshots.
+  --ignore-replicated   Ignore datasets that seem to be replicated some other
+                        way. (No changes since lastest snapshot. Usefull for
+                        proxmox HA replication)
+  --no-holds            Dont lock snapshots on the source. (Usefull to allow
+                        proxmox HA replication to switches nodes)
+  --ignore-new          Ignore filesystem if there are already newer snapshots
+                        for it on the target (use with caution)
   --resume              support resuming of interrupted transfers by using the
                         zfs extensible_dataset feature (both zpools should
                         have it enabled) Disadvantage is that you need to use
@@ -74,8 +84,9 @@ optional arguments:
   --strip-path STRIP_PATH
                         number of directory to strip from path (use 1 when
                         cloning zones between 2 SmartOS machines)
-  --destroy-stale       Destroy stale backups that have no more snapshots. Be
-                        sure to verify the output before using this!
+  --buffer BUFFER       Use mbuffer with specified size to speedup zfs
+                        transfer. (e.g. --buffer 1G) Will also show nice
+                        progress output.
   --clear-refreservation
                         Set refreservation property to none for new
                         filesystems. Usefull when backupping SmartOS volumes.
@@ -89,7 +100,10 @@ optional arguments:
                         from Linux to FreeNAS, you should filter xattr)
   --rollback            Rollback changes on the target before starting a
                         backup. (normally you can prevent changes by setting
-                        the readonly property on the target_fs to on)
+                        the readonly property on the target_path to on)
+  --ignore-transfer-errors
+                        Ignore transfer errors (still checks if received
+                        filesystem exists. usefull for acltype errors)
   --test                dont change anything, just show what would be done
                         (still does all read-only operations)
   --verbose             verbose output
