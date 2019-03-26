@@ -794,3 +794,5 @@ except Exception as e:
     else:
         print("ABORTED")
         print(str(e))
+        sys.exit(1)
+        
