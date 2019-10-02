@@ -406,7 +406,7 @@ these are filesystems that are not in the list in target_filesystems.
 
 this happens when filesystems are destroyed or unselected on the source.
 """
-def get_stale_backupped_filesystems(ssh_to, backup_name, target_path, target_filesystems, existing_target_filesystems):
+def get_stale_backupped_filesystems(backup_name, target_path, target_filesystems, existing_target_filesystems):
 
 
 
@@ -714,28 +714,32 @@ def zfs_autobackup():
     #we only do cleanups after everything is complete, to keep everything consistent (same snapshots everywhere)
 
 
-    #find stale backups on target that have become obsolete
-    # verbose("Getting stale filesystems and snapshots from {0}".format(args.ssh_target))
-    stale_target_filesystems=get_stale_backupped_filesystems(ssh_to=args.ssh_target, backup_name=args.backup_name, target_path=args.target_path, target_filesystems=target_filesystems, existing_target_filesystems=existing_target_filesystems)
-    debug("Stale target filesystems: {0}".format("\n".join(stale_target_filesystems)))
+    if not args.ignore_replicated:
+        #find stale backups on target that have become obsolete
 
-    stale_target_snapshots=zfs_get_snapshots(args.ssh_target, stale_target_filesystems, args.backup_name)
-    debug("Stale target snapshots: " + str(pprint.pformat(stale_target_snapshots)))
-    target_obsolete_snapshots.update(stale_target_snapshots)
+        stale_target_filesystems=get_stale_backupped_filesystems(backup_name=args.backup_name, target_path=args.target_path, target_filesystems=target_filesystems, existing_target_filesystems=existing_target_filesystems)
+        debug("Stale target filesystems: {0}".format("\n".join(stale_target_filesystems)))
 
-    #determine stale filesystems that have no snapshots left (the can be destroyed)
-    #TODO: prevent destroying filesystems that have underlying filesystems that are still active.
-    stale_target_destroys=[]
-    for stale_target_filesystem in stale_target_filesystems:
-        if stale_target_filesystem not in stale_target_snapshots:
-            stale_target_destroys.append(stale_target_filesystem)
+        stale_target_snapshots=zfs_get_snapshots(args.ssh_target, stale_target_filesystems, args.backup_name)
+        debug("Stale target snapshots: " + str(pprint.pformat(stale_target_snapshots)))
+        target_obsolete_snapshots.update(stale_target_snapshots)
 
-    if stale_target_destroys:
-        # if args.destroy_stale:
-        #     verbose("Destroying stale filesystems on target {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
-        #     zfs_destroy(ssh_to=args.ssh_target, filesystems=stale_target_destroys, recursive=True)
-        # else:
+        #determine stale filesystems that have no snapshots left (the can be destroyed)
+        stale_target_destroys=[]
+        for stale_target_filesystem in stale_target_filesystems:
+            if stale_target_filesystem not in stale_target_snapshots:
+                stale_target_destroys.append(stale_target_filesystem)
+
+        if stale_target_destroys:
+            #NOTE: dont destroy automaticly..not safe enough.
+            # if args.destroy_stale:
+            #     verbose("Destroying stale filesystems on target {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
+            #     zfs_destroy(ssh_to=args.ssh_target, filesystems=stale_target_destroys, recursive=True)
+            # else:
             verbose("Stale filesystems on {0}:\n{1}".format(args.ssh_target, "\n".join(stale_target_destroys)))
+    else:
+        verbose("NOTE: Cant determine stale target filesystems while using ignore_replicated.")
+
 
 
     #now actually destroy the old snapshots
