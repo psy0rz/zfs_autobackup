@@ -1,5 +1,9 @@
 #!/usr/bin/env python2
 # -*- coding: utf8 -*-
+
+#(C)edwin@datux.nl -- Edwin Eefting
+#Release under GPL.
+
 from __future__ import print_function
 import os
 import sys
