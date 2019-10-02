@@ -18,7 +18,7 @@ It has the following features:
 * Supports resuming of interrupted transfers. (via the zfs extensible_dataset feature)
 * Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
 * Always creates a new snapshot before starting.
-* Checks everything and aborts on errors.
+* Checks everything but tries continue on non-fatal errors when possible. (Reports error-count when done)
 * Ability to 'finish' aborted backups to see what goes wrong.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
 * Keeps latest X snapshots remote and locally. (default 30, configurable)
@@ -42,7 +42,7 @@ usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--debug]
                       backup_name target_path
 
-ZFS autobackup v2.3
+ZFS autobackup v2.4
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
@@ -108,6 +108,9 @@ optional arguments:
                         (still does all read-only operations)
   --verbose             verbose output
   --debug               debug output (shows commands that are executed)
+
+When a filesystem fails, zfs_backup will continue and report the number of
+failures at that end. Also the exit code will indicate the number of failures.
 ```
 
 Backup example
