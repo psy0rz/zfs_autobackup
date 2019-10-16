@@ -818,7 +818,7 @@ try:
     else:
         verbose("{} OPERATION(S) FAILED!".format(failures))
         #exit with the number of failures.
-        sys.exit(min(255,failed))
+        sys.exit(min(255,failures))
 
 except Exception as e:
     if args.debug:
