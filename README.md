@@ -48,7 +48,7 @@ positional arguments:
   backup_name           Name of the backup (you should set the zfs property
                         "autobackup:backup-name" to true on filesystems you
                         want to backup
-  target_path           Target path
+  target_path           Target ZFS filesystem
 
 optional arguments:
   -h, --help            show this help message and exit
