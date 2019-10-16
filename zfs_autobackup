@@ -250,6 +250,16 @@ def zfs_release_snapshot(ssh_to, snapshot, tag=None):
 
 
 
+"""gets all properties of a filesystem"""
+def zfs_get_properties(ssh_to, filesystem):
+    cmd=[
+        "zfs", "get", "all", "-H", "-o", "property,value", snapshot
+    ]
+
+    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0, 1 ])
+
+
+
 """transfer a zfs snapshot from source to target. both can be either local or via ssh.
 
 
@@ -792,7 +802,7 @@ parser.add_argument('--buffer', default="",  help='Use mbuffer with specified si
 
 
 # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
+parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none. (recommended, safes space on target server)')
 parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
 parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
@@ -812,11 +822,18 @@ if args.ignore_replicated and args.allow_empty:
 
 try:
     zfs_autobackup()
+
     if not failures:
-        verbose("All operations completed succesfully.")
+        if args.test:
+            verbose("All TESTS completed succesfully. NO BACKUPS CREATED.")
+        else:
+            verbose("All operations completed succesfully.")
         sys.exit(0)
     else:
-        verbose("{} OPERATION(S) FAILED!".format(failures))
+        if args.test:
+            verbose("{} TEST-OPERATION(S) FAILED! NO BACKUPS CREATED. ".format(failures))
+        else:
+            verbose("{} OPERATION(S) FAILED!".format(failures))
         #exit with the number of failures.
         sys.exit(min(255,failures))
 
