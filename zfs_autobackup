@@ -326,7 +326,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         txt=txt+" [RESUMED]"
 
     else:
-        source_cmd.append("-p")
+        # source_cmd.append("-p")
 
         if first_snapshot:
             source_cmd.extend([ "-i", first_snapshot ])
@@ -349,13 +349,6 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         target_cmd.extend([ "ssh", ssh_target ])
 
     target_cmd.extend(["zfs", "recv", "-u" ])
-
-    # filter certain properties on receive (usefull for linux->freebsd in some cases)
-    # (-x is not supported on all platforms)
-    if args.filter_properties:
-        for filter_property in args.filter_properties:
-            target_cmd.extend([ "-x" , filter_property ])
-
 
     if args.debug:
         target_cmd.append("-v")
@@ -676,27 +669,24 @@ def zfs_autobackup():
                 #now actually send the snapshots
                 if not args.no_send:
 
-                    ### prepare to send
-                    source_properties=zfs_get_properties(ssh_to=args.ssh_source, filesystem=source_filesystem)
-                    if latest_target_snapshot:
-                        target_properties=zfs_get_properties(ssh_to=args.ssh_target, filesystem=target_filesystem)
-                    else:
-                        #new filesystem, no target props yet
-                        target_properties={}
-
                     # we have acutally something to send?
                     if send_snapshots:
-                        #clear target quotas to prevent space issues during transfer.
-                        #these will be restored automaticly at the end.
-                        for property in ['quota', 'refquota' ]:
-                            if property in target_properties and target_properties[property]!='none':
-                                zfs_set_property(args.ssh_target, target_filesystem, property, 'none')
 
-                        #rollback?
-                        if args.rollback and latest_target_snapshot:
-                            #roll back any changes on target
-                            debug("Rolling back target to latest snapshot.")
-                            run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
+                        #target already exists?
+                        if latest_target_snapshot:
+
+                            #clear target quotas to prevent space issues during transfer.
+                            #these will be restored automaticly at the end, if specified with --properties
+                            target_properties=zfs_get_properties(ssh_to=args.ssh_target, filesystem=target_filesystem)
+                            for property in ['quota', 'refquota' ]:
+                                if property in target_properties and target_properties[property]!='none':
+                                    zfs_set_property(args.ssh_target, target_filesystem, property, 'none')
+
+                            #rollback?
+                            if args.rollback:
+                                #roll back any changes on target
+                                debug("Rolling back target to latest snapshot.")
+                                run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
 
 
                     ### traverse all the snapshots and send them
@@ -723,8 +713,6 @@ def zfs_autobackup():
                         #hold the snapshot we just send to the target
                         zfs_hold_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+send_snapshot)
 
-
-
                         #now that we succesfully transferred this snapshot, the previous snapshot is obsolete:
                         if latest_target_snapshot:
                             zfs_release_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+latest_target_snapshot)
@@ -736,35 +724,14 @@ def zfs_autobackup():
 
                         latest_target_snapshot=send_snapshot
 
-                    ### finishedup sending, determine which target properties we need to set or copy
-                    if send_snapshots:
-                        #reread properties if we actually changed something
+                    ### finishedup sending, sync properties
+                    if args.properties:
+                        source_properties=zfs_get_properties(ssh_to=args.ssh_source, filesystem=source_filesystem)
                         target_properties=zfs_get_properties(ssh_to=args.ssh_target, filesystem=target_filesystem)
-
-                    new_target_properties={}
-                    if 'quota' in source_properties:
-                        new_target_properties['quota']=source_properties['quota']
-                    if 'refquota' in source_properties:
-                        new_target_properties['refquota']=source_properties['refquota']
-
-                    if 'refreservation' in source_properties:
-                        if args.clear_refreservation:
-                            new_target_properties['refreservation']='none'
-                        else:
-                            new_target_properties['refreservation']=source_properties['refreservation']
-
-                    if 'canmount' in source_properties:
-                        if args.clear_mountpoint:
-                            new_target_properties['canmount']='noauto'
-                        else:
-                            new_target_properties['canmount']=source_properties['canmount']
-
-                    #now set the target properties that are different
-                    for (property,value) in new_target_properties.items():
-                        if target_properties[property]!=value:
-                            verbose("Setting property on {}: {}={}".format(target_filesystem, property, value))
-                            zfs_set_property(args.ssh_target, target_filesystem, property, value)
-
+                        for property in args.properties.split(","):
+                            if property in source_properties and source_properties[property]!=target_properties[property]:
+                                verbose("Copying property to {}: {}={}".format(target_filesystem, property, source_properties[property]))
+                                zfs_set_property(args.ssh_target, target_filesystem, property, source_properties[property])
 
 
         # failed, skip this source_filesystem
@@ -830,7 +797,7 @@ def zfs_autobackup():
 # parse arguments
 import argparse
 parser = argparse.ArgumentParser(
-    description='ZFS autobackup v2.5',
+    description='ZFS autobackup v3.0',
     epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
@@ -852,9 +819,7 @@ parser.add_argument('--buffer', default="",  help='Use mbuffer with specified si
 
 
 # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none. (recommended, safes space on target server)')
-parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
-parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
+parser.add_argument('--properties', default=None, help='Comma seperated list of zfs properties that should be synced to target. (Quotas are always disabled temporarily)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
 parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
 
