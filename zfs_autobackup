@@ -250,22 +250,14 @@ def zfs_release_snapshot(ssh_to, snapshot, tag=None):
 
 
 
-"""gets all properties of a filesystem, as a dict"""
+"""gets all properties of a filesystem"""
 def zfs_get_properties(ssh_to, filesystem):
     cmd=[
-        "zfs", "get", "-H", "-o", "property,value", "all", filesystem
+        "zfs", "get", "all", "-H", "-o", "property,value", snapshot
     ]
 
-    return(dict(run(ssh_to=ssh_to, tab_split=True, cmd=cmd)))
+    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0, 1 ])
 
-
-"""set zfs property"""
-def zfs_set_property(ssh_to, filesystem, property, value):
-    cmd=[
-        "zfs", "set", property+"="+value, filesystem
-    ]
-
-    return(run(ssh_to=ssh_to, test=args.test, cmd=cmd))
 
 
 """transfer a zfs snapshot from source to target. both can be either local or via ssh.
@@ -349,6 +341,11 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         target_cmd.extend([ "ssh", ssh_target ])
 
     target_cmd.extend(["zfs", "recv", "-u" ])
+
+    # filter certain properties on receive (usefull for linux->freebsd in some cases)
+    if args.filter_properties:
+        for filter_property in args.filter_properties:
+            target_cmd.extend([ "-x" , filter_property ])
 
     if args.debug:
         target_cmd.append("-v")
@@ -669,27 +666,12 @@ def zfs_autobackup():
                 #now actually send the snapshots
                 if not args.no_send:
 
-                    # we have acutally something to send?
-                    if send_snapshots:
-
-                        #target already exists?
-                        if latest_target_snapshot:
-
-                            #clear target quotas to prevent space issues during transfer.
-                            #these will be restored automaticly at the end, if specified with --properties
-                            target_properties=zfs_get_properties(ssh_to=args.ssh_target, filesystem=target_filesystem)
-                            for property in ['quota', 'refquota' ]:
-                                if property in target_properties and target_properties[property]!='none':
-                                    zfs_set_property(args.ssh_target, target_filesystem, property, 'none')
-
-                            #rollback?
-                            if args.rollback:
-                                #roll back any changes on target
-                                debug("Rolling back target to latest snapshot.")
-                                run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
+                    if send_snapshots and args.rollback and latest_target_snapshot:
+                        #roll back any changes on target
+                        debug("Rolling back target to latest snapshot.")
+                        run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "rollback", target_filesystem+"@"+latest_target_snapshot ])
 
 
-                    ### traverse all the snapshots and send them
                     for send_snapshot in send_snapshots:
 
                         #resumable?
@@ -702,7 +684,6 @@ def zfs_autobackup():
                         if not args.no_holds:
                             zfs_hold_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+send_snapshot)
 
-                        #do the actual transfer
                         zfs_transfer(
                             ssh_source=args.ssh_source, source_filesystem=source_filesystem,
                             first_snapshot=latest_target_snapshot, second_snapshot=send_snapshot,
@@ -721,23 +702,23 @@ def zfs_autobackup():
                             if not args.no_holds:
                                 zfs_release_snapshot(ssh_to=args.ssh_source, snapshot=source_filesystem+"@"+latest_target_snapshot)
                                 source_obsolete_snapshots[source_filesystem].append(latest_target_snapshot)
+                        #we just received a new filesytem?
+                        else:
+                            if args.clear_refreservation:
+                                debug("Clearing refreservation to save space.")
+
+                                run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "refreservation=none", target_filesystem ])
+
+
+                            if args.clear_mountpoint:
+                                debug("Setting canmount=noauto to prevent auto-mounting in the wrong place. (ignoring errors)")
+
+                                run(ssh_to=args.ssh_target, test=args.test, cmd=["zfs", "set", "canmount=noauto", target_filesystem ], valid_exitcodes= [0, 1] )
+
 
                         latest_target_snapshot=send_snapshot
-
-                    ### finishedup sending, sync properties
-                    if args.properties:
-                        source_properties=zfs_get_properties(ssh_to=args.ssh_source, filesystem=source_filesystem)
-                        target_properties=zfs_get_properties(ssh_to=args.ssh_target, filesystem=target_filesystem)
-                        for property in args.properties.split(","):
-                            if property in source_properties and source_properties[property]!=target_properties[property]:
-                                verbose("Copying property to {}: {}={}".format(target_filesystem, property, source_properties[property]))
-                                zfs_set_property(args.ssh_target, target_filesystem, property, source_properties[property])
-
-
         # failed, skip this source_filesystem
         except Exception as e:
-            if args.debug:
-                raise
             failed(str(e))
 
 
@@ -797,7 +778,7 @@ def zfs_autobackup():
 # parse arguments
 import argparse
 parser = argparse.ArgumentParser(
-    description='ZFS autobackup v3.0',
+    description='ZFS autobackup v2.4',
     epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
 parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
 parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
@@ -806,7 +787,7 @@ parser.add_argument('--keep-target', type=int, default=30, help='Number of days 
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
 parser.add_argument('target_path',    help='Target ZFS filesystem')
 
-parser.add_argument('--no-snapshot', action='store_true', help='Dont create new snapshot. Usefull for completing unfinished backups or to investigate a problem.')
+parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
 parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
 parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
@@ -826,7 +807,7 @@ parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignor
 
 parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
 parser.add_argument('--verbose', action='store_true', help='verbose output')
-parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed, and aborts with a backtrace on the first error)')
+parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
 
 #note args is the only global variable we use, since its a global readonly setting anyway
 args = parser.parse_args()

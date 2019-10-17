@@ -23,7 +23,6 @@ It has the following features:
 * Easy to debug and has a test-mode. Actual unix commands are printed.
 * Keeps latest X snapshots remote and locally. (default 30, configurable)
 * Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
-* Tries to work around quota issues by temporary clearing those properties during backup.
 * Easy installation:
   * Only one host needs the zfs_autobackup script. The other host just needs ssh and the zfs command.
   * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
