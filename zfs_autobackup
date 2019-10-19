@@ -182,8 +182,12 @@ class ZfsDataset():
 
     def invalidate(self):
         """clear cache"""
-        #TODO: nicer
+        #TODO: nicer?
         self._cached_properties={}
+
+    def lstrip_path(self,count):
+        """return name with first count components stripped"""
+        return("/".join(self.name.split("/")[count:]))
 
 
     @property
@@ -317,7 +321,7 @@ class ZfsNode(ExecuteNode):
         for dataset in datasets:
             if not allow_empty:
                 if not dataset.is_changed_ours:
-                    dataset.verbose("No changes, not snapshotting")
+                    dataset.verbose("No changes, not snapshotting. (last was {})".format(dataset.our_snapshots[-1].snapshot_name))
                     continue
 
             cmd.append(str(dataset)+"@"+snapshot_name)
@@ -433,17 +437,69 @@ class ZfsAutobackup:
         description="Target {}".format(self.args.ssh_target or "(local)")
         target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, description=description)
 
-
-        self.set_title("Getting selected datasets")
+        self.set_title("Selecting")
         source_datasets=source_node.selected_datasets
         if not source_datasets:
             abort("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(self.args.backup_name, self.args.ssh_source))
 
-        self.set_title("Snapshotting")
-        source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), allow_empty=self.args.allow_empty)
+        if not self.args.no_snapshot:
+            self.set_title("Snapshotting")
+            source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), allow_empty=self.args.allow_empty)
 
-        # for source_dataset in source_datasets:
-        #     print(source_dataset)
+
+        self.set_title("Transferring")
+
+        target_root=ZfsDataset(target_node, self.args.target_path)
+
+        for source_dataset in source_datasets:
+
+            #determine corresponding target_dataset
+            target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
+            target_dataset=ZfsDataset(target_node, target_name)
+
+            #does it actually exists?
+            if target_dataset in target_root.recursive_datasets:
+                #yes, so we're in incremental mode
+
+                #find latest target snapshot and find it on source
+                latest_target_snapshot=target_dataset.our_snapshots[-1]
+                corresponding_source_snapshot=source_dataset+"@"+latest_target_snapshot.snapshot_name
+
+                if corresponding_source_snapshot in source_dataset.snapshots:
+                    #find all snapshots we still need
+                    source_send_index=source_dataset.snapshots.index(corresponding_source_snapshot)
+                    source_send_snapshots=source_dataset.snapshots[source_send_index+1:]
+                    print(source_send_snapshots)
+                else:
+                    abort("cant find source ")
+
+                    # if latest_target_snapshot not in source_dataset.snapshots:
+                    #     #cant find latest target anymore. find first common snapshot and inform user
+                    #     error_msg="Cant find latest target snapshot on source for '{}', did you destroy/rename it?".format(source_dataset)
+                    #     error_msg=error_msg+"\nLatest on target : "+latest_target_snapshot.snapshot_name
+                    #     error_msg=error_msg+"\nMissing on source: "+source_dataset+"@"+latest_target_snapshot.snapshot_name
+                    #     found=False
+                    #     for latest_target_snapshot in reversed(target_dataset.our_snapshots):
+                    #         if latest_target_snapshot in source_dataset.our_snapshots:
+                    #             error_msg=error_msg+"\nYou could solve this by rolling back to this common snapshot on target: "+target_filesystem+"@"+latest_target_snapshot
+                    #             found=True
+                    #             break
+                    #     if not found:
+                    #         error_msg=error_msg+"\nAlso could not find an earlier common snapshot to rollback to."
+                    #     else:
+                    #         if args.ignore_new:
+                    #             verbose("* Skipping source filesystem '{0}', target already has newer snapshots.".format(source_filesystem))
+                    #             continue
+                    #
+                    #     raise(Exception(error_msg))
+
+                    #send all new source snapshots that come AFTER the last target snapshot
+                    print(latest_target_snapshot)
+                    pprint.pprint(source_dataset.our_snapshots)
+                    latest_source_index=source_dataset.our_snapshots.index(latest_target_snapshot)
+                    send_snapshots=source_dataset.our_snapshots[latest_source_index+1:]
+
+
         #     print(source_dataset.recursive_datasets)
         #
         #
