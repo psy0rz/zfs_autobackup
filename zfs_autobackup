@@ -9,11 +9,13 @@ import subprocess
 import pprint
 # import cStringIO
 import time
+import argparse
 
 class Log:
-    def __init__(self):
+    def __init__(self, show_debug=False, show_verbose=False):
         self.titles=[]
-        pass
+        self.show_debug=show_debug
+        self.show_verbose=show_verbose
 
     def titled_str(self, txt, titles):
         """magic to make our log messages ident and more clear"""
@@ -35,15 +37,14 @@ class Log:
         print(txt, file=sys.stderr)
 
     def verbose(self, txt, titles=[]):
-        if args.verbose:
+        if self.show_verbose:
             print(self.titled_str(txt, titles))
 
     def debug(self, txt, titles=[]):
-        if args.debug:
-            print(txt)
+        if self.show_debug:
+            print(self.titled_str(txt, titles))
 
 
-log=Log()
 
 #fatal abort execution, exit code 255
 def abort(txt):
@@ -87,6 +88,7 @@ class cached_property(object):
 class ExecuteNode:
     """an endpoint to execute local or remote commands via ssh"""
 
+
     def __init__(self, ssh_to=None, readonly=False):
         """ssh_to: server you want to ssh to. none means local
            readonly: only execute commands that dont make any changes (usefull for testing-runs)
@@ -122,12 +124,12 @@ class ExecuteNode:
         debug_txt="# "+" ".join(encoded_cmd)
 
         if self.readonly and not readonly:
-            log.debug("[NOT EXECUTING (readonly mode)] "+debug_txt)
+            self.debug("[NOT EXECUTING (readonly mode)] "+debug_txt)
         else:
-            log.debug(debug_txt)
+            self.debug(debug_txt)
 
         if input:
-            log.debug("INPUT:\n"+input.rstrip())
+            self.debug("INPUT:\n"+input.rstrip())
             stdin=subprocess.PIPE
         else:
             stdin=None
@@ -278,20 +280,24 @@ class ZfsDataset():
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global lowlevel zfs commands"""
 
-    def __init__(self, backup_name, ssh_to=None, readonly=False, description=""):
+    def __init__(self, backup_name, zfs_autobackup, ssh_to=None, readonly=False, description=""):
         self.backup_name=backup_name
         if not description:
             self.description=ssh_to
+        else:
+            self.description=description
+
+        self.zfs_autobackup=zfs_autobackup #for logging
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
 
     def verbose(self,txt,titles=[]):
         titles.insert(0,self.description)
-        log.verbose(txt, titles)
+        self.zfs_autobackup.verbose(txt, titles)
 
     def debug(self,txt, titles=[]):
         titles.insert(0,self.description)
-        log.debug(txt, titles)
+        self.zfs_autobackup.debug(txt, titles)
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -366,63 +372,83 @@ class ZfsNode(ExecuteNode):
 
 
 
+class ZfsAutobackup:
+    """main class"""
+    def __init__(self):
+
+        parser = argparse.ArgumentParser(
+            description='ZFS autobackup v2.4',
+            epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
+        parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
+        parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
+        parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
+        parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
+        parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
+        parser.add_argument('target_path',    help='Target ZFS filesystem')
+
+        parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
+        parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
+        parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
+        parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
+        parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
+        parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
+
+        parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
+        parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+        parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
 
 
-
-################################################################## ENTRY POINT
-
-# parse arguments
-import argparse
-parser = argparse.ArgumentParser(
-    description='ZFS autobackup v2.4',
-    epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
-parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
-parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
-parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
-parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
-parser.add_argument('target_path',    help='Target ZFS filesystem')
-
-parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
-parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
-parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
-parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
-parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
-parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
-
-parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
-parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
-parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
+        # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
+        parser.add_argument('--properties', default=None, help='Comma seperated list of zfs properties that should be synced to target. (Quotas are always disabled temporarily)')
+        parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
+        parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
 
 
-# parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-parser.add_argument('--properties', default=None, help='Comma seperated list of zfs properties that should be synced to target. (Quotas are always disabled temporarily)')
-parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
-parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
+        parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
+        parser.add_argument('--verbose', action='store_true', help='verbose output')
+        parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
+
+        #note args is the only global variable we use, since its a global readonly setting anyway
+        args = parser.parse_args()
+
+        self.args=args
+        self.log=Log(show_debug=self.args.debug, show_verbose=self.args.verbose)
 
 
-parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
-parser.add_argument('--verbose', action='store_true', help='verbose output')
-parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
+    def verbose(self,txt,titles=[]):
+        titles.insert(0,self.title)
+        self.log.verbose(txt, titles)
 
-#note args is the only global variable we use, since its a global readonly setting anyway
-args = parser.parse_args()
+    def debug(self,txt,titles=[]):
+        titles.insert(0,self.title)
+        self.log.debug(txt, titles)
+
+    def set_title(self, title):
+        self.title=title
+
+    def run(self):
+        description="Source {}".format(self.args.ssh_source or "(local)")
+        source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, description=description)
+
+        description="Target {}".format(self.args.ssh_target or "(local)")
+        target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, description=description)
 
 
-source_node=ZfsNode(args.backup_name, ssh_to=args.ssh_source, readonly=args.test)
-target_node=ZfsNode(args.backup_name, ssh_to=args.ssh_target, readonly=args.test)
+        self.set_title("Getting selected datasets")
+        source_datasets=source_node.selected_datasets
+        if not source_datasets:
+            abort("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(self.args.backup_name, self.args.ssh_source))
+
+        self.set_title("Snapshotting")
+        source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), allow_empty=self.args.allow_empty)
+
+        # for source_dataset in source_datasets:
+        #     print(source_dataset)
+        #     print(source_dataset.recursive_datasets)
+        #
+        #
+        # pprint.pprint(ZfsDataset(node, "rpool").recursive_datasets)
 
 
-source_datasets=source_node.selected_datasets
-
-if not source_datasets:
-    abort("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(args.backup_name,args.ssh_source))
-
-source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), allow_empty=args.allow_empty)
-
-# for source_dataset in source_datasets:
-#     print(source_dataset)
-#     print(source_dataset.recursive_datasets)
-#
-#
-# pprint.pprint(ZfsDataset(node, "rpool").recursive_datasets)
+zfs_autobackup=ZfsAutobackup()
+zfs_autobackup.run()
