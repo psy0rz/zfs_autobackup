@@ -191,10 +191,11 @@ class ZfsDataset():
     def __str__(self):
         return(self.name)
 
-    # def invalidate(self):
-    #     """invalidate cached data"""
-    #     for d in self.__dict__:
-    #         if (self.__getattribute__)
+    def verbose(self,txt):
+        self.zfs_node.verbose("{}: {}".format(self.name, txt))
+
+    def debug(self,txt):
+        self.zfs_node.debug("{}: {}".format(self.name, txt))
 
 
     def invalidate(self):
@@ -273,10 +274,13 @@ class ZfsDataset():
     def is_changed_ours(self):
         """dataset is changed since OUR latest snapshot?"""
 
-        latest_snapshot=self.snapshots[:-1]
-        cmd=[ "zfs", "get","-H" ,"-ovalue", "written@"+latest_snapshot, self.name ]
-        output=self.zfs_node.run(tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
+        if not self.our_snapshots:
+            return(True)
 
+        latest_snapshot=self.snapshots[-1]
+
+        cmd=[ "zfs", "get","-H" ,"-ovalue", "written@"+str(latest_snapshot), self.name ]
+        output=self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
         if output[0]=="0B" or output[0]=="0":
             return(False)
 
@@ -296,9 +300,18 @@ class ZfsDataset():
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global lowlevel zfs commands"""
 
-    def __init__(self, backup_name, ssh_to=None, readonly=False):
+    def __init__(self, backup_name, ssh_to=None, readonly=False, description=""):
         self.backup_name=backup_name
+        if not description:
+            self.description=ssh_to
+
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
+
+    def verbose(self,txt):
+        verbose("{}: {}".format(self.description, txt))
+
+    def debug(self,txt):
+        debug("{}: {}".format(self.description, txt))
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -315,12 +328,19 @@ class ZfsNode(ExecuteNode):
 
         noop=True
         for dataset in datasets:
-            if allow_empty or dataset.is_changed_ours():
-                cmd.append(str(dataset)+"@"+snapshot_name)
-                dataset.invalidate()
-                noop=False
+            if not allow_empty:
+                if not dataset.is_changed_ours:
+                    dataset.verbose("No changes, not snapshotting")
+                    continue
 
-        if not noop:
+            cmd.append(str(dataset)+"@"+snapshot_name)
+            dataset.invalidate()
+            noop=False
+
+        if noop:
+            self.verbose("No changes, not creating snapshot.")
+        else:
+            self.verbose("Creating snapshot {}".format(snapshot_name))
             self.run(cmd, readonly=False)
 
 
@@ -340,8 +360,10 @@ class ZfsNode(ExecuteNode):
         direct_filesystems=[]
         for line in lines:
             (name,value,source)=line
+            dataset=ZfsDataset(self, name)
+
             if value=="false":
-                verbose("* Ignored : {0} (disabled)".format(name))
+                dataset.verbose("Ignored (disabled)")
 
             else:
                 if source=="local" and ( value=="true" or value=="child"):
