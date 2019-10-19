@@ -23,74 +23,75 @@ def debug(txt):
         print(txt)
 
 
-class TreeNode():
-    """generic tree implementation, with parent/child and prev/next relations"""
-    def __init__(self, name, parent=None, next=None, prev=None, *args, **kwargs):
-        self.childs={}
+# class TreeNode():
+#     """generic tree implementation, with parent/child and prev/next relations"""
+#     def __init__(self, name, parent=None, next=None, prev=None, *args, **kwargs):
+#         self.childs={}
+#
+#         self.name=name
+#         self.parent=parent
+#         if parent:
+#             if name in parent.childs:
+#                 raise(Exception("parent {} already has child {}").format(parent.name, name))
+#             parent.childs[name]=self
+#
+#
+#         self.next=next
+#         if next:
+#             if next.prev:
+#                 raise(Exception("{} already has a previous item").format(next.name))
+#             next.prev=self
+#
+#         self.prev=prev
+#         if prev:
+#             if prev.next:
+#                 raise(Exception("{} already has a next item").format(prev.name))
+#             prev.next=self
+#
+#
+#     def remove(self):
+#         """remove the item from other referenced TreeNodes. call before you actually delete a treeobject"""
+#
+#         if self.parent:
+#             self.parent.childs.remove(self.name)
+#
+#
+#         # let previous and next objects point to eachother
+#         if self.next:
+#             self.next.prev=self.prev
+#
+#         if self.prev:
+#             self.prev.next=self.next
+#
+#         self.parent=None
+#         self.next=None
+#         self.prev=None
+#
+#
 
-        self.name=name
-        self.parent=parent
-        if parent:
-            if name in parent.childs:
-                raise(Exception("parent {} already has child {}").format(parent.name, name))
-            parent.childs[name]=self
 
 
-        self.next=next
-        if next:
-            if next.prev:
-                raise(Exception("{} already has a previous item").format(next.name))
-            next.prev=self
+class ExecuteNode:
+    """an endpoint to execute local or remote commands via ssh"""
 
-        self.prev=prev
-        if prev:
-            if prev.next:
-                raise(Exception("{} already has a next item").format(prev.name))
-            prev.next=self
+    def __init__(self, ssh_to=None, readonly=False):
+        """ssh_to: server you want to ssh to. none means local
+           readonly: only execute commands that dont make any changes (usefull for testing-runs)
+        """
 
-
-    def remove(self):
-        """remove the item from other referenced TreeNodes. call before you actually delete a treeobject"""
-
-        if self.parent:
-            self.parent.childs.remove(self.name)
-
-
-        # let previous and next objects point to eachother
-        if self.next:
-            self.next.prev=self.prev
-
-        if self.prev:
-            self.prev.next=self.next
-
-        self.parent=None
-        self.next=None
-        self.prev=None
-
-
-
-class ZfsNode(TreeNode):
-    """an endpoint that contains zfs filesystems.
-
-    contains lowlevel zfs wrappers for actual zfs commands on remote nodes via ssh (or local)
-
-    methods only accept and return simple dataset names, just like the real commands
-    """
-
-    def __init__(self, ssh_to, *args, **kwargs):
-        """ssh_to: server you want to ssh to. specify 'local' to just use local commands without ssh"""
-
-        super().__init__(*args, **kwargs)
         self.ssh_to=ssh_to
 
 
-    def run(cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], test=False):
-        """run a command on the node"""
+    def run(cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False):
+        """run a command on the node
+
+        readonly: make this True if the command doesnt make any changes and is safe to execute in testmode
+        """
 
         encoded_cmd=[]
 
         #use ssh?
-        if self.ssh_to != "local":
+        if self.ssh_to != None:
             encoded_cmd.extend(["ssh", self.ssh_to])
 
             #make sure the command gets all the data in utf8 format:
@@ -106,8 +107,8 @@ class ZfsNode(TreeNode):
         #debug and test stuff
         debug_txt="# "+" ".join(encoded_cmd)
 
-        if test:
-            debug("[SKIPPING] "+debug_txt)
+        if self.readonly and not readonly:
+            debug("[NOT EXECUTING (readonly mode)] "+debug_txt)
         else:
             debug(debug_txt)
 
@@ -117,7 +118,7 @@ class ZfsNode(TreeNode):
         else:
             stdin=None
 
-        if test:
+        if self.readonly and not readonly:
             return
 
         #execute and parse/return results
@@ -135,6 +136,12 @@ class ZfsNode(TreeNode):
                 ret.append(line.split("\t"))
             return(ret)
 
+
+
+"""a node that contains zfs datasets"""
+class ZfsNode(ExecuteNode):
+    def __init__(self, ssh_to=None, readonly=False):
+        super().__init__(ssh_to=None, readonly=readonly)
 
 
 
