@@ -22,6 +22,10 @@ def debug(txt):
     if args.debug:
         print(txt)
 
+#fatal abort execution, exit code 255
+def abort(txt):
+    error(txt)
+    sys.exit(255)
 
 # class TreeNode():
 #     """generic tree implementation, with parent/child and prev/next relations"""
@@ -69,6 +73,24 @@ def debug(txt):
 #
 #
 
+class cached_property(object):
+    """ A property that is only computed once per instance and then replaces
+        itself with an ordinary attribute. Deleting the attribute resets the
+        property.
+
+        Source: https://github.com/bottlepy/bottle/commit/fa7733e075da0d790d809aa3d2f53071897e6f76
+        """
+
+    def __init__(self, func):
+        self.__doc__ = getattr(func, '__doc__')
+        self.func = func
+
+    def __get__(self, obj, cls):
+        if obj is None:
+            return self
+        value = obj.__dict__[self.func.__name__] = self.func(obj)
+        return value
+
 
 
 class ExecuteNode:
@@ -80,6 +102,7 @@ class ExecuteNode:
         """
 
         self.ssh_to=ssh_to
+        self.readonly=readonly
 
 
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False):
@@ -136,13 +159,31 @@ class ExecuteNode:
                 ret.append(line.split("\t"))
             return(ret)
 
+    def __repr__(self):
+        return(self.ssh_to)
 
 
-class ZfsDataset:
+class ZfsDataset():
     """a zfs dataset (filesystem/volume/snapshot)"""
     def __init__(self, zfs_node, name):
         self.zfs_node=zfs_node
         self.name=name
+
+    def __repr__(self):
+        return("{}: {}".format(self.zfs_node, self.name))
+
+    @cached_property
+    def properties(self):
+        """gets all zfs properties"""
+
+        cmd=[
+            "zfs", "get", "all", "-H", "-o", "property,value", self.name
+        ]
+
+        return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, valid_exitcodes=[ 0, 1 ])))
+
+
+
 
 
 class ZfsNode(ExecuteNode):
@@ -150,7 +191,7 @@ class ZfsNode(ExecuteNode):
 
     def __init__(self, backup_name, ssh_to=None, readonly=False):
         self.backup_name=backup_name
-        ExecuteNode.__init__(self, ssh_to=None, readonly=readonly)
+        ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
 
     def get_selected_datasets(self):
         """determine filesystems that should be backupped by looking at the special autobackup-property
@@ -180,7 +221,7 @@ class ZfsNode(ExecuteNode):
                 elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
                     inherited_from=re.sub("^inherited from ", "", source)
                     if inherited_from in direct_filesystems:
-                        selected_filesystems.append(name)
+                        selected_filesystems.append(ZfsDataset(self, name))
                         verbose("* Selected: {0} (inherited selection)".format(name))
                     else:
                         verbose("* Ignored : {0} (already a backup)".format(name))
@@ -306,4 +347,18 @@ args = parser.parse_args()
 
 node=ZfsNode(args.backup_name, ssh_to=args.ssh_source)
 
-node.get_selected_datasets()
+
+source_datasets=node.get_selected_datasets()
+if not source_datasets:
+    abort("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(args.backup_name,args.ssh_source))
+
+
+
+pprint.pprint(source_datasets)
+print()
+pprint.pprint(source_datasets[0].__dict__)
+
+print(source_datasets[0].properties['mountpoint'])
+print(source_datasets[1].properties['mountpoint'])
+print(source_datasets[0].properties['mountpoint'])
+print(source_datasets[1].properties['mountpoint'])
