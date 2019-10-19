@@ -50,7 +50,7 @@ class Log:
 
 #fatal abort execution, exit code 255
 def abort(txt):
-    log.error(txt)
+    print(txt, file=sys.stderr)
     sys.exit(255)
 
 
@@ -145,6 +145,8 @@ class ExecuteNode:
         if p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
+        self.debug(output)
+
         lines=output.splitlines()
         if not tab_split:
             return(lines)
@@ -165,13 +167,16 @@ class ZfsDataset():
     def __init__(self, zfs_node, name):
         """name: full path of the zfs dataset"""
         self.zfs_node=zfs_node
-        self.name=name
+        self.name=name #full name
 
     def __repr__(self):
         return("{}: {}".format(self.zfs_node, self.name))
 
     def __str__(self):
         return(self.name)
+
+    def __eq__(self, obj):
+        return(self.name == obj.name)
 
     def verbose(self,txt):
         self.zfs_node.verbose(txt,[self.name])
@@ -192,7 +197,7 @@ class ZfsDataset():
 
     @property
     def filesystem_name(self):
-        """filesystem part of the name"""
+        """filesystem part of the name (before the @)"""
         (filesystem, snapshot_name)=self.name.split("@")
         return(filesystem)
 
@@ -255,6 +260,15 @@ class ZfsDataset():
                 ret.append(snapshot)
 
         return(ret)
+
+    def find_in_our_snapshots(self, snapshot_name):
+        """finds the snapshot and returns an iterator to our_snapshots. Returns None if not found"""
+        snapshot_iter=iter(self.our_snapshots)
+        for snapshot in snapshot_iter:
+            if snapshot.snapshot_name==snapshot_name:
+                return (snapshot_iter)
+
+        return(None)
 
     @cached_property
     def is_changed_ours(self):
@@ -324,8 +338,12 @@ class ZfsNode(ExecuteNode):
                     dataset.verbose("No changes, not snapshotting. (last was {})".format(dataset.our_snapshots[-1].snapshot_name))
                     continue
 
-            cmd.append(str(dataset)+"@"+snapshot_name)
-            dataset.invalidate()
+            snapshot=ZfsDataset(dataset.zfs_node, dataset.name+"@"+snapshot_name)
+            cmd.append(str(snapshot))
+
+            #add snapshot to cache (also usefull in testmode)
+            dataset.snapshots.append(snapshot)
+
             noop=False
 
         if noop:
@@ -376,6 +394,7 @@ class ZfsNode(ExecuteNode):
         return(selected_filesystems)
 
 
+        def transfer_snapshots(self, target_root, start_snapshots, iter_s)
 
 class ZfsAutobackup:
     """main class"""
@@ -457,21 +476,21 @@ class ZfsAutobackup:
             target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
             target_dataset=ZfsDataset(target_node, target_name)
 
-            #does it actually exists?
+            #does it actually exists in the targetroot?
             if target_dataset in target_root.recursive_datasets:
                 #yes, so we're in incremental mode
 
                 #find latest target snapshot and find it on source
                 latest_target_snapshot=target_dataset.our_snapshots[-1]
-                corresponding_source_snapshot=source_dataset+"@"+latest_target_snapshot.snapshot_name
+                source_snapshot_iter=source_dataset.find_in_our_snapshots(latest_target_snapshot.snapshot_name)
 
-                if corresponding_source_snapshot in source_dataset.snapshots:
-                    #find all snapshots we still need
-                    source_send_index=source_dataset.snapshots.index(corresponding_source_snapshot)
-                    source_send_snapshots=source_dataset.snapshots[source_send_index+1:]
-                    print(source_send_snapshots)
+                if source_snapshot_iter:
+                    for source_snapshot in source_snapshot_iter:
+                        source_snapshot.verbose("incremental from {}".format(latest_target_snapshot.snapshot_name))
                 else:
-                    abort("cant find source ")
+                    # abort("cant find source ")
+                    print("cant find source snap")
+                    pass
 
                     # if latest_target_snapshot not in source_dataset.snapshots:
                     #     #cant find latest target anymore. find first common snapshot and inform user
@@ -493,12 +512,13 @@ class ZfsAutobackup:
                     #
                     #     raise(Exception(error_msg))
 
-                    #send all new source snapshots that come AFTER the last target snapshot
-                    print(latest_target_snapshot)
-                    pprint.pprint(source_dataset.our_snapshots)
-                    latest_source_index=source_dataset.our_snapshots.index(latest_target_snapshot)
-                    send_snapshots=source_dataset.our_snapshots[latest_source_index+1:]
-
+                    # #send all new source snapshots that come AFTER the last target snapshot
+                    # print(latest_target_snapshot)
+                    # pprint.pprint(source_dataset.our_snapshots)
+                    # latest_source_index=source_dataset.our_snapshots.index(latest_target_snapshot)
+                    # send_snapshots=source_dataset.our_snapshots[latest_source_index+1:]
+            else:
+                print("FULLL")
 
         #     print(source_dataset.recursive_datasets)
         #
