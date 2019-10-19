@@ -10,68 +10,46 @@ import pprint
 # import cStringIO
 import time
 
+class Log:
+    def __init__(self):
+        self.titles=[]
+        pass
 
-def error(txt):
-    print(txt, file=sys.stderr)
+    def titled_str(self, txt, titles):
+        """magic to make our log messages ident and more clear"""
+        str=""
+        count=0
+        for title in titles:
+            if len(self.titles)>count and self.titles[count]==title:
+                str=str+ ( " " * len(title))
+            else:
+                str=str+title
+            str=str+": "
+            count=count+1
 
-def verbose(txt):
-    if args.verbose:
-        print(txt)
+        str=str+txt
+        self.titles=titles
+        return(str)
 
-def debug(txt):
-    if args.debug:
-        print(txt)
+    def error(self, txt, titles=[]):
+        print(txt, file=sys.stderr)
+
+    def verbose(self, txt, titles=[]):
+        if args.verbose:
+            print(self.titled_str(txt, titles))
+
+    def debug(self, txt, titles=[]):
+        if args.debug:
+            print(txt)
+
+
+log=Log()
 
 #fatal abort execution, exit code 255
 def abort(txt):
-    error(txt)
+    log.error(txt)
     sys.exit(255)
 
-# class TreeNode():
-#     """generic tree implementation, with parent/child and prev/next relations"""
-#     def __init__(self, name, parent=None, next=None, prev=None, *args, **kwargs):
-#         self.childs={}
-#
-#         self.name=name
-#         self.parent=parent
-#         if parent:
-#             if name in parent.childs:
-#                 raise(Exception("parent {} already has child {}").format(parent.name, name))
-#             parent.childs[name]=self
-#
-#
-#         self.next=next
-#         if next:
-#             if next.prev:
-#                 raise(Exception("{} already has a previous item").format(next.name))
-#             next.prev=self
-#
-#         self.prev=prev
-#         if prev:
-#             if prev.next:
-#                 raise(Exception("{} already has a next item").format(prev.name))
-#             prev.next=self
-#
-#
-#     def remove(self):
-#         """remove the item from other referenced TreeNodes. call before you actually delete a treeobject"""
-#
-#         if self.parent:
-#             self.parent.childs.remove(self.name)
-#
-#
-#         # let previous and next objects point to eachother
-#         if self.next:
-#             self.next.prev=self.prev
-#
-#         if self.prev:
-#             self.prev.next=self.next
-#
-#         self.parent=None
-#         self.next=None
-#         self.prev=None
-#
-#
 
 class cached_property(object):
     """ A property that is only computed once per instance and then replaces
@@ -144,12 +122,12 @@ class ExecuteNode:
         debug_txt="# "+" ".join(encoded_cmd)
 
         if self.readonly and not readonly:
-            debug("[NOT EXECUTING (readonly mode)] "+debug_txt)
+            log.debug("[NOT EXECUTING (readonly mode)] "+debug_txt)
         else:
-            debug(debug_txt)
+            log.debug(debug_txt)
 
         if input:
-            debug("INPUT:\n"+input.rstrip())
+            log.debug("INPUT:\n"+input.rstrip())
             stdin=subprocess.PIPE
         else:
             stdin=None
@@ -192,10 +170,10 @@ class ZfsDataset():
         return(self.name)
 
     def verbose(self,txt):
-        self.zfs_node.verbose("{}: {}".format(self.name, txt))
+        self.zfs_node.verbose(txt,[self.name])
 
     def debug(self,txt):
-        self.zfs_node.debug("{}: {}".format(self.name, txt))
+        self.zfs_node.debug(txt,[self.name])
 
 
     def invalidate(self):
@@ -307,11 +285,13 @@ class ZfsNode(ExecuteNode):
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
 
-    def verbose(self,txt):
-        verbose("{}: {}".format(self.description, txt))
+    def verbose(self,txt,titles=[]):
+        titles.insert(0,self.description)
+        log.verbose(txt, titles)
 
-    def debug(self,txt):
-        debug("{}: {}".format(self.description, txt))
+    def debug(self,txt, titles=[]):
+        titles.insert(0,self.description)
+        log.debug(txt, titles)
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -370,17 +350,17 @@ class ZfsNode(ExecuteNode):
                     direct_filesystems.append(name)
 
                 if source=="local" and value=="true":
-                    selected_filesystems.append(ZfsDataset(self, name))
-                    verbose("* Selected: {0} (direct selection)".format(name))
+                    selected_filesystems.append(dataset)
+                    dataset.verbose("Selected (direct selection)")
                 elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
                     inherited_from=re.sub("^inherited from ", "", source)
                     if inherited_from in direct_filesystems:
-                        selected_filesystems.append(ZfsDataset(self, name))
-                        verbose("* Selected: {0} (inherited selection)".format(name))
+                        selected_filesystems.append(dataset)
+                        dataset.verbose("Selected (inherited selection)")
                     else:
-                        verbose("* Ignored : {0} (already a backup)".format(name))
+                        dataset.verbose("Ignored (already a backup)")
                 else:
-                    verbose("* Ignored : {0} (only childs)".format(name))
+                    dataset.verbose("Ignored (only childs)")
 
         return(selected_filesystems)
 
