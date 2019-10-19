@@ -242,7 +242,7 @@ class ZfsDataset():
 
     @cached_property
     def snapshots(self):
-        """get all snaphots of this dataset"""
+        """get all snapshots of this dataset"""
 
         cmd=[
             "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", self.name
@@ -261,14 +261,22 @@ class ZfsDataset():
 
         return(ret)
 
-    def find_in_our_snapshots(self, snapshot_name):
-        """finds the snapshot and returns an iterator to our_snapshots. Returns None if not found"""
-        snapshot_iter=iter(self.our_snapshots)
-        for snapshot in snapshot_iter:
-            if snapshot.snapshot_name==snapshot_name:
-                return (snapshot_iter)
+    def find_sends(self, snapshot_name):
+        """find the snapshot sendlist, starting from snapshot_name.
+           returns: ( start_snapshot, send_snapshots )
+        """
 
-        return(None)
+        start_snapshot=None
+        send_snapshots=[]
+
+        for snapshot in self.our_snapshots:
+            if start_snapshot:
+                send_snapshots.append(snapshot)
+
+            elif snapshot.snapshot_name==snapshot_name:
+                start_snapshot=snapshot
+
+        return( (start_snapshot, send_snapshots) )
 
     @cached_property
     def is_changed_ours(self):
@@ -295,6 +303,26 @@ class ZfsDataset():
         ])
 
         return(self.from_names(names[1:]))
+
+    def transfer_snapshots(self, source_dataset, source_start_snapshot, source_sends):
+        """transfer bunch snapshots to this target"""
+
+        receive_resume_token=getattr(source_dataset.properties, 'receive_resume_token', None)
+        last_snapshot=source_start_snapshot
+
+        for snapshot in source_sends:
+            if receive_resume_token:
+                resumed="[RESUMED]"
+            else:
+                resumed=""
+
+            if (last_snapshot):
+                source_dataset.verbose("incremental @{}...@{} {}".format(last_snapshot.snapshot_name, snapshot.snapshot_name, resumed))
+            else:
+                source_dataset.verbose("initial     @{} {}".format(snapshot.snapshot_name, resumed))
+
+            last_snapshot=snapshot
+            receive_resume_token=None
 
 
 class ZfsNode(ExecuteNode):
@@ -394,7 +422,10 @@ class ZfsNode(ExecuteNode):
         return(selected_filesystems)
 
 
-        def transfer_snapshots(self, target_root, start_snapshots, iter_s)
+
+
+
+
 
 class ZfsAutobackup:
     """main class"""
@@ -482,15 +513,19 @@ class ZfsAutobackup:
 
                 #find latest target snapshot and find it on source
                 latest_target_snapshot=target_dataset.our_snapshots[-1]
-                source_snapshot_iter=source_dataset.find_in_our_snapshots(latest_target_snapshot.snapshot_name)
+                # print("finding {}".format(latest_target_snapshot))
 
-                if source_snapshot_iter:
-                    for source_snapshot in source_snapshot_iter:
-                        source_snapshot.verbose("incremental from {}".format(latest_target_snapshot.snapshot_name))
-                else:
-                    # abort("cant find source ")
+                ( source_start_snapshot, source_sends )=source_dataset.find_sends(latest_target_snapshot.snapshot_name)
+
+                if not source_start_snapshot:
                     print("cant find source snap")
-                    pass
+                else:
+                    if source_sends:
+                        target_root.transfer_snapshots(source_dataset, source_start_snapshot, source_sends)
+                    else:
+                        print("nothgin to do")
+
+
 
                     # if latest_target_snapshot not in source_dataset.snapshots:
                     #     #cant find latest target anymore. find first common snapshot and inform user
