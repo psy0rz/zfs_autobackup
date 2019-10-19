@@ -163,28 +163,86 @@ class ExecuteNode:
         return(self.ssh_to)
 
 
+
 class ZfsDataset():
-    """a zfs dataset (filesystem/volume/snapshot)"""
+    """a zfs dataset (filesystem/volume/snapshot/clone)"""
+
     def __init__(self, zfs_node, name):
+        """name: full path of the zfs dataset"""
         self.zfs_node=zfs_node
         self.name=name
 
     def __repr__(self):
         return("{}: {}".format(self.zfs_node, self.name))
 
+    @property
+    def filesystem_name(self):
+        """filesystem part of the name"""
+            (filesystem, snapshot_name)=self.name.split("@")
+            return(filesystem)
+
+    @property
+    def snapshot_name(self):
+        """snapshot part of the name"""
+            (filesystem, snapshot_name)=self.name.split("@")
+            return(snapshot_name)
+
+
     @cached_property
     def properties(self):
-        """gets all zfs properties"""
+        """all zfs properties"""
 
         cmd=[
             "zfs", "get", "all", "-H", "-o", "property,value", self.name
         ]
 
-        return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, valid_exitcodes=[ 0, 1 ])))
+        return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, valid_exitcodes=[ 0 ])))
+
+    def is_unchanged(self):
+        """dataset is unchanged since latest snapshot?"""
+
+        if self.properties['written']=="0B" or self.properties.written['written']=="0":
+            return(True)
+        else:
+            return(False)
+
+    def is_ours(self):
+        """return true if this snapshot is created by this backup_nanme"""
+            if re.match("^"+self.zfs_node.backup_name+"-[0-9]*$", self.snapshot_name):
+                return(True)
+            else:
+                return(False)
+
+    def from_names(self, names):
+        """convert a list of names to a list ZfsDatasets for this zfs_node"""
+        ret=[]
+        for name in names:
+            ret.append(ZfsDataset(self.zfs_node, name))
+
+        return(ret)
 
 
+    @cached_property
+    def snapshots(self):
+        """get all snaphots of this dataset"""
+
+        cmd=[
+            "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name"
+        ]
+
+        names=self.zfs_node.run(cmd=cmd)
+        return(self.from_names(names))
 
 
+    @cached_property
+    def recursive_datasets(path, types="filesystem,volume"):
+    """get all datasets recursively under us"""
+
+        names=self.zfs_node.run(tab_split=False, valid_exitcodes=[ 0 ], cmd=[
+            "zfs", "list", "-r", "-t",  types, "-o", "name", "-H", self.name
+        ])
+
+        return(self.from_names(names))
 
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global lowlevel zfs commands"""
@@ -193,8 +251,10 @@ class ZfsNode(ExecuteNode):
         self.backup_name=backup_name
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
 
-    def get_selected_datasets(self):
-        """determine filesystems that should be backupped by looking at the special autobackup-property
+
+    @cached_property
+    def selected_datasets(self):
+        """determine filesystems that should be backupped by looking at the special autobackup-property, systemwide
 
            returns: list of ZfsDataset
         """
@@ -229,6 +289,8 @@ class ZfsNode(ExecuteNode):
                     verbose("* Ignored : {0} (only childs)".format(name))
 
         return(selected_filesystems)
+
+
 
 
 
@@ -348,7 +410,7 @@ args = parser.parse_args()
 node=ZfsNode(args.backup_name, ssh_to=args.ssh_source)
 
 
-source_datasets=node.get_selected_datasets()
+source_datasets=node.selected_datasets
 if not source_datasets:
     abort("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(args.backup_name,args.ssh_source))
 
