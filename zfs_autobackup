@@ -250,16 +250,6 @@ def zfs_release_snapshot(ssh_to, snapshot, tag=None):
 
 
 
-"""gets all properties of a filesystem"""
-def zfs_get_properties(ssh_to, filesystem):
-    cmd=[
-        "zfs", "get", "all", "-H", "-o", "property,value", snapshot
-    ]
-
-    run(ssh_to=ssh_to, tab_split=False, cmd=cmd, valid_exitcodes=[ 0, 1 ])
-
-
-
 """transfer a zfs snapshot from source to target. both can be either local or via ssh.
 
 
@@ -318,7 +308,7 @@ def zfs_transfer(ssh_source, source_filesystem, first_snapshot, second_snapshot,
         txt=txt+" [RESUMED]"
 
     else:
-        # source_cmd.append("-p")
+        source_cmd.append("-p")
 
         if first_snapshot:
             source_cmd.extend([ "-i", first_snapshot ])
@@ -694,6 +684,8 @@ def zfs_autobackup():
                         #hold the snapshot we just send to the target
                         zfs_hold_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+send_snapshot)
 
+
+
                         #now that we succesfully transferred this snapshot, the previous snapshot is obsolete:
                         if latest_target_snapshot:
                             zfs_release_snapshot(ssh_to=args.ssh_target, snapshot=target_filesystem+"@"+latest_target_snapshot)
@@ -785,7 +777,7 @@ parser.add_argument('--ssh-target', default="local", help='Target host to push b
 parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
 parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
 parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
-parser.add_argument('target_path',    help='Target ZFS filesystem')
+parser.add_argument('target_path',    help='Target path')
 
 parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
 parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
@@ -800,7 +792,9 @@ parser.add_argument('--buffer', default="",  help='Use mbuffer with specified si
 
 
 # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-parser.add_argument('--properties', default=None, help='Comma seperated list of zfs properties that should be synced to target. (Quotas are always disabled temporarily)')
+parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended)')
+parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended)')
+parser.add_argument('--filter-properties', action='append', help='Filter properties when receiving filesystems. Can be specified multiple times. (Example: If you send data from Linux to FreeNAS, you should filter xattr)')
 parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
 parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
 
@@ -818,18 +812,11 @@ if args.ignore_replicated and args.allow_empty:
 
 try:
     zfs_autobackup()
-
     if not failures:
-        if args.test:
-            verbose("All TESTS completed succesfully. NO BACKUPS CREATED.")
-        else:
-            verbose("All operations completed succesfully.")
+        verbose("All operations completed succesfully.")
         sys.exit(0)
     else:
-        if args.test:
-            verbose("{} TEST-OPERATION(S) FAILED! NO BACKUPS CREATED. ".format(failures))
-        else:
-            verbose("{} OPERATION(S) FAILED!".format(failures))
+        verbose("{} OPERATION(S) FAILED!".format(failures))
         #exit with the number of failures.
         sys.exit(min(255,failures))
 
