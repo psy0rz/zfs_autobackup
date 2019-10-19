@@ -23,7 +23,7 @@ class Log:
         count=0
         changed=False
         for title in titles:
-            if not changed and len(self.titles)>count and self.titles[count]==title:
+            if not self.show_debug and not changed and len(self.titles)>count and self.titles[count]==title:
                 str=str+ ( " " * len(title))+ "  "
             else:
                 str=str+title+": "
@@ -32,7 +32,7 @@ class Log:
             count=count+1
 
         str=str+txt
-        self.titles=titles
+        self.titles=list(titles)
         return(str)
 
     def error(self, txt, titles=[]):
@@ -42,9 +42,9 @@ class Log:
         if self.show_verbose:
             print(self.titled_str(txt, titles))
 
-    def debug(self, txt, titles=[]):
+    def debug(self, txt):
         if self.show_debug:
-            print(self.titled_str(txt, titles))
+            print(txt)
 
 
 
@@ -177,7 +177,7 @@ class ZfsDataset():
         self.zfs_node.verbose(txt,[self.name])
 
     def debug(self,txt):
-        self.zfs_node.debug(txt,[self.name])
+        self.zfs_node.debug(txt)
 
 
     def invalidate(self):
@@ -297,9 +297,8 @@ class ZfsNode(ExecuteNode):
         titles.insert(0,self.description)
         self.zfs_autobackup.verbose(txt, titles)
 
-    def debug(self,txt, titles=[]):
-        titles.insert(0,self.description)
-        self.zfs_autobackup.debug(txt, titles)
+    def debug(self,txt):
+        self.zfs_autobackup.debug(txt)
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -421,9 +420,8 @@ class ZfsAutobackup:
         titles.insert(0,self.title)
         self.log.verbose(txt, titles)
 
-    def debug(self,txt,titles=[]):
-        titles.insert(0,self.title)
-        self.log.debug(txt, titles)
+    def debug(self,txt):
+        self.log.debug(txt)
 
     def set_title(self, title):
         self.title=title
