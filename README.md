@@ -36,18 +36,19 @@ usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--no-snapshot] [--no-send] [--allow-empty]
                       [--ignore-replicated] [--no-holds] [--ignore-new]
                       [--resume] [--strip-path STRIP_PATH] [--buffer BUFFER]
-                      [--properties PROPERTIES] [--rollback]
+                      [--clear-refreservation] [--clear-mountpoint]
+                      [--filter-properties FILTER_PROPERTIES] [--rollback]
                       [--ignore-transfer-errors] [--test] [--verbose]
                       [--debug]
                       backup_name target_path
 
-ZFS autobackup v3.0
+ZFS autobackup v2.4
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
                         "autobackup:backup-name" to true on filesystems you
                         want to backup
-  target_path           Target ZFS filesystem
+  target_path           Target path
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -63,8 +64,8 @@ optional arguments:
   --keep-target KEEP_TARGET
                         Number of days to keep old snapshots on target.
                         Default 30.
-  --no-snapshot         Dont create new snapshot. Usefull for completing
-                        unfinished backups or to investigate a problem.
+  --no-snapshot         dont create new snapshot (usefull for finishing
+                        uncompleted backups, or cleanups)
   --no-send             dont send snapshots (usefull to only do a cleanup)
   --allow-empty         if nothing has changed, still create empty snapshots.
   --ignore-replicated   Ignore datasets that seem to be replicated some other
@@ -86,10 +87,17 @@ optional arguments:
   --buffer BUFFER       Use mbuffer with specified size to speedup zfs
                         transfer. (e.g. --buffer 1G) Will also show nice
                         progress output.
-  --properties PROPERTIES
-                        Comma seperated list of zfs properties that should be
-                        synced to target. (Quotas are always disabled
-                        temporarily)
+  --clear-refreservation
+                        Set refreservation property to none for new
+                        filesystems. Usefull when backupping SmartOS volumes.
+                        (recommended)
+  --clear-mountpoint    Sets canmount=noauto property, to prevent the received
+                        filesystem from mounting over existing filesystems.
+                        (recommended)
+  --filter-properties FILTER_PROPERTIES
+                        Filter properties when receiving filesystems. Can be
+                        specified multiple times. (Example: If you send data
+                        from Linux to FreeNAS, you should filter xattr)
   --rollback            Rollback changes on the target before starting a
                         backup. (normally you can prevent changes by setting
                         the readonly property on the target_path to on)
@@ -99,8 +107,7 @@ optional arguments:
   --test                dont change anything, just show what would be done
                         (still does all read-only operations)
   --verbose             verbose output
-  --debug               debug output (shows commands that are executed, and
-                        aborts with a backtrace on the first error)
+  --debug               debug output (shows commands that are executed)
 
 When a filesystem fails, zfs_backup will continue and report the number of
 failures at that end. Also the exit code will indicate the number of failures.
@@ -182,9 +189,8 @@ Tips
 ====
 
  * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
- * Use ```--properties quota,refquota``` to make sure quota-settings are copied to target.
- * Also determine if you want to backup other properties, by default no properties are copied. (since v3.0)
-
+ * Use ```--clear-refreservation``` to save space on your backup server.
+ * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot. If this happens on systems like SmartOS or Openindia, svc://filesystem/local wont be able to mount some stuff and you need to resolve these issues on the console.
 
 Speeding up SSH and prevent connection flooding
 -----------------------------------------------
@@ -304,12 +310,12 @@ I use the following backup script on the backup server:
 for H in h4 h5 h6; do
   echo "################################### DATA $H"
   #backup data filesystems to a common place
-  ./zfs_autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --properties quota,refquota --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --no-holds $@
+  ./zfs_autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --no-holds $@
   zabbix-job-status backup_$H""_data_smartos03 daily $? >/dev/null 2>/dev/null
 
   echo "################################### RPOOL $H"
   #backup rpool to own place
-  ./zfs_autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --properties quota,refquota --resume --ignore-transfer-errors $@
+  ./zfs_autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint  --resume --ignore-transfer-errors $@
   zabbix-job-status backup_$H""_smartos03 daily $? >/dev/null 2>/dev/null
 done
 ```
