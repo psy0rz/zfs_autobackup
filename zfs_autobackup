@@ -82,7 +82,7 @@ class ExecuteNode:
         self.ssh_to=ssh_to
 
 
-    def run(cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False):
+    def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False):
         """run a command on the node
 
         readonly: make this True if the command doesnt make any changes and is safe to execute in testmode
@@ -138,42 +138,110 @@ class ExecuteNode:
 
 
 
-"""a node that contains zfs datasets"""
-class ZfsNode(ExecuteNode):
-    def __init__(self, ssh_to=None, readonly=False):
-        super().__init__(ssh_to=None, readonly=readonly)
-
-
-
-class ZfsPool(TreeNode):
-    """a zfs pool"""
-    def __init__(self, *kwargs, **args):
-        super().__init(*args, **kwargs)
-
-
-
 class ZfsDataset:
-    """a generic zfs dataset"""
-
-    def __init__(name, parent):
-        """
-        """
+    """a zfs dataset (filesystem/volume/snapshot)"""
+    def __init__(self, zfs_node, name):
+        self.zfs_node=zfs_node
         self.name=name
-        self.parent=parent
-        self.created=created
-        self.backup=backup
-
-        self.childs={}
 
 
-class ZfsSnapshot(Dataset):
-    """A zfs snapshot"""
-    def __init__(previous_snapshot=false, next_snapshot=fase, keep_time=false, timestamp=false, **kwargs, *args):
-        super.__init__(**kargs, *args)
-        self.timestamp
-        self.keep_time
-        self.previous_snapshot
-        self.next_snapshot
+class ZfsNode(ExecuteNode):
+    """a node that contains zfs datasets. implements global lowlevel zfs commands"""
+
+    def __init__(self, backup_name, ssh_to=None, readonly=False):
+        self.backup_name=backup_name
+        ExecuteNode.__init__(self, ssh_to=None, readonly=readonly)
+
+    def get_selected_datasets(self):
+        """determine filesystems that should be backupped by looking at the special autobackup-property
+
+           returns: list of ZfsDataset
+        """
+        #get all source filesystems that have the backup property
+        lines=self.run(tab_split=True, readonly=True, cmd=[
+            "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+self.backup_name
+        ])
+
+        #determine filesystems that should be actually backupped
+        selected_filesystems=[]
+        direct_filesystems=[]
+        for line in lines:
+            (name,value,source)=line
+            if value=="false":
+                verbose("* Ignored : {0} (disabled)".format(name))
+
+            else:
+                if source=="local" and ( value=="true" or value=="child"):
+                    direct_filesystems.append(name)
+
+                if source=="local" and value=="true":
+                    selected_filesystems.append(ZfsDataset(self, name))
+                    verbose("* Selected: {0} (direct selection)".format(name))
+                elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
+                    inherited_from=re.sub("^inherited from ", "", source)
+                    if inherited_from in direct_filesystems:
+                        selected_filesystems.append(name)
+                        verbose("* Selected: {0} (inherited selection)".format(name))
+                    else:
+                        verbose("* Ignored : {0} (already a backup)".format(name))
+                else:
+                    verbose("* Ignored : {0} (only childs)".format(name))
+
+        return(selected_filesystems)
+
+
+
+#
+# class ZfsPool(TreeNode):
+#     """a zfs pool"""
+#     def __init__(self, *kwargs, **args):
+#         super().__init(*args, **kwargs)
+#
+# """determine filesystems that should be backupped by looking at the special autobackup-property"""
+# def zfs_get_selected_filesystems(ssh_to, backup_name):
+#     #get all source filesystems that have the backup property
+#     source_filesystems=run(ssh_to=ssh_to, tab_split=True, cmd=[
+#         "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+backup_name
+#     ])
+#
+#     #determine filesystems that should be actually backupped
+#     selected_filesystems=[]
+#     direct_filesystems=[]
+#     for source_filesystem in source_filesystems:
+#         (name,value,source)=source_filesystem
+#         if value=="false":
+#             verbose("* Ignored : {0} (disabled)".format(name))
+#
+#         else:
+#             if source=="local" and ( value=="true" or value=="child"):
+#                 direct_filesystems.append(name)
+#
+#             if source=="local" and value=="true":
+#                 selected_filesystems.append(name)
+#                 verbose("* Selected: {0} (direct selection)".format(name))
+#             elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
+#                 inherited_from=re.sub("^inherited from ", "", source)
+#                 if inherited_from in direct_filesystems:
+#                     selected_filesystems.append(name)
+#                     verbose("* Selected: {0} (inherited selection)".format(name))
+#                 else:
+#                     verbose("* Ignored : {0} (already a backup)".format(name))
+#             else:
+#                 verbose("* Ignored : {0} (only childs)".format(name))
+#
+#     return(selected_filesystems)
+#
+#
+#
+#
+# class ZfsSnapshot(Dataset):
+#     """A zfs snapshot"""
+#     def __init__(previous_snapshot=false, next_snapshot=fase, keep_time=false, timestamp=false, **kwargs, *args):
+#         super.__init__(**kargs, *args)
+#         self.timestamp
+#         self.keep_time
+#         self.previous_snapshot
+#         self.next_snapshot
 
 
 # class ZfsBackupSource():
@@ -194,3 +262,48 @@ class ZfsSnapshot(Dataset):
 #     def refresh():
 #         """refresh all data by calling various zfs commands"""
 #         selected_filesystems=self.node.zfs_get_selected_filesystems()
+
+
+################################################################## ENTRY POINT
+
+# parse arguments
+import argparse
+parser = argparse.ArgumentParser(
+    description='ZFS autobackup v2.4',
+    epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
+parser.add_argument('--ssh-source', default="local", help='Source host to get backup from. (user@hostname) Default %(default)s.')
+parser.add_argument('--ssh-target', default="local", help='Target host to push backup to. (user@hostname) Default  %(default)s.')
+parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
+parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
+parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
+parser.add_argument('target_path',    help='Target ZFS filesystem')
+
+parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
+parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
+parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
+parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
+parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
+parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
+
+parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
+parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
+
+
+# parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
+parser.add_argument('--properties', default=None, help='Comma seperated list of zfs properties that should be synced to target. (Quotas are always disabled temporarily)')
+parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
+parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
+
+
+parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
+parser.add_argument('--verbose', action='store_true', help='verbose output')
+parser.add_argument('--debug', action='store_true', help='debug output (shows commands that are executed)')
+
+#note args is the only global variable we use, since its a global readonly setting anyway
+args = parser.parse_args()
+
+
+node=ZfsNode(args.backup_name, ssh_to=args.ssh_source)
+
+node.get_selected_datasets()
