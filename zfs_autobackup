@@ -513,52 +513,37 @@ class ZfsAutobackup:
 
                 #find latest target snapshot and find it on source
                 latest_target_snapshot=target_dataset.our_snapshots[-1]
-                # print("finding {}".format(latest_target_snapshot))
 
                 ( source_start_snapshot, source_sends )=source_dataset.find_sends(latest_target_snapshot.snapshot_name)
 
                 if not source_start_snapshot:
-                    print("cant find source snap")
+                    #cant find latest target snapshot, try to find another common snapshot
+                    for target_snapshot in target_dataset.our_snapshots:
+                        ( source_start_snapshot, source_sends )=source_dataset.find_sends(target_snapshot.snapshot_name)
+                        if source_start_snapshot:
+                            break
+
+                    #still not found
+                    if not source_start_snapshot:
+                        source_dataset.verbose("Cant find common snapshot")
+
+                    else:
+
+                        #         if args.ignore_new:
+                        #             verbose("* Skipping source filesystem '{0}', target already has newer snapshots.".format(source_filesystem))
+                        #             continue
+                        #
+                        #     raise(Exception(error_msg))
+                        target_snapshot.verbose("Please rollback to this snapshot")
+
                 else:
                     if source_sends:
                         target_root.transfer_snapshots(source_dataset, source_start_snapshot, source_sends)
-                    else:
-                        print("nothgin to do")
 
 
-
-                    # if latest_target_snapshot not in source_dataset.snapshots:
-                    #     #cant find latest target anymore. find first common snapshot and inform user
-                    #     error_msg="Cant find latest target snapshot on source for '{}', did you destroy/rename it?".format(source_dataset)
-                    #     error_msg=error_msg+"\nLatest on target : "+latest_target_snapshot.snapshot_name
-                    #     error_msg=error_msg+"\nMissing on source: "+source_dataset+"@"+latest_target_snapshot.snapshot_name
-                    #     found=False
-                    #     for latest_target_snapshot in reversed(target_dataset.our_snapshots):
-                    #         if latest_target_snapshot in source_dataset.our_snapshots:
-                    #             error_msg=error_msg+"\nYou could solve this by rolling back to this common snapshot on target: "+target_filesystem+"@"+latest_target_snapshot
-                    #             found=True
-                    #             break
-                    #     if not found:
-                    #         error_msg=error_msg+"\nAlso could not find an earlier common snapshot to rollback to."
-                    #     else:
-                    #         if args.ignore_new:
-                    #             verbose("* Skipping source filesystem '{0}', target already has newer snapshots.".format(source_filesystem))
-                    #             continue
-                    #
-                    #     raise(Exception(error_msg))
-
-                    # #send all new source snapshots that come AFTER the last target snapshot
-                    # print(latest_target_snapshot)
-                    # pprint.pprint(source_dataset.our_snapshots)
-                    # latest_source_index=source_dataset.our_snapshots.index(latest_target_snapshot)
-                    # send_snapshots=source_dataset.our_snapshots[latest_source_index+1:]
             else:
-                print("FULLL")
-
-        #     print(source_dataset.recursive_datasets)
-        #
-        #
-        # pprint.pprint(ZfsDataset(node, "rpool").recursive_datasets)
+                #initial, transfer all snapshots
+                target_root.transfer_snapshots(source_dataset, None, source_dataset.our_snapshots)
 
 
 zfs_autobackup=ZfsAutobackup()
