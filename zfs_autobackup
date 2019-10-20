@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
+
+# (c)edwin@datux.nl  - Released under GPL
+#
+# Greetings from eth0 2019 :)
+
 from __future__ import print_function
 import os
 import sys
@@ -439,31 +444,111 @@ class ZfsDataset():
         return(self.from_names(names[1:]))
 
 
-    def transfer_snapshot(self, target_dataset, prev_snapshot=None):
-        """transfer this snapshot to target_dataset. specify prev_snapshot for incremental transfer"""
+    def send_pipe(self, prev_snapshot=None, resume=True, resume_token=None):
+        """returns a pipe with zfs send output for this snapshot
+
+        resume: Use resuming (both sides need to support it)
+        resume_token: resume sending from this token.
+
+        """
+        #### build source command
+        cmd=[]
+
+        cmd.extend(["zfs", "send",  ])
+
+        #all kind of performance options:
+        cmd.append("-L") # large block support
+        cmd.append("-e") # WRITE_EMBEDDED, more compact stream
+        cmd.append("-c") # use compressed WRITE records
+        if not resume:
+            cmd.append("-D") # dedupped stream, sends less duplicate data
+
+        #only verbose in debug mode, lots of output
+        cmd.append("-v")
+
+        #resume a previous send? (dont need more parameters in that case)
+        if resume_token:
+            cmd.extend([ "-t", resume_token ])
+
+        else:
+            #send properties
+            cmd.append("-p")
+
+            #incremental?
+            if prev_snapshot:
+                cmd.extend([ "-i", prev_snapshot.snapshot_name ])
+
+            cmd.append(self.name)
+
+
+        # if args.buffer and args.ssh_source!="local":
+        #     cmd.append("|mbuffer -m {}".format(args.buffer))
+
+        #NOTE: this doenst start the send yet, it only returns a subprocess.Pipe
+        return(self.zfs_node.run(cmd, pipe=True))
+
+    def recv_pipe(self, pipe, resume=True):
+        """starts a zfs recv on this dataset and uses pipe as input"""
+        #### build target command
+        cmd=[]
+
+        cmd.extend(["zfs", "recv"])
+
+        #dont mount filesystem that is received
+        cmd.append("-u")
+
+        # filter certain properties on receive (usefull for linux->freebsd in some cases)
+        # if args.filter_properties:
+        #     for filter_property in args.filter_properties:
+        #         cmd.extend([ "-x" , filter_property ])
+
+        #verbose output
+        cmd.append("-v")
+
+        if resume:
+            #support resuming
+            cmd.append("-s")
+
+        cmd.append(self.name)
+
+        self.zfs_node.run(cmd, input=pipe)
+
+        # if args.buffer and  args.ssh_target!="local":
+        #     cmd.append("|mbuffer -m {}".format(args.buffer))
+
+
+    def transfer_snapshot(self, target_dataset, prev_snapshot=None, resume=True):
+        """transfer this snapshot to target_dataset. specify prev_snapshot for incremental transfer
+
+        connects a send_pipe() to recv_pipe()
+        """
 
         self.debug("Transfer snapshot")
 
         if target_dataset.exists:
-            receive_resume_token=getattr(target_dataset.properties, 'receive_resume_token', None)
+            resume_token=getattr(target_dataset.properties, 'receive_resume_token', None)
         else:
-            receive_resume_token=False
+            resume_token=None
 
-        if receive_resume_token:
+        if resume_token:
             resumed="[RESUMED]"
         else:
             resumed=""
 
-        if (prev_snapshot):
-            target_dataset.verbose("receiving @{}...@{} {}".format(prev_snapshot.snapshot_name, self.snapshot_name, resumed))
-        else:
+        if not prev_snapshot:
+            #initial
             target_dataset.verbose("receiving @{} {}".format(self.snapshot_name, resumed))
+            pipe=self.send_pipe(resume=resume, resume_token=resume_token)
+            target_dataset.recv_pipe(pipe)
 
-            pipe=self.zfs_node.run(["ls"], pipe=True, readonly=True)
-            target_dataset.zfs_node.run(["cat"], input=pipe, readonly=True)
+        else:
+            #incemental
+            target_dataset.verbose("receiving @{}...@{} {}".format(prev_snapshot.snapshot_name, self.snapshot_name, resumed))
+
 
         #update cache
         target_dataset.snapshots.append(ZfsDataset(target_dataset.zfs_node, target_dataset.name+"@"+self.snapshot_name))
+
 
     def sync_snapshots(self, target_dataset):
         """sync our snapshots to target_dataset"""
