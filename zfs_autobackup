@@ -43,9 +43,9 @@ class Log:
         if self.show_verbose:
             print(self.titled_str(txt, titles))
 
-    def debug(self, txt):
+    def debug(self, txt, titles=[]):
         if self.show_debug:
-            print(txt)
+            print(self.titled_str(txt, titles))
 
 
 
@@ -224,6 +224,7 @@ class ZfsDataset():
     @cached_property
     def exists(self):
         """check if dataset exists"""
+        self.debug("Checking if filesystem exists")
         return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ])!="")
 
 
@@ -347,23 +348,26 @@ class ZfsDataset():
     def transfer_snapshot(self, target_dataset, prev_snapshot=None):
         """transfer this snapshot to target_dataset. specify prev_snapshot for incremental transfer"""
 
-        receive_resume_token=getattr(target_dataset.properties, 'receive_resume_token', None)
+        if target_dataset.exists:
+            receive_resume_token=getattr(target_dataset.properties, 'receive_resume_token', None)
+        else:
+            receive_resume_token=False
+
         if receive_resume_token:
             resumed="[RESUMED]"
         else:
             resumed=""
 
         if (prev_snapshot):
-            self.verbose("incremental @{}...@{} {}".format(prev_snapshot.snapshot_name, self.snapshot_name, resumed))
+            target_dataset.verbose("receiving @{}...@{} {}".format(prev_snapshot.snapshot_name, self.snapshot_name, resumed))
         else:
-            self.verbose("initial     @{} {}".format(snapshot.snapshot_name, resumed))
+            target_dataset.verbose("receiving @{} {}".format(snapshot.snapshot_name, resumed))
 
         target_dataset.invalidate()
 
 
     def sync_snapshots(self, target_dataset):
         """sync our snapshots to target_dataset"""
-
         # inital transfer
         if not target_dataset.exists:
             self.our_snapshots[0].transfer_snapshot(target_dataset)
@@ -381,7 +385,7 @@ class ZfsDataset():
                     latest_common_snapshot=source_snapshot
 
         if not latest_common_snapshot:
-            raise(Exception("Cant find a common snapshot. (hint: on target zfs destroy {})".format(target_dataset)))
+            raise(Exception("Cant find a common snapshot. (hint: zfs destroy {})".format(target_dataset)))
 
 
 
@@ -407,8 +411,9 @@ class ZfsNode(ExecuteNode):
         titles.insert(0,self.description)
         self.zfs_autobackup.error(txt, titles)
 
-    def debug(self,txt):
-        self.zfs_autobackup.debug(txt)
+    def debug(self,txt, titles=[]):
+        titles.insert(0,self.description)
+        self.zfs_autobackup.debug(txt, titles)
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -542,8 +547,9 @@ class ZfsAutobackup:
         titles.insert(0,self.title)
         self.log.error(txt, titles)
 
-    def debug(self,txt):
-        self.log.debug(txt)
+    def debug(self,txt, titles=[]):
+        titles.insert(0,self.title)
+        self.log.debug(txt, titles)
 
     def set_title(self, title):
         self.title=title
@@ -580,7 +586,7 @@ class ZfsAutobackup:
                     target_dataset=ZfsDataset(target_node, target_name)
                     source_dataset.sync_snapshots(target_dataset)
             except Exception as e:
-                source_dataset.error(str(e))
+                target_dataset.error(str(e))
                 if self.args.debug:
                     raise
 
