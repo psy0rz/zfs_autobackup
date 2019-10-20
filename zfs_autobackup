@@ -14,38 +14,38 @@ from pprint import pprint as p
 
 class Log:
     def __init__(self, show_debug=False, show_verbose=False):
-        self.titles=[]
+        self.last_log=""
         self.show_debug=show_debug
         self.show_verbose=show_verbose
 
-    def titled_str(self, txt, titles):
-        """magic to make our log messages ident and more clear"""
-        str=""
-        count=0
-        changed=False
-        for title in titles:
-            if not self.show_debug and not changed and len(self.titles)>count and self.titles[count]==title:
-                str=str+ ( " " * len(title))+ "  "
-            else:
-                str=str+title+": "
-                changed=True
-            # str=str+": "
-            count=count+1
+    # def titled_str(self, txt, titles):
+    #     """magic to make our log messages ident and more clear"""
+    #     str=""
+    #     count=0
+    #     changed=False
+    #     for title in titles:
+    #         if not self.show_debug and not changed and len(self.titles)>count and self.titles[count]==title:
+    #             str=str+ ( " " * len(title))+ "  "
+    #         else:
+    #             str=str+title+": "
+    #             changed=True
+    #         # str=str+": "
+    #         count=count+1
+    #
+    #     str=str+txt
+    #     self.titles=list(titles)
+    #     return(str)
 
-        str=str+txt
-        self.titles=list(titles)
-        return(str)
+    def error(self, txt):
+        print("! "+txt, file=sys.stderr)
 
-    def error(self, txt, titles=[]):
-        print(self.titled_str("FAILED: "+txt, titles), file=sys.stderr)
-
-    def verbose(self, txt, titles=[]):
+    def verbose(self, txt):
         if self.show_verbose:
-            print(self.titled_str(txt, titles))
+            print("  "+txt)
 
-    def debug(self, txt, titles=[]):
+    def debug(self, txt):
         if self.show_debug:
-            print(self.titled_str(txt, titles))
+            print("# "+txt)
 
 
 
@@ -101,7 +101,7 @@ class ExecuteNode:
         self.readonly=readonly
 
 
-    def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False):
+    def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False):
         """run a command on the node
 
         readonly: make this True if the command doesnt make any changes and is safe to execute in testmode
@@ -124,12 +124,12 @@ class ExecuteNode:
                 encoded_cmd.append(arg.encode('utf-8'))
 
         #debug and test stuff
-        debug_txt="# "+" ".join(encoded_cmd)
+        debug_txt=" ".join(encoded_cmd)
 
         if self.readonly and not readonly:
-            self.debug("[NOT EXECUTING (readonly mode)] "+debug_txt)
+            self.debug("[NOT RUNNING] "+debug_txt)
         else:
-            self.debug(debug_txt)
+            self.debug("[RUN] "+ debug_txt)
 
         if input:
             self.debug("INPUT:\n"+input.rstrip())
@@ -141,12 +141,15 @@ class ExecuteNode:
             return
 
         #execute and parse/return results
-        p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin)
-        output=p.communicate(input=input)[0]
+        p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin, stderr=subprocess.PIPE)
+        (output, errors)=p.communicate(input=input)
+
         if p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
-        # self.debug(output)
+        if not hide_errors:
+            for line in errors.splitlines():
+                self.error(line)
 
         lines=output.splitlines()
         if not tab_split:
@@ -180,13 +183,13 @@ class ZfsDataset():
         return(self.name == obj.name)
 
     def verbose(self,txt):
-        self.zfs_node.verbose(txt,[self.name])
+        self.zfs_node.verbose("{}: {}".format(self.name, txt))
 
     def error(self,txt):
-        self.zfs_node.error(txt,[self.name])
+        self.zfs_node.error("{}: {}".format(self.name, txt))
 
     def debug(self,txt):
-        self.zfs_node.debug(txt)
+        self.zfs_node.debug("{}: {}".format(self.name, txt))
 
 
     def invalidate(self):
@@ -214,6 +217,7 @@ class ZfsDataset():
     @cached_property
     def properties(self):
         """all zfs properties"""
+        self.debug("Getting zfs properties")
 
         cmd=[
             "zfs", "get", "-H", "-o", "property,value", "all", self.name
@@ -225,11 +229,12 @@ class ZfsDataset():
     def exists(self):
         """check if dataset exists"""
         self.debug("Checking if filesystem exists")
-        return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ])!="")
+        return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True)!="")
 
 
     def is_changed(self):
         """dataset is changed since ANY latest snapshot ?"""
+        self.debug("Checking if dataset is changed")
 
         if self.properties['written']=="0B" or self.properties['written']=="0":
             return(False)
@@ -254,6 +259,7 @@ class ZfsDataset():
     @cached_property
     def snapshots(self):
         """get all snapshots of this dataset"""
+        self.debug("Getting snapshots")
 
         cmd=[
             "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", self.name
@@ -265,6 +271,7 @@ class ZfsDataset():
     @cached_property
     def our_snapshots(self):
         """get list of snapshots creates by us of this dataset"""
+        self.debug("Getting our snapshots")
         ret=[]
         for snapshot in self.snapshots:
             if snapshot.is_ours():
@@ -303,6 +310,8 @@ class ZfsDataset():
     def is_changed_ours(self):
         """dataset is changed since OUR latest snapshot?"""
 
+        self.debug("Checking if dataset is changed since our snapshot")
+
         if not self.our_snapshots:
             return(True)
 
@@ -318,6 +327,8 @@ class ZfsDataset():
     @cached_property
     def recursive_datasets(self, types="filesystem,volume"):
         """get all datasets recursively under us"""
+
+        self.debug("Getting all datasets under us")
 
         names=self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[ 0 ], cmd=[
             "zfs", "list", "-r", "-t",  types, "-o", "name", "-H", self.name
@@ -348,6 +359,8 @@ class ZfsDataset():
     def transfer_snapshot(self, target_dataset, prev_snapshot=None):
         """transfer this snapshot to target_dataset. specify prev_snapshot for incremental transfer"""
 
+        self.debug("Transfer snapshot")
+
         if target_dataset.exists:
             receive_resume_token=getattr(target_dataset.properties, 'receive_resume_token', None)
         else:
@@ -368,6 +381,9 @@ class ZfsDataset():
 
     def sync_snapshots(self, target_dataset):
         """sync our snapshots to target_dataset"""
+
+        self.debug("Sync snapshots")
+
         # inital transfer
         if not target_dataset.exists:
             self.our_snapshots[0].transfer_snapshot(target_dataset)
@@ -403,17 +419,14 @@ class ZfsNode(ExecuteNode):
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
 
-    def verbose(self,txt,titles=[]):
-        titles.insert(0,self.description)
-        self.zfs_autobackup.verbose(txt, titles)
+    def verbose(self,txt):
+        self.zfs_autobackup.verbose("{}: {}".format(self.description, txt))
 
     def error(self,txt,titles=[]):
-        titles.insert(0,self.description)
-        self.zfs_autobackup.error(txt, titles)
+        self.zfs_autobackup.error("{}: {}".format(self.description, txt))
 
     def debug(self,txt, titles=[]):
-        titles.insert(0,self.description)
-        self.zfs_autobackup.debug(txt, titles)
+        self.zfs_autobackup.debug("{}: {}".format(self.description, txt))
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -540,19 +553,16 @@ class ZfsAutobackup:
 
 
     def verbose(self,txt,titles=[]):
-        titles.insert(0,self.title)
-        self.log.verbose(txt, titles)
+        self.log.verbose(txt)
 
     def error(self,txt,titles=[]):
-        titles.insert(0,self.title)
-        self.log.error(txt, titles)
+        self.log.error(txt)
 
     def debug(self,txt, titles=[]):
-        titles.insert(0,self.title)
-        self.log.debug(txt, titles)
+        self.log.debug(txt)
 
     def set_title(self, title):
-        self.title=title
+        self.log.verbose("#### "+title)
 
     def run(self):
         description="Source {}".format(self.args.ssh_source or "(local)")
@@ -586,7 +596,7 @@ class ZfsAutobackup:
                     target_dataset=ZfsDataset(target_node, target_name)
                     source_dataset.sync_snapshots(target_dataset)
             except Exception as e:
-                target_dataset.error(str(e))
+                self.error(str(e))
                 if self.args.debug:
                     raise
 
