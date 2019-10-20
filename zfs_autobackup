@@ -530,16 +530,19 @@ class ZfsDataset():
         #initial or resume
         if not prev_snapshot or resume_token:
             if resume_token:
-                target_dataset.verbose("(resumed)") #we dont know which one
+                target_dataset.verbose("receiving resumed") #we dont know which one XXX: fix, we need to know for testmode
             else:
                 target_dataset.verbose("receiving @{}".format(self.snapshot_name))
 
             pipe=self.send_pipe(resume=resume, resume_token=resume_token, show_progress=show_progress)
-            target_dataset.recv_pipe(pipe)
 
         else:
             #incemental
             target_dataset.verbose("receiving @{}...@{}".format(prev_snapshot.snapshot_name, self.snapshot_name))
+            pipe=self.send_pipe(resume=resume, show_progress=show_progress, prev_snapshot=prev_snapshot)
+
+        #do it
+        target_dataset.recv_pipe(pipe)
 
 
         if resume_token:
@@ -558,7 +561,7 @@ class ZfsDataset():
         # inital transfer
         if not target_dataset.exists:
             self.debug("Initial transfer")
-            self.our_snapshots[0].transfer_snapshot(target_dataset)
+            self.our_snapshots[0].transfer_snapshot(target_dataset, show_progress=True)
         else:
             #on resuming we dont need to know anything, the token is enough
             if 'receive_resume_token' in target_dataset.properties:
@@ -575,7 +578,7 @@ class ZfsDataset():
             else:
                 if latest_common_snapshot:
                     #transfer it
-                    source_snapshot.transfer_snapshot(target_dataset, latest_common_snapshot)
+                    source_snapshot.transfer_snapshot(target_dataset, latest_common_snapshot, show_progress=True)
                     latest_common_snapshot=source_snapshot
 
         if not latest_common_snapshot:
