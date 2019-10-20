@@ -10,6 +10,7 @@ import pprint
 # import cStringIO
 import time
 import argparse
+from pprint import pprint as p
 
 class Log:
     def __init__(self, show_debug=False, show_verbose=False):
@@ -36,7 +37,7 @@ class Log:
         return(str)
 
     def error(self, txt, titles=[]):
-        print(txt, file=sys.stderr)
+        print(self.titled_str("FAILED: "+txt, titles), file=sys.stderr)
 
     def verbose(self, txt, titles=[]):
         if self.show_verbose:
@@ -145,7 +146,7 @@ class ExecuteNode:
         if p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
-        self.debug(output)
+        # self.debug(output)
 
         lines=output.splitlines()
         if not tab_split:
@@ -181,6 +182,9 @@ class ZfsDataset():
     def verbose(self,txt):
         self.zfs_node.verbose(txt,[self.name])
 
+    def error(self,txt):
+        self.zfs_node.error(txt,[self.name])
+
     def debug(self,txt):
         self.zfs_node.debug(txt)
 
@@ -212,15 +216,21 @@ class ZfsDataset():
         """all zfs properties"""
 
         cmd=[
-            "zfs", "get", "all", "-H", "-o", "property,value", self.name
+            "zfs", "get", "-H", "-o", "property,value", "all", self.name
         ]
 
         return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ])))
 
+    @cached_property
+    def exists(self):
+        """check if dataset exists"""
+        return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ])!="")
+
+
     def is_changed(self):
         """dataset is changed since ANY latest snapshot ?"""
 
-        if self.properties['written']=="0B" or self.properties.written['written']=="0":
+        if self.properties['written']=="0B" or self.properties['written']=="0":
             return(False)
         else:
             return(True)
@@ -261,22 +271,32 @@ class ZfsDataset():
 
         return(ret)
 
-    def find_sends(self, snapshot_name):
-        """find the snapshot sendlist, starting from snapshot_name.
-           returns: ( start_snapshot, send_snapshots )
-        """
+    # def find_sends(self, snapshot_name):
+    #     """find the snapshot sendlist, starting from snapshot_name.
+    #        returns: ( start_snapshot, send_snapshots )
+    #     """
+    #
+    #     start_snapshot=None
+    #     send_snapshots=[]
+    #
+    #     for snapshot in self.our_snapshots:
+    #         if start_snapshot:
+    #             send_snapshots.append(snapshot)
+    #
+    #         elif snapshot.snapshot_name==snapshot_name:
+    #             start_snapshot=snapshot
+    #
+    #     return( (start_snapshot, send_snapshots) )
 
-        start_snapshot=None
-        send_snapshots=[]
 
+    def find_snapshot(self, snapshot_name):
+        """find snapshot by snapshot_name"""
         for snapshot in self.our_snapshots:
-            if start_snapshot:
-                send_snapshots.append(snapshot)
+            if snapshot.snapshot_name==snapshot_name:
+                return(snapshot)
 
-            elif snapshot.snapshot_name==snapshot_name:
-                start_snapshot=snapshot
+        return(None)
 
-        return( (start_snapshot, send_snapshots) )
 
     @cached_property
     def is_changed_ours(self):
@@ -304,25 +324,65 @@ class ZfsDataset():
 
         return(self.from_names(names[1:]))
 
-    def transfer_snapshots(self, source_dataset, source_start_snapshot, source_sends):
-        """transfer bunch snapshots to this target"""
+    # def transfer_snapshots(self, source_dataset, source_start_snapshot, source_sends):
+    #     """transfer bunch snapshots to this target"""
+    #
+    #     receive_resume_token=getattr(source_dataset.properties, 'receive_resume_token', None)
+    #     last_snapshot=source_start_snapshot
+    #
+    #     for snapshot in source_sends:
+    #         if receive_resume_token:
+    #             resumed="[RESUMED]"
+    #         else:
+    #             resumed=""
+    #
+    #         if (last_snapshot):
+    #             source_dataset.verbose("incremental @{}...@{} {}".format(last_snapshot.snapshot_name, snapshot.snapshot_name, resumed))
+    #         else:
+    #             source_dataset.verbose("initial     @{} {}".format(snapshot.snapshot_name, resumed))
+    #
+    #         last_snapshot=snapshot
+    #         receive_resume_token=None
 
-        receive_resume_token=getattr(source_dataset.properties, 'receive_resume_token', None)
-        last_snapshot=source_start_snapshot
+    def transfer_snapshot(self, target_dataset, prev_snapshot=None):
+        """transfer this snapshot to target_dataset. specify prev_snapshot for incremental transfer"""
 
-        for snapshot in source_sends:
-            if receive_resume_token:
-                resumed="[RESUMED]"
+        receive_resume_token=getattr(target_dataset.properties, 'receive_resume_token', None)
+        if receive_resume_token:
+            resumed="[RESUMED]"
+        else:
+            resumed=""
+
+        if (prev_snapshot):
+            self.verbose("incremental @{}...@{} {}".format(prev_snapshot.snapshot_name, self.snapshot_name, resumed))
+        else:
+            self.verbose("initial     @{} {}".format(snapshot.snapshot_name, resumed))
+
+        target_dataset.invalidate()
+
+
+    def sync_snapshots(self, target_dataset):
+        """sync our snapshots to target_dataset"""
+
+        # inital transfer
+        if not target_dataset.exists:
+            self.our_snapshots[0].transfer_snapshot(target_dataset)
+
+        latest_common_snapshot=None
+        for source_snapshot in self.our_snapshots:
+            target_snapshot=target_dataset.find_snapshot(source_snapshot.snapshot_name)
+            #already transferred
+            if target_snapshot:
+                latest_common_snapshot=source_snapshot
             else:
-                resumed=""
+                if latest_common_snapshot:
+                    #transfer it
+                    source_snapshot.transfer_snapshot(target_dataset, latest_common_snapshot)
+                    latest_common_snapshot=source_snapshot
 
-            if (last_snapshot):
-                source_dataset.verbose("incremental @{}...@{} {}".format(last_snapshot.snapshot_name, snapshot.snapshot_name, resumed))
-            else:
-                source_dataset.verbose("initial     @{} {}".format(snapshot.snapshot_name, resumed))
+        if not latest_common_snapshot:
+            raise(Exception("Cant find a common snapshot. (hint: on target zfs destroy {})".format(target_dataset)))
 
-            last_snapshot=snapshot
-            receive_resume_token=None
 
 
 class ZfsNode(ExecuteNode):
@@ -342,6 +402,10 @@ class ZfsNode(ExecuteNode):
     def verbose(self,txt,titles=[]):
         titles.insert(0,self.description)
         self.zfs_autobackup.verbose(txt, titles)
+
+    def error(self,txt,titles=[]):
+        titles.insert(0,self.description)
+        self.zfs_autobackup.error(txt, titles)
 
     def debug(self,txt):
         self.zfs_autobackup.debug(txt)
@@ -363,7 +427,7 @@ class ZfsNode(ExecuteNode):
         for dataset in datasets:
             if not allow_empty:
                 if not dataset.is_changed_ours:
-                    dataset.verbose("No changes, not snapshotting. (last was {})".format(dataset.our_snapshots[-1].snapshot_name))
+                    dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
                     continue
 
             snapshot=ZfsDataset(dataset.zfs_node, dataset.name+"@"+snapshot_name)
@@ -407,8 +471,8 @@ class ZfsNode(ExecuteNode):
                     direct_filesystems.append(name)
 
                 if source=="local" and value=="true":
-                    selected_filesystems.append(dataset)
                     dataset.verbose("Selected (direct selection)")
+                    selected_filesystems.append(dataset)
                 elif source.find("inherited from ")==0 and (value=="true" or value=="child"):
                     inherited_from=re.sub("^inherited from ", "", source)
                     if inherited_from in direct_filesystems:
@@ -474,6 +538,10 @@ class ZfsAutobackup:
         titles.insert(0,self.title)
         self.log.verbose(txt, titles)
 
+    def error(self,txt,titles=[]):
+        titles.insert(0,self.title)
+        self.log.error(txt, titles)
+
     def debug(self,txt):
         self.log.debug(txt)
 
@@ -503,47 +571,57 @@ class ZfsAutobackup:
 
         for source_dataset in source_datasets:
 
-            #determine corresponding target_dataset
-            target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
-            target_dataset=ZfsDataset(target_node, target_name)
-
-            #does it actually exists in the targetroot?
-            if target_dataset in target_root.recursive_datasets:
-                #yes, so we're in incremental mode
-
-                #find latest target snapshot and find it on source
-                latest_target_snapshot=target_dataset.our_snapshots[-1]
-
-                ( source_start_snapshot, source_sends )=source_dataset.find_sends(latest_target_snapshot.snapshot_name)
-
-                if not source_start_snapshot:
-                    #cant find latest target snapshot, try to find another common snapshot
-                    for target_snapshot in target_dataset.our_snapshots:
-                        ( source_start_snapshot, source_sends )=source_dataset.find_sends(target_snapshot.snapshot_name)
-                        if source_start_snapshot:
-                            break
-
-                    #still not found
-                    if not source_start_snapshot:
-                        source_dataset.verbose("Cant find common snapshot")
-
-                    else:
-
-                        #         if args.ignore_new:
-                        #             verbose("* Skipping source filesystem '{0}', target already has newer snapshots.".format(source_filesystem))
-                        #             continue
-                        #
-                        #     raise(Exception(error_msg))
-                        target_snapshot.verbose("Please rollback to this snapshot")
-
+            try:
+                if self.args.ignore_replicated and not source_dataset.is_changed():
+                    source_dataset.verbose("Already replicated")
                 else:
-                    if source_sends:
-                        target_root.transfer_snapshots(source_dataset, source_start_snapshot, source_sends)
+                    #determine corresponding target_dataset
+                    target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
+                    target_dataset=ZfsDataset(target_node, target_name)
+                    source_dataset.sync_snapshots(target_dataset)
+            except Exception as e:
+                source_dataset.error(str(e))
+                if self.args.debug:
+                    raise
 
 
-            else:
-                #initial, transfer all snapshots
-                target_root.transfer_snapshots(source_dataset, None, source_dataset.our_snapshots)
+            # #does it actually exists in the targetroot?
+            # if target_dataset in target_root.recursive_datasets:
+            #     #yes, so we're in incremental mode
+            #
+            #     #find latest target snapshot and find it on source
+            #     latest_target_snapshot=target_dataset.our_snapshots[-1]
+            #
+            #     ( source_start_snapshot, source_sends )=source_dataset.find_sends(latest_target_snapshot.snapshot_name)
+            #
+            #     if not source_start_snapshot:
+            #         #cant find latest target snapshot, try to find another common snapshot
+            #         for target_snapshot in target_dataset.our_snapshots:
+            #             ( source_start_snapshot, source_sends )=source_dataset.find_sends(target_snapshot.snapshot_name)
+            #             if source_start_snapshot:
+            #                 break
+            #
+            #         #still not found
+            #         if not source_start_snapshot:
+            #             source_dataset.verbose("Cant find common snapshot")
+            #
+            #         else:
+            #
+            #             #         if args.ignore_new:
+            #             #             verbose("* Skipping source filesystem '{0}', target already has newer snapshots.".format(source_filesystem))
+            #             #             continue
+            #             #
+            #             #     raise(Exception(error_msg))
+            #             target_snapshot.verbose("Please rollback to this snapshot")
+            #
+            #     else:
+            #         if source_sends:
+            #             target_root.transfer_snapshots(source_dataset, source_start_snapshot, source_sends)
+            #
+            #
+            # else:
+            #     #initial, transfer all snapshots
+            #     target_root.transfer_snapshots(source_dataset, None, source_dataset.our_snapshots)
 
 
 zfs_autobackup=ZfsAutobackup()
