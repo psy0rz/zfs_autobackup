@@ -12,6 +12,14 @@ import time
 import argparse
 from pprint import pprint as p
 
+import imp
+try:
+    import colorama
+    use_color=True
+except ImportError:
+    use_color=False
+
+
 class Log:
     def __init__(self, show_debug=False, show_verbose=False):
         self.last_log=""
@@ -37,15 +45,24 @@ class Log:
     #     return(str)
 
     def error(self, txt):
-        print("! "+txt, file=sys.stderr)
+        if use_color:
+            print(colorama.Fore.RED+colorama.Style.BRIGHT+ "! "+txt+colorama.Style.RESET_ALL, file=sys.stderr)
+        else:
+            print("! "+txt, file=sys.stderr)
 
     def verbose(self, txt):
         if self.show_verbose:
-            print("  "+txt)
+            if use_color:
+                print(colorama.Style.NORMAL+ "  "+txt+colorama.Style.RESET_ALL)
+            else:
+                print("  "+txt)
 
     def debug(self, txt):
         if self.show_debug:
-            print("# "+txt)
+            if use_color:
+                print(colorama.Fore.BLUE+ "# "+txt+colorama.Style.RESET_ALL)
+            else:
+                print("# "+txt)
 
 
 
@@ -144,12 +161,12 @@ class ExecuteNode:
         p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin, stderr=subprocess.PIPE)
         (output, errors)=p.communicate(input=input)
 
-        if p.returncode not in valid_exitcodes:
-            raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
-
         if not hide_errors:
             for line in errors.splitlines():
                 self.error(line)
+
+        if p.returncode not in valid_exitcodes:
+            raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
         lines=output.splitlines()
         if not tab_split:
@@ -229,7 +246,7 @@ class ZfsDataset():
     def exists(self):
         """check if dataset exists"""
         self.debug("Checking if filesystem exists")
-        return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True)!="")
+        return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True) and True)
 
 
     def is_changed(self):
@@ -260,6 +277,9 @@ class ZfsDataset():
     def snapshots(self):
         """get all snapshots of this dataset"""
         self.debug("Getting snapshots")
+
+        if not self.exists:
+            return([])
 
         cmd=[
             "zfs", "list", "-d", "1", "-r", "-t" ,"snapshot", "-H", "-o", "name", self.name
@@ -374,10 +394,10 @@ class ZfsDataset():
         if (prev_snapshot):
             target_dataset.verbose("receiving @{}...@{} {}".format(prev_snapshot.snapshot_name, self.snapshot_name, resumed))
         else:
-            target_dataset.verbose("receiving @{} {}".format(snapshot.snapshot_name, resumed))
+            target_dataset.verbose("receiving @{} {}".format(self.snapshot_name, resumed))
 
-        target_dataset.invalidate()
-
+        #update cache
+        target_dataset.snapshots.append(ZfsDataset(target_dataset.zfs_node, target_dataset.name+"@"+self.snapshot_name))
 
     def sync_snapshots(self, target_dataset):
         """sync our snapshots to target_dataset"""
@@ -420,13 +440,13 @@ class ZfsNode(ExecuteNode):
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly)
 
     def verbose(self,txt):
-        self.zfs_autobackup.verbose("{}: {}".format(self.description, txt))
+        self.zfs_autobackup.verbose("{} {}".format(self.description, txt))
 
     def error(self,txt,titles=[]):
-        self.zfs_autobackup.error("{}: {}".format(self.description, txt))
+        self.zfs_autobackup.error("{} {}".format(self.description, txt))
 
     def debug(self,txt, titles=[]):
-        self.zfs_autobackup.debug("{}: {}".format(self.description, txt))
+        self.zfs_autobackup.debug("{} {}".format(self.description, txt))
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
@@ -562,13 +582,14 @@ class ZfsAutobackup:
         self.log.debug(txt)
 
     def set_title(self, title):
+        self.log.verbose("")
         self.log.verbose("#### "+title)
 
     def run(self):
-        description="Source {}".format(self.args.ssh_source or "(local)")
+        description="[Source]"
         source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, description=description)
 
-        description="Target {}".format(self.args.ssh_target or "(local)")
+        description="[Target]"
         target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, description=description)
 
         self.set_title("Selecting")
@@ -583,7 +604,7 @@ class ZfsAutobackup:
 
         self.set_title("Transferring")
 
-        target_root=ZfsDataset(target_node, self.args.target_path)
+        # target_root=ZfsDataset(target_node, self.args.target_path)
 
         for source_dataset in source_datasets:
 
