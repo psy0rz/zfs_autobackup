@@ -466,6 +466,8 @@ class ZfsDataset():
         #progress output
         if show_progress:
             cmd.append("-v")
+            cmd.append("-P")
+
 
         #resume a previous send? (dont need more parameters in that case)
         if resume_token:
