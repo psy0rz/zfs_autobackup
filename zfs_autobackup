@@ -262,7 +262,11 @@ class ExecuteNode:
 
 
 class ZfsDataset():
-    """a zfs dataset (filesystem/volume/snapshot/clone)"""
+    """a zfs dataset (filesystem/volume/snapshot/clone)
+    Note that a dataset doesnt have to actually exist (yet/anymore)
+    Also most properties are cached for performance-reasons, but also to allow --test to function correctly. 
+
+    """
 
     def __init__(self, zfs_node, name):
         """name: full path of the zfs dataset"""
