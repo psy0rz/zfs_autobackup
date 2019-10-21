@@ -193,6 +193,7 @@ class ExecuteNode:
         #handle all outputs
         if isinstance(input, subprocess.Popen):
             selectors=[p.stdout, p.stderr, input.stderr ]
+            input.stdout.close() #otherwise inputprocess wont exit when ours does
         else:
             selectors=[p.stdout, p.stderr ]
 
@@ -230,6 +231,8 @@ class ExecuteNode:
             #stop if both processes are done and all filehandles are EOF:
             if p.poll()!=None and ((not isinstance(input, subprocess.Popen)) or input.poll()!=None) and eof_count==len(selectors):
                 break
+
+
 
         #handle piped process error output and exit codes
         if isinstance(input, subprocess.Popen):
@@ -294,6 +297,10 @@ class ZfsDataset():
         """return name with first count components stripped"""
         return("/".join(self.name.split("/")[count:]))
 
+    def rstrip_path(self,count):
+        """return name with last count components stripped"""
+        return("/".join(self.name.split("/")[:-count]))
+
 
     @property
     def filesystem_name(self):
@@ -306,6 +313,26 @@ class ZfsDataset():
         """snapshot part of the name"""
         (filesystem, snapshot_name)=self.name.split("@")
         return(snapshot_name)
+
+    @property
+    def is_snapshot(self):
+        """true if this dataset is a snapshot"""
+        return(self.name.find("@")!=-1)
+
+
+    @cached_property
+    def parent(self):
+        """get zfs-parent of this dataset.
+        for snapshots this means it will get the filesystem/volume that it belongs to. otherwise it will return the parent according to path
+
+        we cache this so everything in the parent that is cached also stays.
+        """
+        if self.is_snapshot:
+            return(ZfsDataset(self.zfs_node, self.filesystem_name))
+        else:
+            return(ZfsDataset(self.zfs_node, self.rstrip_path(1)))
+
+
 
     @cached_property
     def properties(self):
@@ -323,6 +350,18 @@ class ZfsDataset():
         """check if dataset exists"""
         self.debug("Checking if filesystem exists")
         return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True) and True)
+
+    def create_filesystem(self, parents=False):
+        """create a filesytem"""
+        if parents:
+            self.verbose("Creating filesystem and parents")
+            self.zfs_node.run(["zfs", "create", "-p", self.name ])
+        else:
+            self.verbose("Creating filesystem")
+            self.zfs_node.run(["zfs", "create", self.name ])
+
+        #update cache
+        self.exists=1
 
 
     def is_changed(self):
@@ -367,7 +406,6 @@ class ZfsDataset():
     @property
     def our_snapshots(self):
         """get list of snapshots creates by us of this dataset"""
-        self.debug("Getting our snapshots")
         ret=[]
         for snapshot in self.snapshots:
             if snapshot.is_ours():
@@ -576,7 +614,7 @@ class ZfsDataset():
 
 
 class ZfsNode(ExecuteNode):
-    """a node that contains zfs datasets. implements global lowlevel zfs commands"""
+    """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
     def __init__(self, backup_name, zfs_autobackup, ssh_to=None, readonly=False, description="", debug_output=False):
         self.backup_name=backup_name
@@ -761,8 +799,6 @@ class ZfsAutobackup:
 
         self.set_title("Transferring")
 
-        # target_root=ZfsDataset(target_node, self.args.target_path)
-
         for source_dataset in source_datasets:
 
             try:
@@ -772,6 +808,11 @@ class ZfsAutobackup:
                     #determine corresponding target_dataset
                     target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
                     target_dataset=ZfsDataset(target_node, target_name)
+
+                    #ensure parents exists
+                    if not target_dataset.parent.exists:
+                        target_dataset.parent.create_filesystem(parents=True)
+
                     source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress)
             except Exception as e:
                 source_dataset.error(str(e))
