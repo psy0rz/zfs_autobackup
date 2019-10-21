@@ -264,7 +264,7 @@ class ExecuteNode:
 class ZfsDataset():
     """a zfs dataset (filesystem/volume/snapshot/clone)
     Note that a dataset doesnt have to actually exist (yet/anymore)
-    Also most properties are cached for performance-reasons, but also to allow --test to function correctly. 
+    Also most properties are cached for performance-reasons, but also to allow --test to function correctly.
 
     """
 
@@ -336,19 +336,6 @@ class ZfsDataset():
         else:
             return(ZfsDataset(self.zfs_node, self.rstrip_path(1)))
 
-
-
-    @cached_property
-    def properties(self):
-        """all zfs properties"""
-        self.debug("Getting zfs properties")
-
-        cmd=[
-            "zfs", "get", "-H", "-o", "property,value", "all", self.name
-        ]
-
-        return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ])))
-
     @cached_property
     def exists(self):
         """check if dataset exists"""
@@ -367,6 +354,21 @@ class ZfsDataset():
         #update cache
         self.exists=1
 
+    def destroy(self):
+        self.debug("Destroying")
+        self.zfs_node.run(["zfs", "destroy", self.name])
+        self.invalidate()
+
+    @cached_property
+    def properties(self):
+        """all zfs properties"""
+        self.debug("Getting zfs properties")
+
+        cmd=[
+            "zfs", "get", "-H", "-o", "property,value", "all", self.name
+        ]
+
+        return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ])))
 
     def is_changed(self):
         """dataset is changed since ANY latest snapshot ?"""
@@ -417,22 +419,9 @@ class ZfsDataset():
 
         return(ret)
 
-    # def find_sends(self, snapshot_name):
-    #     """find the snapshot sendlist, starting from snapshot_name.
-    #        returns: ( start_snapshot, send_snapshots )
-    #     """
-    #
-    #     start_snapshot=None
-    #     send_snapshots=[]
-    #
-    #     for snapshot in self.our_snapshots:
-    #         if start_snapshot:
-    #             send_snapshots.append(snapshot)
-    #
-    #         elif snapshot.snapshot_name==snapshot_name:
-    #             start_snapshot=snapshot
-    #
-    #     return( (start_snapshot, send_snapshots) )
+
+    # def progressive_thinning(self, schedule):
+    #     """cleanup snapshots by progressive thinning schedule"""
 
 
     def find_snapshot(self, snapshot_name):
@@ -824,44 +813,110 @@ class ZfsAutobackup:
                     raise
 
 
-            # #does it actually exists in the targetroot?
-            # if target_dataset in target_root.recursive_datasets:
-            #     #yes, so we're in incremental mode
-            #
-            #     #find latest target snapshot and find it on source
-            #     latest_target_snapshot=target_dataset.our_snapshots[-1]
-            #
-            #     ( source_start_snapshot, source_sends )=source_dataset.find_sends(latest_target_snapshot.snapshot_name)
-            #
-            #     if not source_start_snapshot:
-            #         #cant find latest target snapshot, try to find another common snapshot
-            #         for target_snapshot in target_dataset.our_snapshots:
-            #             ( source_start_snapshot, source_sends )=source_dataset.find_sends(target_snapshot.snapshot_name)
-            #             if source_start_snapshot:
-            #                 break
-            #
-            #         #still not found
-            #         if not source_start_snapshot:
-            #             source_dataset.verbose("Cant find common snapshot")
-            #
-            #         else:
-            #
-            #             #         if args.ignore_new:
-            #             #             verbose("* Skipping source filesystem '{0}', target already has newer snapshots.".format(source_filesystem))
-            #             #             continue
-            #             #
-            #             #     raise(Exception(error_msg))
-            #             target_snapshot.verbose("Please rollback to this snapshot")
-            #
-            #     else:
-            #         if source_sends:
-            #             target_root.transfer_snapshots(source_dataset, source_start_snapshot, source_sends)
-            #
-            #
-            # else:
-            #     #initial, transfer all snapshots
-            #     target_root.transfer_snapshots(source_dataset, None, source_dataset.our_snapshots)
+times=[]
 
 
-zfs_autobackup=ZfsAutobackup()
-zfs_autobackup.run()
+time_blocks={
+        'years'   : 3600 * 24 * 365.25,
+        'months'  : 3600 * 24 * 30,
+        'weeks'   : 3600 * 24 * 7,
+        'days'    : 3600 * 24,
+        'hours'   : 3600,
+        'minutes' : 60,
+}
+
+
+
+now=int(time.time())
+
+def thin(schedule, snapshots):
+    if len(snapshots)==0:
+        return(snapshots)
+
+    ret=[]
+
+    time_blocks={}
+
+    for ( period, ttl ) in schedule:
+        time_blocks[period]={}
+
+    # for snapshot in list(reversed(snapshots)):
+    #always keep latest
+    for snapshot in snapshots[:-1]:
+
+        snapshot_time=snapshot
+        age=now-snapshot_time
+
+        keeps=""
+        for ( period, ttl ) in schedule:
+            block_nr=int(snapshot_time/period)
+            if age<=ttl:
+                if not block_nr in time_blocks[period]:
+                    time_blocks[period][block_nr]=snapshot_time
+                    keeps=keeps+" ({}days, block{}) ".format(int(period/(3600*24)), block_nr)
+
+        struct=time.localtime(snapshot_time)
+        if keeps:
+            ret.append(snapshot)
+            print("{} {} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),keeps,int(age/(3600*24))))
+        # else:
+        #     print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
+
+
+
+    # return(list(reversed(ret)))
+
+    #always keep latest!
+    # if not keeps and snapshots:
+    #     ret.append(snapshots[:-1])
+
+    ret.append(snapshots[-1])
+    struct=time.localtime(snapshots[-1])
+    print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
+    return(ret)
+
+# snapshots=range(now-400*24*3600, now, 24*3600)
+
+schedule=[
+    #every ...               keep for ...
+    ( 1*time_blocks['days']  , 7 * time_blocks['days'] ),
+    ( 1*time_blocks['weeks'] , 4 * time_blocks['weeks'] ),
+     ( 1*time_blocks['months'], (12 * time_blocks['months']) ),
+    ( 1*time_blocks['years'], 2 * time_blocks['years'] ),
+
+]
+
+
+
+import random
+msnapshots=[]
+
+while True:
+    print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
+
+    # if random.random()>0.5:
+    msnapshots.append(now)
+    msnapshots=thin(schedule, msnapshots)
+
+    sys.stdin.readline()
+    now=now+random.randint(0,80000)
+    # msnapshots.insert(0,now)
+
+
+
+
+
+
+
+#
+#
+#
+# now=time.time()
+# time_str=re.findall("^.*-([0-9]*)$", snapshot)[0]
+# if len(time_str)==14:
+#     #new format:
+#     time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
+#
+#
+# zfs_autobackup=ZfsAutobackup()
+# zfs_autobackup.run()
