@@ -842,67 +842,118 @@ def thin(schedule, snapshots):
 
     # for snapshot in list(reversed(snapshots)):
     #always keep latest
-    for snapshot in snapshots[:-1]:
+    for snapshot in snapshots:
 
         snapshot_time=snapshot
-        age=now-snapshot_time
 
         keeps=""
+        # just store in the correct time blocks, per period-size
         for ( period, ttl ) in schedule:
             block_nr=int(snapshot_time/period)
-            if age<=ttl:
-                if not block_nr in time_blocks[period]:
-                    time_blocks[period][block_nr]=snapshot_time
-                    keeps=keeps+" ({}days, block{}) ".format(int(period/(3600*24)), block_nr)
+            if not block_nr in time_blocks[period]:
+                time_blocks[period][block_nr]=[]
+            time_blocks[period][block_nr].append(snapshot_time)
 
-        struct=time.localtime(snapshot_time)
-        if keeps:
-            ret.append(snapshot)
-            print("{} {} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),keeps,int(age/(3600*24))))
-        # else:
-        #     print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
 
+
+    keep=set()
+
+    #now get the oldest one within the ttl, per block
+    for ( period, ttl ) in schedule:
+        for ( block_nr, snapshots ) in time_blocks[period].items():
+            for snapshot_time in sorted(snapshots):
+                age=now-snapshot_time
+                if age<ttl:
+                    keep.add(snapshot_time)
+                    break
+
+
+    return (sorted(keep))
 
 
     # return(list(reversed(ret)))
 
     #always keep latest!
     # if not keeps and snapshots:
-    #     ret.append(snapshots[:-1])
+    # #     ret.append(snapshots[:-1])
+    # struct=time.localtime(snapshot_time)
+    # if keeps:
+    #     ret.append(snapshot)
+    #     print("{} {} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),keeps,int(age/(3600*24))))
+    #     # else:
+    #     #     print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
+    #
+    #
+    # p(time_blocks)
 
-    ret.append(snapshots[-1])
-    struct=time.localtime(snapshots[-1])
-    print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
-    return(ret)
+    # ret.append(snapshots[-1])
+    # struct=time.localtime(snapshots[-1])
+    # print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
+    # return(ret)
 
 # snapshots=range(now-400*24*3600, now, 24*3600)
 
 schedule=[
     #every ...               keep for ...
-    ( 1*time_blocks['days']  , 7 * time_blocks['days'] ),
+    ( 1*time_blocks['days']  , 4 * time_blocks['days'] ),
     ( 1*time_blocks['weeks'] , 4 * time_blocks['weeks'] ),
-     ( 1*time_blocks['months'], (12 * time_blocks['months']) ),
-    ( 1*time_blocks['years'], 2 * time_blocks['years'] ),
+     ( 1*time_blocks['months'], (6 * time_blocks['months']) ),
+    ( 1*time_blocks['years'], 1 * time_blocks['years'] ),
 
 ]
 
 
 
 import random
-msnapshots=[]
-
-while True:
-    print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
-
-    # if random.random()>0.5:
-    msnapshots.append(now)
-    msnapshots=thin(schedule, msnapshots)
-
-    sys.stdin.readline()
-    now=now+random.randint(0,80000)
-    # msnapshots.insert(0,now)
 
 
+
+def printsnap(s):
+    age=now-s
+    struct=time.localtime(s)
+    return("{} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
+
+
+def test():
+    global now
+    a=[]
+    b=[]
+
+    while True:
+        print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
+
+        # if random.random()>0.5:
+        a.append(now)
+        a=thin(schedule,a)
+        # b.append(now)
+        # b=thin(schedule,a, oldest=False)
+        b=[]
+
+
+        for count in range(0,max(len(a), len(b))):
+            sa=""
+            if count<len(a):
+                sa=printsnap(a[count])
+
+            sb=""
+            if count<len(b):
+                sb=printsnap(b[count])
+
+            print("{:15}  |  {:15}".format(sa,sb))
+
+
+
+        # for s in msnapshots:
+        #     age=now-s
+        #     struct=time.localtime(s)
+        #     print("{} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
+
+
+        sys.stdin.readline()
+        now=now+random.randint(0,80000)
+        # msnapshots.insert(0,now)
+
+test()
 
 
 
