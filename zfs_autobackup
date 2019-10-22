@@ -33,24 +33,6 @@ class Log:
         self.show_debug=show_debug
         self.show_verbose=show_verbose
 
-    # def titled_str(self, txt, titles):
-    #     """magic to make our log messages ident and more clear"""
-    #     str=""
-    #     count=0
-    #     changed=False
-    #     for title in titles:
-    #         if not self.show_debug and not changed and len(self.titles)>count and self.titles[count]==title:
-    #             str=str+ ( " " * len(title))+ "  "
-    #         else:
-    #             str=str+title+": "
-    #             changed=True
-    #         # str=str+": "
-    #         count=count+1
-    #
-    #     str=str+txt
-    #     self.titles=list(titles)
-    #     return(str)
-
     def error(self, txt):
         if use_color:
             print(colorama.Fore.RED+colorama.Style.BRIGHT+ "! "+txt+colorama.Style.RESET_ALL, file=sys.stderr)
@@ -92,6 +74,16 @@ class ThinnerRule:
             's'   : 1,
     }
 
+    TIME_DESC={
+            'y'   : 'year',
+            'm'   : 'month',
+            'w'   : 'week',
+            'd'   : 'day',
+            'h'   : 'hour',
+            'min' : 'minute',
+            's'   : 'second',
+    }
+
     def parse_rule(self, rule_str):
         """parse scheduling string
             example:
@@ -125,14 +117,19 @@ class ThinnerRule:
         if self.period>self.ttl:
             raise(Exception("Period cant be longer than ttl in schedule: '{}'".format(rule_str)))
 
-
         self.rule_str=rule_str
+
+        self.human_str="Keep a snapshot every {} {}{}, delete after {} {}{}.".format(
+            period_amount, self.TIME_DESC[period_unit], period_amount!=1 and "s" or "", ttl_amount, self.TIME_DESC[ttl_unit], ttl_amount!=1 and "s" or "" )
 
 
     def __str__(self):
         """get schedule as a schedule string"""
 
         return(self.rule_str)
+
+
+
 
     def __init__(self, rule_str):
         self.parse_rule(rule_str)
@@ -142,17 +139,34 @@ class ThinnerRule:
 class Thinner:
     """progressive thinner (universal, used for cleaning up snapshots)"""
 
-    def __init__(self, schedule_str, always_keep=1):
-        """schedule_str: comman seperated list of ThinnerRules
-        always_keep: always keep the last X snapshots
+    def __init__(self, schedule_str=""):
+        """schedule_str: comma seperated list of ThinnerRules. A plain number specifies how many snapshots to always keep.
         """
 
-        self.always_keep=always_keep
         self.rules=[]
+        self.always_keep=0
+
+        if schedule_str=="":
+            return
 
         rule_strs=schedule_str.split(",")
         for rule_str in rule_strs:
-            self.rules.append(ThinnerRule(rule_str))
+            if rule_str.isdigit():
+                self.always_keep=int(rule_str)
+                if self.always_keep<0:
+                    raise(Exception("Number of snapshots to keep cant be negative: {}".format(self.keep_source)))
+            else:
+                self.rules.append(ThinnerRule(rule_str))
+
+    def human_rules(self):
+        """get list of human readable rules"""
+        ret=[]
+        if self.always_keep:
+            ret.append("Keep the last {} snapshot{}.".format(self.always_keep, self.always_keep!=1 and "s" or ""))
+        for rule in self.rules:
+            ret.append(rule.human_str)
+
+        return(ret)
 
     def run(self,objects, now=None):
         """thin list of objects with current schedule rules.
@@ -800,7 +814,7 @@ class ZfsDataset():
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, backup_name, zfs_autobackup, ssh_to=None, readonly=False, description="", debug_output=False):
+    def __init__(self, backup_name, zfs_autobackup, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
         self.backup_name=backup_name
         if not description:
             self.description=ssh_to
@@ -808,6 +822,9 @@ class ZfsNode(ExecuteNode):
             self.description=description
 
         self.zfs_autobackup=zfs_autobackup #for logging
+
+        for rule in thinner.human_rules():
+            self.verbose(rule)
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
@@ -910,8 +927,9 @@ class ZfsAutobackup:
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-        parser.add_argument('--keep-source', type=int, default=30, help='Number of days to keep old snapshots on source. Default %(default)s.')
-        parser.add_argument('--keep-target', type=int, default=30, help='Number of days to keep old snapshots on target. Default %(default)s.')
+        parser.add_argument('--keep-source', type=str, default="3,1d1w,1w1m,1m1y", help='Thinning schedule for old source snapshots. Default %(default)s')
+        parser.add_argument('--keep-target', type=str, default="3,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default %(default)s')
+
         parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
         parser.add_argument('target_path',    help='Target ZFS filesystem')
 
@@ -964,11 +982,15 @@ class ZfsAutobackup:
         self.log.verbose("#### "+title)
 
     def run(self):
+        self.set_title("Snapshot schedule")
+
         description="[Source]"
-        source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description)
+        source_thinner=Thinner(self.args.keep_source)
+        source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=source_thinner)
 
         description="[Target]"
-        target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description)
+        target_thinner=Thinner(self.args.keep_target)
+        target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
         # target_node.run(["/root/outputtest"], readonly=True)
 
         self.set_title("Selecting")
