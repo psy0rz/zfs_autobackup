@@ -168,16 +168,20 @@ class Thinner:
 
         return(ret)
 
-    def run(self,objects, now=None):
+    def thin(self,objects, keep_objects=[], now=None):
         """thin list of objects with current schedule rules.
-        object should have timestamp-attribute with unix timestamp
+        objects: list of objects to thin. every object should have timestamp attribute.
+        keep_objects: objects to always keep (these should also be in normal objects list, so we can use them to perhaps delete other obsolete objects)
+
 
             return( keeps, removes )
         """
 
+        #keep everything
         if len(objects)<=self.always_keep:
             return ( (objects, []) )
 
+        #determine time blocks
         time_blocks={}
         for rule in self.rules:
             time_blocks[rule.period]={}
@@ -195,6 +199,7 @@ class Thinner:
             age=now-timestamp
 
             # store in the correct time blocks, per period-size, if not too old yet
+            # e.g.: look if there is ANY timeblock that wants to keep this object
             keep=False
             for rule in self.rules:
                 if age<=rule.ttl:
@@ -203,7 +208,8 @@ class Thinner:
                         time_blocks[rule.period][block_nr]=True
                         keep=True
 
-            if keep:
+            #keep it according to schedule, or keep it because it is in the keep_objects list
+            if keep or object in keep_objects:
                 keeps.append(object)
             else:
                 removes.append(object)
@@ -450,8 +456,10 @@ class ZfsDataset():
 
     """
 
-    def __init__(self, zfs_node, name):
-        """name: full path of the zfs dataset"""
+    def __init__(self, zfs_node, name, exists=None):
+        """name: full path of the zfs dataset
+        exists: specifiy if you already know a dataset exists or not. for performance reasons. (othewise it will have to check with zfs list when needed)
+        """
         self.zfs_node=zfs_node
         self.name=name #full name
 
@@ -524,8 +532,13 @@ class ZfsDataset():
 
 
     @cached_property
-    def exists(self):
-        """check if dataset exists"""
+    def exists(self, force=None):
+        """check if dataset exists.
+        Use force to force a specific value to be cached, if you already know. Usefull for performance reasons"""
+
+        if force!=None:
+            return(force)
+
         self.debug("Checking if filesystem exists")
         return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True) and True)
 
@@ -772,8 +785,20 @@ class ZfsDataset():
         target_dataset.snapshots.append(ZfsDataset(target_dataset.zfs_node, target_dataset.name+"@"+self.snapshot_name))
 
 
+    def thin(self, keep=[]):
+        """determines list of snapshots that should be kept or deleted based on the thinning schedule.
+        keep: list of snapshots to always keep
+        """
+        return(self.zfs_node.thinner.thin(self.our_snapshots, keep_objects=keep))
+
+
     def sync_snapshots(self, target_dataset, show_progress=False):
         """sync our snapshots to target_dataset"""
+
+        #dertermine the snapshots that are obosole so we might skip or clean some snapshots
+        (source_keeps, source_obsoletes)=self.thin()
+        #XXX: pre-create target snapshot list with exist=False so the thinner can "plan ahead" what the target eventually wants
+        (target_keeps, target_obsoletes)=self.thin()
 
         # inital transfer
         resume_token=None
@@ -792,6 +817,7 @@ class ZfsDataset():
                     self.our_snapshots[0].transfer_snapshot(target_dataset, show_progress=show_progress, resume_token=resume_token)
                     resume_token=None
 
+        #increments
         self.debug("Sync snapshots: Incremental transfer")
         latest_common_snapshot=None
         for source_snapshot in self.our_snapshots:
@@ -801,10 +827,13 @@ class ZfsDataset():
                 latest_common_snapshot=source_snapshot
             else:
                 if latest_common_snapshot:
+                    # do we still want it on target?
                     #transfer it
                     source_snapshot.transfer_snapshot(target_dataset, latest_common_snapshot, show_progress=True, resume_token=resume_token)
                     resume_token=None
                     latest_common_snapshot=source_snapshot
+
+                    #
 
         if not latest_common_snapshot:
             raise(Exception("Cant find a common snapshot. (hint: zfs destroy {})".format(target_dataset)))
@@ -829,6 +858,8 @@ class ZfsNode(ExecuteNode):
                 self.verbose(rule)
         else:
             self.verbose("Keep all snapshots forver.")
+
+        self.thinner=Thinner()
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
