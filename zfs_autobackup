@@ -931,8 +931,8 @@ class ZfsAutobackup:
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-        parser.add_argument('--keep-source', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old source snapshots. Default %(default)s')
-        parser.add_argument('--keep-target', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default %(default)s')
+        parser.add_argument('--keep-source', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old source snapshots. Default: %(default)s')
+        parser.add_argument('--keep-target', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default: %(default)s')
 
         parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
         parser.add_argument('target_path',    help='Target ZFS filesystem')
