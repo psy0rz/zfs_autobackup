@@ -79,6 +79,174 @@ def abort(txt):
     sys.exit(255)
 
 
+class ThinnerRule:
+    """a thinning schedule rule for Thinner"""
+
+    TIME_NAMES={
+            'y'   : 3600 * 24 * 365.25,
+            'm'   : 3600 * 24 * 30,
+            'w'   : 3600 * 24 * 7,
+            'd'   : 3600 * 24,
+            'h'   : 3600,
+            'min' : 60,
+            's'   : 1,
+    }
+
+    def parse_rule(self, rule_str):
+        """parse scheduling string
+            example:
+                daily snapshot, remove after a week:     1d1w
+                weekly snapshot, remove after a month:   1w1m
+                monthly snapshot, remove after 6 months: 1m6m
+                yearly snapshot, remove after 2 year:    1y2y
+                keep all snapshots, remove after a day   1s1d
+                keep nothing:                            1s1s
+
+        """
+
+        rule_str=rule_str.lower()
+        matches=re.findall("([0-9]*)([a-z]*)([0-9]*)([a-z]*)", rule_str)[0]
+
+        period_amount=int(matches[0])
+        period_unit=matches[1]
+        ttl_amount=int(matches[2])
+        ttl_unit=matches[3]
+
+        if not period_unit in self.TIME_NAMES:
+            raise(Exception("Invalid period string in schedule: '{}'".format(rule_str)))
+
+        if not ttl_unit in self.TIME_NAMES:
+            raise(Exception("Invalid ttl string in schedule: '{}'".format(rule_str)))
+
+
+        self.period=period_amount * self.TIME_NAMES[period_unit]
+        self.ttl=ttl_amount * self.TIME_NAMES[ttl_unit]
+
+        if self.period>self.ttl:
+            raise(Exception("Period cant be longer than ttl in schedule: '{}'".format(rule_str)))
+
+
+        self.rule_str=rule_str
+
+
+    def __str__(self):
+        """get schedule as a schedule string"""
+
+        return(self.rule_str)
+
+    def __init__(self, rule_str):
+        self.parse_rule(rule_str)
+        pass
+
+
+class Thinner:
+    """progressive thinner (universal, used for cleaning up snapshots)"""
+
+    def __init__(self, schedule_str, always_keep=1):
+        """schedule_str: comman seperated list of ThinnerRules
+        always_keep: always keep the last X snapshots
+        """
+
+        self.always_keep=always_keep
+        self.rules=[]
+
+        rule_strs=schedule_str.split(",")
+        for rule_str in rule_strs:
+            self.rules.append(ThinnerRule(rule_str))
+
+    def run(self,objects, now=None):
+        """thin list of objects with current schedule rules.
+        object should have timestamp-attribute with unix timestamp
+
+            return( keeps, removes )
+        """
+
+        if len(objects)<=self.always_keep:
+            return ( (objects, []) )
+
+        time_blocks={}
+        for rule in self.rules:
+            time_blocks[rule.period]={}
+
+        if not now:
+            now=int(time.time())
+
+        keeps=[]
+        removes=[]
+
+        #traverse objects
+        for object in objects[:-self.always_keep]:
+
+            timestamp=object.timestamp
+            age=now-timestamp
+
+            # store in the correct time blocks, per period-size, if not too old yet
+            keep=False
+            for rule in self.rules:
+                if age<=rule.ttl:
+                    block_nr=int(timestamp/rule.period)
+                    if not block_nr in time_blocks[rule.period]:
+                        time_blocks[rule.period][block_nr]=True
+                        keep=True
+
+            if keep:
+                keeps.append(object)
+            else:
+                removes.append(object)
+
+        keeps.extend(objects[-self.always_keep:])
+
+        return( (keeps, removes) )
+
+
+
+######### Thinner testing code
+now=int(time.time())
+
+t=Thinner("1d1w,1w1m,1m6m,1y2y", always_keep=1)
+
+import random
+
+class Thing:
+    def __init__(self, timestamp):
+        self.timestamp=timestamp
+
+    def __str__(self):
+        age=now-self.timestamp
+        struct=time.localtime(self.timestamp)
+        return("{} ({} days old)".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
+
+def test():
+    global now
+    things=[]
+
+    while True:
+        print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
+
+        (keeps, removes)=t.run(things, now)
+
+        print ("### KEEP ")
+        for thing in keeps:
+            print(thing)
+
+        print ("### REMOVE ")
+        for thing in removes:
+            print(thing)
+
+        things=keeps
+
+        #increase random amount of time and maybe add a thing
+        now=now+random.randint(0,160000)
+        if random.random()>=0:
+            things.append(Thing(now))
+
+        sys.stdin.readline()
+
+test()
+
+
+
+
 class cached_property(object):
     """ A property that is only computed once per instance and then replaces
         itself with an ordinary attribute. Deleting the attribute resets the
@@ -297,9 +465,11 @@ class ZfsDataset():
         #TODO: nicer?
         self._cached_properties={}
 
+
     def lstrip_path(self,count):
         """return name with first count components stripped"""
         return("/".join(self.name.split("/")[count:]))
+
 
     def rstrip_path(self,count):
         """return name with last count components stripped"""
@@ -312,11 +482,13 @@ class ZfsDataset():
         (filesystem, snapshot_name)=self.name.split("@")
         return(filesystem)
 
+
     @property
     def snapshot_name(self):
         """snapshot part of the name"""
         (filesystem, snapshot_name)=self.name.split("@")
         return(snapshot_name)
+
 
     @property
     def is_snapshot(self):
@@ -336,11 +508,13 @@ class ZfsDataset():
         else:
             return(ZfsDataset(self.zfs_node, self.rstrip_path(1)))
 
+
     @cached_property
     def exists(self):
         """check if dataset exists"""
         self.debug("Checking if filesystem exists")
         return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True) and True)
+
 
     def create_filesystem(self, parents=False):
         """create a filesytem"""
@@ -354,10 +528,12 @@ class ZfsDataset():
         #update cache
         self.exists=1
 
+
     def destroy(self):
         self.debug("Destroying")
         self.zfs_node.run(["zfs", "destroy", self.name])
         self.invalidate()
+
 
     @cached_property
     def properties(self):
@@ -370,6 +546,7 @@ class ZfsDataset():
 
         return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ])))
 
+
     def is_changed(self):
         """dataset is changed since ANY latest snapshot ?"""
         self.debug("Checking if dataset is changed")
@@ -379,12 +556,26 @@ class ZfsDataset():
         else:
             return(True)
 
+
     def is_ours(self):
         """return true if this snapshot is created by this backup_nanme"""
         if re.match("^"+self.zfs_node.backup_name+"-[0-9]*$", self.snapshot_name):
             return(True)
         else:
             return(False)
+
+
+    @property
+    def timestamp(self):
+        """get timestamp from snapshot name. Only works for our own snapshots with the correct format."""
+        time_str=re.findall("^.*-([0-9]*)$", self.snapshot_name)[0]
+        if len(time_str)!=14:
+            raise(Exception("Snapshot has invalid timestamp in name: {}".format(self.snapshot_name)))
+
+        #new format:
+        time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
+        return(time_str)
+
 
     def from_names(self, names):
         """convert a list of names to a list ZfsDatasets for this zfs_node"""
@@ -813,152 +1004,19 @@ class ZfsAutobackup:
                     raise
 
 
-times=[]
-
-
-time_blocks={
-        'years'   : 3600 * 24 * 365.25,
-        'months'  : 3600 * 24 * 30,
-        'weeks'   : 3600 * 24 * 7,
-        'days'    : 3600 * 24,
-        'hours'   : 3600,
-        'minutes' : 60,
-}
-
-
-
-now=int(time.time())
-
-def thin(schedule, snapshots):
-    if len(snapshots)==0:
-        return(snapshots)
-
-    ret=[]
-
-    time_blocks={}
-
-    for ( period, ttl ) in schedule:
-        time_blocks[period]={}
-
-    # for snapshot in list(reversed(snapshots)):
-    #always keep latest
-    for snapshot in snapshots:
-
-        snapshot_time=snapshot
-
-        keeps=""
-        # just store in the correct time blocks, per period-size
-        for ( period, ttl ) in schedule:
-            block_nr=int(snapshot_time/period)
-            if not block_nr in time_blocks[period]:
-                time_blocks[period][block_nr]=[]
-            time_blocks[period][block_nr].append(snapshot_time)
-
-
-
-    keep=set()
-
-    #now get the oldest one within the ttl, per block
-    for ( period, ttl ) in schedule:
-        for ( block_nr, snapshots ) in time_blocks[period].items():
-            for snapshot_time in sorted(snapshots):
-                age=now-snapshot_time
-                if age<ttl:
-                    keep.add(snapshot_time)
-                    break
-
-
-    return (sorted(keep))
-
-
-    # return(list(reversed(ret)))
-
-    #always keep latest!
-    # if not keeps and snapshots:
-    # #     ret.append(snapshots[:-1])
-    # struct=time.localtime(snapshot_time)
-    # if keeps:
-    #     ret.append(snapshot)
-    #     print("{} {} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),keeps,int(age/(3600*24))))
-    #     # else:
-    #     #     print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
-    #
-    #
-    # p(time_blocks)
-
-    # ret.append(snapshots[-1])
-    # struct=time.localtime(snapshots[-1])
-    # print("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
-    # return(ret)
-
-# snapshots=range(now-400*24*3600, now, 24*3600)
-
-schedule=[
-    #every ...               keep for ...
-    ( 1*time_blocks['days']  , 4 * time_blocks['days'] ),
-    ( 1*time_blocks['weeks'] , 4 * time_blocks['weeks'] ),
-     ( 1*time_blocks['months'], (6 * time_blocks['months']) ),
-    ( 1*time_blocks['years'], 2* time_blocks['years'] ),
-
-]
-
-
-
-import random
-
-
-
-def printsnap(s):
-    age=now-s
-    struct=time.localtime(s)
-    return("{} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
-
-
-def test():
-    global now
-    a=[]
-    b=[]
-
-    while True:
-        print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
-
-        # if random.random()>0.5:
-        a.append(now)
-        a=thin(schedule,a)
-        # b.append(now)
-        # b=thin(schedule,a, oldest=False)
-        b=[]
-
-
-        for count in range(0,max(len(a), len(b))):
-            sa=""
-            if count<len(a):
-                sa=printsnap(a[count])
-
-            sb=""
-            if count<len(b):
-                sb=printsnap(b[count])
-
-            print("{:15}  |  {:15}".format(sa,sb))
-
-
-
-        # for s in msnapshots:
-        #     age=now-s
-        #     struct=time.localtime(s)
-        #     print("{} {}days".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
-
-
-        sys.stdin.readline()
-        now=now+random.randint(0,800000)
-        # msnapshots.insert(0,now)
-
-test()
+#times=[]
 
 
 
 
 
+#
+# test()
+#
+#
+#
+#
+#
 #
 #
 #
