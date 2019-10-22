@@ -898,7 +898,7 @@ schedule=[
     ( 1*time_blocks['days']  , 4 * time_blocks['days'] ),
     ( 1*time_blocks['weeks'] , 4 * time_blocks['weeks'] ),
      ( 1*time_blocks['months'], (6 * time_blocks['months']) ),
-    ( 1*time_blocks['years'], 1 * time_blocks['years'] ),
+    ( 1*time_blocks['years'], 2* time_blocks['years'] ),
 
 ]
 
@@ -950,7 +950,7 @@ def test():
 
 
         sys.stdin.readline()
-        now=now+random.randint(0,80000)
+        now=now+random.randint(0,800000)
         # msnapshots.insert(0,now)
 
 test()
