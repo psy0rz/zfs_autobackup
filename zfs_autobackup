@@ -119,7 +119,7 @@ class ThinnerRule:
 
         self.rule_str=rule_str
 
-        self.human_str="Keep a snapshot every {} {}{}, delete after {} {}{}.".format(
+        self.human_str="Keep oldest of {} {}{}, delete after {} {}{}.".format(
             period_amount, self.TIME_DESC[period_unit], period_amount!=1 and "s" or "", ttl_amount, self.TIME_DESC[ttl_unit], ttl_amount!=1 and "s" or "" )
 
 
@@ -823,8 +823,12 @@ class ZfsNode(ExecuteNode):
 
         self.zfs_autobackup=zfs_autobackup #for logging
 
-        for rule in thinner.human_rules():
-            self.verbose(rule)
+        rules=thinner.human_rules()
+        if rules:
+            for rule in rules:
+                self.verbose(rule)
+        else:
+            self.verbose("Keep all snapshots forver.")
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
@@ -927,8 +931,8 @@ class ZfsAutobackup:
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-        parser.add_argument('--keep-source', type=str, default="3,1d1w,1w1m,1m1y", help='Thinning schedule for old source snapshots. Default %(default)s')
-        parser.add_argument('--keep-target', type=str, default="3,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default %(default)s')
+        parser.add_argument('--keep-source', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old source snapshots. Default %(default)s')
+        parser.add_argument('--keep-target', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default %(default)s')
 
         parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
         parser.add_argument('target_path',    help='Target ZFS filesystem')
