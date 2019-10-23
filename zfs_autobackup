@@ -503,7 +503,7 @@ class ZfsDataset():
     @property
     def filesystem_name(self):
         """filesystem part of the name (before the @)"""
-        (filesystem, snapshot_name)=self.name.split("@")
+        ( filesystem, )=self.name.split("@")
         return(filesystem)
 
 
@@ -537,7 +537,7 @@ class ZfsDataset():
         """find our previous snapshot in this dataset. None if it doesnt exist"""
 
         if self.is_snapshot():
-            raise(Exception("Please call this on a dataset.")
+            raise(Exception("Please call this on a dataset."))
 
         try:
             index=self.our_snapshots.index(snapshot)
@@ -553,7 +553,7 @@ class ZfsDataset():
         """find our next snapshot in this dataset. None if it doesnt exist"""
 
         if self.is_snapshot():
-            raise(Exception("Please call this on a dataset.")
+            raise(Exception("Please call this on a dataset."))
 
         try:
             index=self.our_snapshots.index(snapshot)
@@ -830,7 +830,7 @@ class ZfsDataset():
         if 'receive_resume_token' in target_dataset.properties:
             self.verbose("resuming")
             #just send and recv on dataset instead of snapshot object.
-            pipe=self.send_pipe(show_progress=show_progress, resume_token=resume_token)
+            pipe=self.send_pipe(show_progress=show_progress, resume_token=target_dataset.properties['receive_resume_token'])
             target_dataset.recv_pipe(pipe,resume=True)
 
 
@@ -851,7 +851,7 @@ class ZfsDataset():
             #target has nothing yet
             return(None)
         else:
-            snapshot=self.find_snapshot(target_dataset.our_snapshots[:-1].snapshot_name)
+            snapshot=self.find_snapshot(target_dataset.our_snapshots[-1].snapshot_name)
             if not snapshot:
                 raise(Exception("Cant find latest target snapshot on source"))
 
@@ -882,8 +882,8 @@ class ZfsDataset():
 
         #now let thinner decide what we want on both sides
         self.verbose("Create thinning list")
-        (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[:-1]])
-        (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[:-1]])
+        (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
+        (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
 
         #stuff that is before common snapshot can be deleted rightaway
         if common_snapshot:
