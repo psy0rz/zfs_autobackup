@@ -786,7 +786,7 @@ class ZfsDataset():
 
 
     def thin(self, keep=[]):
-        """determines list of snapshots that should be kept or deleted based on the thinning schedule.
+        """determines list of snapshots that should be kept or deleted based on the thinning schedule. cull the herd!
         keep: list of snapshots to always keep
         """
         return(self.zfs_node.thinner.thin(self.our_snapshots, keep_objects=keep))
@@ -795,10 +795,29 @@ class ZfsDataset():
     def sync_snapshots(self, target_dataset, show_progress=False):
         """sync our snapshots to target_dataset"""
 
-        #dertermine the snapshots that are obosole so we might skip or clean some snapshots
+        if 'receive_resume_token' in target_dataset.properties:
+            resume_token=target_dataset.properties['receive_resume_token']
+        else:
+            resume_token=None
+
+        #determine snapshot we should start sending from
+        if not target_dataset.exists:
+            #we have nothing, so start from the first one
+            start_snapshot=self.our_snapshots[0]
+        elif if not target_dataset.snapshots:
+            # we have no snapshots on target (yet?). can we resume?
+            if 'receive_resume_token' in target_dataset.properties:
+            resume_token=target_dataset.properties['receive_resume_token']
+            #no snapshots yet
+            start_snapshot=target_dataset.our_snapshots
+
+
+        #dertermine the snapshots that are obsolete so we can clean along the way.
         (source_keeps, source_obsoletes)=self.thin()
         #XXX: pre-create target snapshot list with exist=False so the thinner can "plan ahead" what the target eventually wants
         (target_keeps, target_obsoletes)=self.thin()
+
+
 
         # inital transfer
         resume_token=None
