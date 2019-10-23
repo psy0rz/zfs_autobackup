@@ -824,7 +824,7 @@ class ZfsDataset():
 
 
     def resume_transfer(self, target_dataset, show_progress=False):
-        """resume an interrupted transfer."""
+        """resume an interrupted transfer, if there is one"""
 
         #resume is a kind of special case since we dont know which snapshot we are transferring. (its encoded in the resume token)
         if 'receive_resume_token' in target_dataset.properties:
@@ -848,7 +848,7 @@ class ZfsDataset():
         returns None if its an initial transfer
         """
         if not target_dataset.our_snapshots:
-            #we have nothing yet
+            #target has nothing yet
             return(None)
         else:
             snapshot=self.find_snapshot(target_dataset.our_snapshots[:-1].snapshot_name)
@@ -905,11 +905,17 @@ class ZfsDataset():
         prev_source_snapshot=common_snapshot
         source_snapshot=start_snapshot
         while source_snapshot:
-            target_snasphot=target_dataset.find_snapshot(source_snapshot.snapshot_name) #non existing yet
+            target_snasphot=target_dataset.find_snapshot(source_snapshot.snapshot_name) #"virtual"
 
             #does target actually want it?
             if target_snapshot in target_keeps:
                 source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume_token=resume_token)
+
+            #we may destroy the previous snapshot now, if we dont want it anymore
+            if prev_source_snapshot not in source_keeps:
+                prev_source_snapshot.destroy()
+
+            prev_source_snapshot=source_snapshot
             source_snapshot=self.find_our_next_snapshot(source_snapshot)
 
 
