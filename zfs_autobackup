@@ -176,10 +176,10 @@ class Thinner:
 
             return( keeps, removes )
         """
-
         #keep everything
         if len(objects)<=self.always_keep:
             return ( (objects, []) )
+
 
         #determine time blocks
         time_blocks={}
@@ -597,7 +597,7 @@ class ZfsDataset():
 
 
     def destroy(self):
-        self.debug("Destroying")
+        self.verbose("Destroying")
         self.zfs_node.run(["zfs", "destroy", self.name])
         self.invalidate()
         self.force_exists=False
@@ -642,7 +642,7 @@ class ZfsDataset():
 
         #new format:
         time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
-        return(time_str)
+        return(time_secs)
 
 
     def from_names(self, names):
@@ -889,7 +889,6 @@ class ZfsDataset():
         #now let thinner decide what we want on both sides
         self.verbose("Create thinning list")
         (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
-        p(source_obsoletes)
         (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
 
         #stuff that is before common snapshot can be deleted rightaway
@@ -918,7 +917,7 @@ class ZfsDataset():
             if target_snapshot in target_keeps:
                 source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress)
             else:
-                source.snapshot.verbose("skipped (target doesnt need it)")
+                source_snapshot.verbose("skipped (target doesnt need it)")
 
             #we may destroy the previous snapshot now, if we dont want it anymore
             if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
@@ -949,7 +948,7 @@ class ZfsNode(ExecuteNode):
         else:
             self.verbose("Keep all snapshots forver.")
 
-        self.thinner=Thinner()
+        self.thinner=thinner
 
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
