@@ -798,7 +798,7 @@ class ZfsDataset():
         #     cmd.append("|mbuffer -m {}".format(args.buffer))
 
 
-    def transfer_snapshot(self, target_snapshot, prev_snapshot=None, resume=True, resume_token=None, show_progress=False):
+    def transfer_snapshot(self, target_snapshot, prev_snapshot=None, resume=True, show_progress=False):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for incremental transfer
 
         connects a send_pipe() to recv_pipe()
@@ -806,24 +806,35 @@ class ZfsDataset():
 
         self.debug("Transfer snapshot to {}".format(target_snapshot.filesystem_name))
 
-        if resume_token:
-            target_dataset.verbose("resuming")
 
         #initial or resume
         if not prev_snapshot:
-            target_dataset.verbose("receiving @{} (new)".format(self.snapshot_name))
+            target_snapshot.verbose("receiving @{} (new)".format(self.snapshot_name))
         else:
             #incemental
-            target_dataset.verbose("receiving @{}".format(self.snapshot_name))
+            target_snapshot.verbose("receiving @{}".format(self.snapshot_name))
 
         #do it
         pipe=self.send_pipe(resume=resume, show_progress=show_progress, resume_token=resume_token, prev_snapshot=prev_snapshot)
         target_snapshot.recv_pipe(pipe)
 
 
+    def resume_transfer(self, target_dataset, show_progress=False):
+        """resume an interrupted transfer."""
+
+        #resume is a kind of special case since we dont know which snapshot we are transferring. (its encoded in the resume token)
+        if 'receive_resume_token' in target_dataset.properties:
+            self.verbose("resuming")
+            #just send and recv on dataset instead of snapshot object.
+            pipe=self.send_pipe(show_progress=show_progress, resume_token=resume_token)
+            target_dataset.recv_pipe(pipe,resume=True)
+
+
     def thin(self, keeps=[]):
         """determines list of snapshots that should be kept or deleted based on the thinning schedule. cull the herd!
         keep: list of snapshots to always keep (usually the last)
+
+        returns: ( keeps, obsoletes )
         """
         return(self.zfs_node.thinner.thin(self.our_snapshots, keep_objects=keeps))
 
@@ -840,8 +851,13 @@ class ZfsDataset():
             if not snapshot:
                 raise(Exception("Cant find latest target snapshot on source"))
 
+
     def sync_snapshots(self, target_dataset, show_progress=False):
         """sync our snapshots to target_dataset"""
+
+        #resume something first?
+        self.resume_transfer(target_dataset, show_progress)
+
 
         #determine start snapshot (the first snapshot after the common snapshot)
         self.verbose("Determining start snapshot")
@@ -882,13 +898,15 @@ class ZfsDataset():
                 if target_snapshot in target_obsoletes:
                     target_snapshot.destroy()
 
-        #now send/destroy the rest on the source
+        #now send/destroy the rest off the source
         prev_source_snapshot=common_snapshot
         source_snapshot=start_snapshot
         while source_snapshot:
-            #does target want it?
-            if target_dataset.find_snapshot(source_snapshot.snapshot_name):
-                self.transfer_snapshot(target_dataset, show_progress=show_progress, resume_token=resume_token)
+            target_snasphot=target_dataset.find_snapshot(source_snapshot.snapshot_name) #non existing yet
+
+            #does target actually want it?
+            if target_snapshot in target_keeps:
+                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume_token=resume_token)
             source_snapshot=self.find_our_next_snapshot(source_snapshot)
 
 
