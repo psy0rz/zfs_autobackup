@@ -889,6 +889,7 @@ class ZfsDataset():
         #now let thinner decide what we want on both sides
         self.verbose("Create thinning list")
         (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
+        p(source_obsoletes)
         (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
 
         #stuff that is before common snapshot can be deleted rightaway
