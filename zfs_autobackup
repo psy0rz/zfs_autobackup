@@ -765,7 +765,11 @@ class ZfsDataset():
 
 
     def recv_pipe(self, pipe, resume=True):
-        """starts a zfs recv for this snapshot and uses pipe as input"""
+        """starts a zfs recv for this snapshot and uses pipe as input
+
+        note: you can also call both a snapshot and filesystem object.
+        the resulting zfs command is the same, only our object cache is invalidated differently.
+        """
         #### build target command
         cmd=[]
 
@@ -857,7 +861,6 @@ class ZfsDataset():
 
         #resume something first?
         self.resume_transfer(target_dataset, show_progress)
-
 
         #determine start snapshot (the first snapshot after the common snapshot)
         self.verbose("Determining start snapshot")
