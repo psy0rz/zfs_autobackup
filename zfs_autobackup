@@ -503,13 +503,19 @@ class ZfsDataset():
     @property
     def filesystem_name(self):
         """filesystem part of the name (before the @)"""
-        ( filesystem, )=self.name.split("@")
-        return(filesystem)
+        if self.is_snapshot:
+            ( filesystem, snapshot )=self.name.split("@")
+            return(filesystem)
+        else:
+            return(self.name)
 
 
     @property
     def snapshot_name(self):
         """snapshot part of the name"""
+        if not self.is_snapshot:
+            raise(Exception("This is not a snapshot"))
+
         (filesystem, snapshot_name)=self.name.split("@")
         return(snapshot_name)
 
@@ -536,7 +542,7 @@ class ZfsDataset():
     def find_our_prev_snapshot(self, snapshot):
         """find our previous snapshot in this dataset. None if it doesnt exist"""
 
-        if self.is_snapshot():
+        if self.is_snapshot:
             raise(Exception("Please call this on a dataset."))
 
         try:
@@ -552,7 +558,7 @@ class ZfsDataset():
     def find_our_next_snapshot(self, snapshot):
         """find our next snapshot in this dataset. None if it doesnt exist"""
 
-        if self.is_snapshot():
+        if self.is_snapshot:
             raise(Exception("Please call this on a dataset."))
 
         try:
@@ -819,8 +825,8 @@ class ZfsDataset():
             target_snapshot.verbose("receiving @{}".format(self.snapshot_name))
 
         #do it
-        pipe=self.send_pipe(resume=resume, show_progress=show_progress, resume_token=resume_token, prev_snapshot=prev_snapshot)
-        target_snapshot.recv_pipe(pipe)
+        pipe=self.send_pipe(resume=resume, show_progress=show_progress, prev_snapshot=prev_snapshot)
+        target_snapshot.recv_pipe(pipe, resume=resume)
 
 
     def resume_transfer(self, target_dataset, show_progress=False):
@@ -905,14 +911,16 @@ class ZfsDataset():
         prev_source_snapshot=common_snapshot
         source_snapshot=start_snapshot
         while source_snapshot:
-            target_snasphot=target_dataset.find_snapshot(source_snapshot.snapshot_name) #"virtual"
+            target_snapshot=target_dataset.find_snapshot(source_snapshot.snapshot_name) #"virtual"
 
             #does target actually want it?
             if target_snapshot in target_keeps:
-                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume_token=resume_token)
+                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress)
+            else:
+                source.snapshot.verbose("skipped (target doesnt need it)")
 
             #we may destroy the previous snapshot now, if we dont want it anymore
-            if prev_source_snapshot not in source_keeps:
+            if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
                 prev_source_snapshot.destroy()
 
             prev_source_snapshot=source_snapshot
