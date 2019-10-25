@@ -621,6 +621,10 @@ class ZfsDataset():
             "zfs", "get", "-H", "-o", "property,value", "all", self.name
         ]
 
+        if not self.exists:
+            return({})
+
+
         return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ])))
 
 
@@ -847,6 +851,9 @@ class ZfsDataset():
             #just send and recv on dataset instead of snapshot object.
             pipe=self.send_pipe(show_progress=show_progress, resume_token=target_dataset.properties['receive_resume_token'])
             target_dataset.recv_pipe(pipe,resume=True)
+            return(True)
+
+        return(False)
 
 
     def thin(self, keeps=[]):
@@ -875,7 +882,10 @@ class ZfsDataset():
         """sync our snapshots to target_dataset"""
 
         #resume something first?
-        self.resume_transfer(target_dataset, show_progress)
+        if self.resume_transfer(target_dataset, show_progress):
+            #running in readonly mode and no snapshots yet? assume initial snapshot (otherwise we cant find common snapshot in next step)
+            if self.zfs_node.readonly and not target_dataset.our_snapshots:
+                target_dataset.snapshots.append(ZfsDataset(target_dataset.zfs_node, target_dataset.name + "@" + self.our_snapshots[0].snapshot_name))
 
         #determine start snapshot (the first snapshot after the common snapshot)
         target_dataset.debug("Determining start snapshot")
