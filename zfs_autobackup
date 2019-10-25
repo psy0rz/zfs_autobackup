@@ -176,9 +176,17 @@ class Thinner:
 
             return( keeps, removes )
         """
-        #keep everything
-        if len(objects)<=self.always_keep:
-            return ( (objects, []) )
+
+        #always keep a number of the last objets?
+        if self.always_keep:
+            #all of them
+            if len(objects)<=self.always_keep:
+                return ( (objects, []) )
+
+            #determine which ones
+            always_keep_objects=objects[-self.always_keep:]
+        else:
+            always_keep_objects=[]
 
 
         #determine time blocks
@@ -193,10 +201,10 @@ class Thinner:
         removes=[]
 
         #traverse objects
-        for object in objects[:-self.always_keep]:
-
-            timestamp=object.timestamp
-            age=now-timestamp
+        for object in objects:
+            #important they are ints!
+            timestamp=int(object.timestamp)
+            age=int(now)-timestamp
 
             # store in the correct time blocks, per period-size, if not too old yet
             # e.g.: look if there is ANY timeblock that wants to keep this object
@@ -209,12 +217,10 @@ class Thinner:
                         keep=True
 
             #keep it according to schedule, or keep it because it is in the keep_objects list
-            if keep or object in keep_objects:
+            if keep or object in keep_objects or object in always_keep_objects:
                 keeps.append(object)
             else:
                 removes.append(object)
-
-        keeps.extend(objects[-self.always_keep:])
 
         return( (keeps, removes) )
 
@@ -314,6 +320,11 @@ class ExecuteNode:
         self.readonly=readonly
         self.debug_output=debug_output
 
+    def __repr__(self):
+        if self.ssh_to==None:
+            return("(local)")
+        else:
+            return(self.ssh_to)
 
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False):
         """run a command on the node
@@ -444,8 +455,6 @@ class ExecuteNode:
                 ret.append(line.split("\t"))
             return(ret)
 
-    def __repr__(self):
-        return(self.ssh_to)
 
 
 
@@ -819,10 +828,10 @@ class ZfsDataset():
 
         #initial or resume
         if not prev_snapshot:
-            target_snapshot.verbose("receiving @{} (new)".format(self.snapshot_name))
+            target_snapshot.verbose("receiving full".format(self.snapshot_name))
         else:
             #incemental
-            target_snapshot.verbose("receiving @{}".format(self.snapshot_name))
+            target_snapshot.verbose("receiving incremental".format(self.snapshot_name))
 
         #do it
         pipe=self.send_pipe(resume=resume, show_progress=show_progress, prev_snapshot=prev_snapshot)
@@ -834,7 +843,7 @@ class ZfsDataset():
 
         #resume is a kind of special case since we dont know which snapshot we are transferring. (its encoded in the resume token)
         if 'receive_resume_token' in target_dataset.properties:
-            self.verbose("resuming")
+            target_dataset.verbose("resuming")
             #just send and recv on dataset instead of snapshot object.
             pipe=self.send_pipe(show_progress=show_progress, resume_token=target_dataset.properties['receive_resume_token'])
             target_dataset.recv_pipe(pipe,resume=True)
@@ -862,14 +871,14 @@ class ZfsDataset():
                 raise(Exception("Cant find latest target snapshot on source"))
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True):
         """sync our snapshots to target_dataset"""
 
         #resume something first?
         self.resume_transfer(target_dataset, show_progress)
 
         #determine start snapshot (the first snapshot after the common snapshot)
-        self.verbose("Determining start snapshot")
+        target_dataset.debug("Determining start snapshot")
         common_snapshot=self.find_common_snapshot(target_dataset)
         if not common_snapshot:
             #start from beginning
@@ -878,7 +887,7 @@ class ZfsDataset():
             start_snapshot=self.find_our_next_snapshot(common_snapshot)
 
         #create virtual target snapshots
-        self.verbose("Creating virtual target snapshots")
+        target_dataset.debug("Creating virtual target snapshots")
         source_snapshot=start_snapshot
         while source_snapshot:
             #create virtual target snapshot
@@ -887,8 +896,17 @@ class ZfsDataset():
             source_snapshot=self.find_our_next_snapshot(source_snapshot)
 
         #now let thinner decide what we want on both sides
-        self.verbose("Create thinning list")
+        self.debug("Create thinning list")
+        print("THIN SPOURCE")
         (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
+        print("keepSOURCE")
+        p(source_keeps)
+        print("SOURCE DEST")
+        p(source_obsoletes)
+        sys.exit(1)
+        print("TARGET")
+        p(target_keeps)
+
         (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
 
         #stuff that is before common snapshot can be deleted rightaway
@@ -915,9 +933,9 @@ class ZfsDataset():
 
             #does target actually want it?
             if target_snapshot in target_keeps:
-                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress)
+                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume)
             else:
-                source_snapshot.verbose("skipped (target doesnt need it)")
+                source_snapshot.debug("skipped (target doesnt need it)")
 
             #we may destroy the previous snapshot now, if we dont want it anymore
             if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
@@ -946,7 +964,7 @@ class ZfsNode(ExecuteNode):
             for rule in rules:
                 self.verbose(rule)
         else:
-            self.verbose("Keep all snapshots forver.")
+            self.verbose("Keep no old snaphots")
 
         self.thinner=thinner
 
@@ -1128,7 +1146,6 @@ class ZfsAutobackup:
 
 
         self.set_title("Transferring")
-
         for source_dataset in source_datasets:
 
             try:
@@ -1143,7 +1160,7 @@ class ZfsAutobackup:
                     if not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress)
+                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume)
             except Exception as e:
                 source_dataset.error(str(e))
                 if self.args.debug:
