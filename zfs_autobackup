@@ -778,7 +778,6 @@ class ZfsDataset():
         if show_progress:
             cmd.append("-v")
             cmd.append("-P")
-            self.zfs_node.reset_progress()
 
 
         #resume a previous send? (dont need more parameters in that case)
@@ -831,8 +830,7 @@ class ZfsDataset():
 
         cmd.append(self.filesystem_name)
 
-
-
+        self.zfs_node.reset_progress()
         self.zfs_node.run(cmd, input=pipe)
 
         #invalidate cache, but we at least know we exist now
@@ -1016,7 +1014,7 @@ class ZfsNode(ExecuteNode):
     def reset_progress(self):
         """reset progress output counters"""
         self._progress_total_bytes=0
-        self._progress_prev_bytes=0
+        self._progress_start_time=time.time()
 
     def _parse_stderr_pipe(self, line, hide_errors):
         """try to parse progress output of a piped zfs recv -Pv """
@@ -1039,11 +1037,15 @@ class ZfsNode(ExecuteNode):
                         self._progress_total_bytes=int(progress_fields[3])
                     else:
                         bytes=int(progress_fields[1])
+                        percentage=0
+                        if self._progress_total_bytes:
+                            percentage=min(100,int(bytes*100/self._progress_total_bytes))
 
-                        percentage=int(bytes*100/self._progress_total_bytes)
+                            speed=int(bytes/(time.time()-self._progress_start_time)/(1024*1024))
 
-                        # print("{}%   \r", end='')
-                        print("  {}%   \r".format(percentage), end='')
+                            # print("{}%   \r", end='')
+                            print(">>> {}% {}MB/s ({}MB)  \r".format(percentage, speed, self._progress_total_bytes/(1024*1024)), end='')
+                            sys.stdout.flush()
 
                 return
 
