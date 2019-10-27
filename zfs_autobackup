@@ -665,6 +665,16 @@ class ZfsDataset():
             return(False)
 
 
+    def hold(self):
+        """hold dataset"""
+        self.zfs_node.run([ "zfs" , "hold", "autobackup:"+self.zfs_node.backup_name, self.name ])
+
+    def release(self):
+        """release dataset"""
+        self.zfs_node.run([ "zfs" , "release", "autobackup:"+self.zfs_node.backup_name, self.name ])
+
+
+
     @property
     def timestamp(self):
         """get timestamp from snapshot name. Only works for our own snapshots with the correct format."""
@@ -921,8 +931,8 @@ class ZfsDataset():
 
 
         #resume something first?
-        if self.resume_transfer(target_dataset, show_progress=show_progress, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=ignore_recv_exit_code):
-
+        resumed=self.resume_transfer(target_dataset, show_progress=show_progress, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=ignore_recv_exit_code)
+        if resumed:
             #running in readonly mode and no snapshots yet? assume initial snapshot (otherwise we cant find common snapshot in next step)
             if self.zfs_node.readonly and not target_dataset.our_snapshots:
                 target_dataset.snapshots.append(ZfsDataset(target_dataset.zfs_node, target_dataset.name + "@" + self.our_snapshots[0].snapshot_name))
@@ -935,6 +945,13 @@ class ZfsDataset():
             start_snapshot=self.our_snapshots[0]
         else:
             start_snapshot=self.find_our_next_snapshot(common_snapshot)
+
+        #if something is resumed, fix the holds at this point
+        if resumed:
+            common_snapshot.hold()
+            target_dataset.find_snapshot(common_snapshot.snapshot_name).hold()
+
+            
 
         #create virtual target snapshots
         target_dataset.debug("Creating virtual target snapshots")
