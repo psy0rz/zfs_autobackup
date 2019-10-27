@@ -802,7 +802,7 @@ class ZfsDataset():
         return(self.zfs_node.run(cmd, pipe=True))
 
 
-    def recv_pipe(self, pipe, resume=True):
+    def recv_pipe(self, pipe, resume=True, filter_properties=[], set_properties=[]):
         """starts a zfs recv for this snapshot and uses pipe as input
 
         note: you can also call both a snapshot and filesystem object.
@@ -816,10 +816,11 @@ class ZfsDataset():
         #dont mount filesystem that is received
         cmd.append("-u")
 
-        # filter certain properties on receive (usefull for linux->freebsd in some cases)
-        # if args.filter_properties:
-        #     for filter_property in args.filter_properties:
-        #         cmd.extend([ "-x" , filter_property ])
+        for property in filter_properties:
+            cmd.extend([ "-x" , property ])
+
+        for property in set_properties:
+            cmd.extend([ "-o" , property ])
 
         #verbose output
         cmd.append("-v")
@@ -848,7 +849,7 @@ class ZfsDataset():
         #     cmd.append("|mbuffer -m {}".format(args.buffer))
 
 
-    def transfer_snapshot(self, target_snapshot, prev_snapshot=None, resume=True, show_progress=False):
+    def transfer_snapshot(self, target_snapshot, prev_snapshot=None, resume=True, show_progress=False, filter_properties=[], set_properties=[]):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for incremental transfer
 
         connects a send_pipe() to recv_pipe()
@@ -866,7 +867,7 @@ class ZfsDataset():
 
         #do it
         pipe=self.send_pipe(resume=resume, show_progress=show_progress, prev_snapshot=prev_snapshot)
-        target_snapshot.recv_pipe(pipe, resume=resume)
+        target_snapshot.recv_pipe(pipe, resume=resume, filter_properties=filter_properties, set_properties=set_properties)
 
 
     def resume_transfer(self, target_dataset, show_progress=False):
@@ -909,7 +910,7 @@ class ZfsDataset():
 
             return(snapshot)
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[]):
         """sync our snapshots to target_dataset"""
 
 
@@ -967,7 +968,7 @@ class ZfsDataset():
 
             #does target actually want it?
             if target_snapshot in target_keeps:
-                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume)
+                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=filter_properties, set_properties=set_properties)
 
                 #we may destroy the previous snapshot now, if we dont want it anymore
                 if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
@@ -1178,7 +1179,10 @@ class ZfsAutobackup:
 
 
         # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-        parser.add_argument('--properties', default=None, help='Comma seperated list of zfs properties that should be synced to target. (Quotas are always disabled temporarily)')
+        parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended. same as --set-properties refreservation=none)')
+        parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended. same as --set-properties canmount=noauto)')
+        parser.add_argument('--filter-properties', action='append', help='List of propererties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
+        parser.add_argument('--set-properties', action='append', help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
         parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
 
@@ -1236,6 +1240,17 @@ class ZfsAutobackup:
 
 
         self.set_title("Transferring")
+
+        if self.args.filter_properties:
+            filter_properties=self.args.filter_properties.split(",")
+        else:
+            filter_properties=[]
+
+        if self.args.set_properties:
+            set_properties=self.args.set_properties.split(",")
+        else:
+            set_properties=[]
+
         for source_dataset in source_datasets:
 
             try:
@@ -1250,7 +1265,7 @@ class ZfsAutobackup:
                     if not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume)
+                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties)
             except Exception as e:
                 source_dataset.error(str(e))
                 if self.args.debug:
