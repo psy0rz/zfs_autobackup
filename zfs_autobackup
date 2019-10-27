@@ -1030,6 +1030,7 @@ class ZfsNode(ExecuteNode):
                 #always output for debugging offcourse
                 self.debug("STDERR|> "+line.rstrip())
 
+                #actual usefull info
                 if len(progress_fields)>=3:
                     if progress_fields[0]=='full' or progress_fields[0]=='size':
                         self._progress_total_bytes=int(progress_fields[2])
@@ -1040,11 +1041,11 @@ class ZfsNode(ExecuteNode):
                         percentage=0
                         if self._progress_total_bytes:
                             percentage=min(100,int(bytes*100/self._progress_total_bytes))
-
                             speed=int(bytes/(time.time()-self._progress_start_time)/(1024*1024))
+                            bytes_left=self._progress_total_bytes-bytes
+                            minutes_left=int((bytes_left/(bytes/(time.time()-self._progress_start_time)))/60)
 
-                            # print("{}%   \r", end='')
-                            print(">>> {}% {}MB/s ({}MB)  \r".format(percentage, speed, self._progress_total_bytes/(1024*1024)), end='')
+                            print(">>> {}% {}MB/s (total {}MB, {} minutes left)  \r".format(percentage, speed, self._progress_total_bytes/(1024*1024), minutes_left), end='')
                             sys.stdout.flush()
 
                 return
