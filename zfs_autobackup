@@ -326,20 +326,20 @@ class ExecuteNode:
         else:
             return(self.ssh_to)
 
-    def parse_stdout(self, line):
+    def _parse_stdout(self, line):
         """parse stdout. can be overridden in subclass"""
         if self.debug_output:
             self.debug("STDOUT > "+line.rstrip())
 
 
-    def parse_stderr(self, line, hide_errors):
+    def _parse_stderr(self, line, hide_errors):
         """parse stderr. can be overridden in subclass"""
         if  hide_errors:
             self.debug("STDERR > "+line.rstrip())
         else:
             self.error("STDERR > "+line.rstrip())
 
-    def parse_stderr_pipe(self, line, hide_errors):
+    def _parse_stderr_pipe(self, line, hide_errors):
         """parse stderr from pipe input process. can be overridden in subclass"""
         if hide_errors:
             self.debug("STDERR|> "+line.rstrip())
@@ -425,19 +425,19 @@ class ExecuteNode:
                 line=p.stdout.readline()
                 if line!="":
                     output_lines.append(line.rstrip())
-                    self.parse_stdout(line)
+                    self._parse_stdout(line)
                 else:
                     eof_count=eof_count+1
             if p.stderr in read_ready:
                 line=p.stderr.readline()
                 if line!="":
-                    self.parse_stderr(line, hide_errors)
+                    self._parse_stderr(line, hide_errors)
                 else:
                     eof_count=eof_count+1
             if isinstance(input, subprocess.Popen) and (input.stderr in read_ready):
                 line=input.stderr.readline()
                 if line!="":
-                    self.parse_stderr_pipe(line, hide_errors)
+                    self._parse_stderr_pipe(line, hide_errors)
                 else:
                     eof_count=eof_count+1
 
@@ -468,6 +468,7 @@ class ExecuteNode:
             for line in output_lines:
                 ret.append(line.split("\t"))
             return(ret)
+
 
 
 
@@ -777,6 +778,7 @@ class ZfsDataset():
         if show_progress:
             cmd.append("-v")
             cmd.append("-P")
+            self.zfs_node.reset_progress()
 
 
         #resume a previous send? (dont need more parameters in that case)
@@ -828,6 +830,8 @@ class ZfsDataset():
             cmd.append("-s")
 
         cmd.append(self.filesystem_name)
+
+
 
         self.zfs_node.run(cmd, input=pipe)
 
@@ -910,6 +914,8 @@ class ZfsDataset():
     def sync_snapshots(self, target_dataset, show_progress=False, resume=True):
         """sync our snapshots to target_dataset"""
 
+
+
         #resume something first?
         if self.resume_transfer(target_dataset, show_progress):
             #running in readonly mode and no snapshots yet? assume initial snapshot (otherwise we cant find common snapshot in next step)
@@ -964,14 +970,19 @@ class ZfsDataset():
             #does target actually want it?
             if target_snapshot in target_keeps:
                 source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume)
+
+                #we may destroy the previous snapshot now, if we dont want it anymore
+                if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
+                    prev_source_snapshot.destroy()
+
+                prev_source_snapshot=source_snapshot
             else:
                 source_snapshot.debug("skipped (target doesnt need it)")
+                #destroy it if we also dont want it anymore:
+                if source_snapshot not in source_keeps:
+                    prev_source_snapshot.destroy()
 
-            #we may destroy the previous snapshot now, if we dont want it anymore
-            if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
-                prev_source_snapshot.destroy()
 
-            prev_source_snapshot=source_snapshot
             source_snapshot=self.find_our_next_snapshot(source_snapshot)
 
 
@@ -998,7 +1009,53 @@ class ZfsNode(ExecuteNode):
 
         self.thinner=thinner
 
+
         ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
+
+
+    def reset_progress(self):
+        """reset progress output counters"""
+        self._progress_total_bytes=0
+        self._progress_prev_bytes=0
+
+    def _parse_stderr_pipe(self, line, hide_errors):
+        """try to parse progress output of a piped zfs recv -Pv """
+
+
+        #is it progress output?
+        progress_fields=line.rstrip().split("\t")
+
+        if (line.find("nvlist version")==0 or
+            line.find("resume token contents")==0 or
+            len(progress_fields)!=1):
+
+                #always output for debugging offcourse
+                self.debug("STDERR|> "+line.rstrip())
+
+                if len(progress_fields)>=3:
+                    if progress_fields[0]=='full' or progress_fields[0]=='size':
+                        self._progress_total_bytes=int(progress_fields[2])
+                    elif progress_fields[0]=='incremental':
+                        self._progress_total_bytes=int(progress_fields[3])
+                    else:
+                        bytes=int(progress_fields[1])
+
+                        percentage=int(bytes*100/self._progress_total_bytes)
+
+                        # print("{}%   \r", end='')
+                        print("  {}%   \r".format(percentage), end='')
+
+                return
+
+            # #is it progress output?
+            # if progress_output.find("nv")
+
+
+        #normal output without progress stuff
+        if hide_errors:
+            self.debug("STDERR|> "+line.rstrip())
+        else:
+            self.error("STDERR|> "+line.rstrip())
 
     def verbose(self,txt):
         self.zfs_autobackup.verbose("{} {}".format(self.description, txt))
