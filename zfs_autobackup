@@ -1257,6 +1257,12 @@ class ZfsAutobackup:
         else:
             set_properties=[]
 
+        if self.args.clear_refreservation:
+            set_properties.append("refreservation=none")
+
+        if self.args.clear_mountpoint:
+            set_properties.append("canmount=noauto")
+
         for source_dataset in source_datasets:
 
             try:
