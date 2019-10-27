@@ -915,7 +915,7 @@ class ZfsDataset():
 
             return(snapshot)
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, no_send=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False):
         """sync our snapshots to target_dataset"""
 
 
@@ -1279,7 +1279,7 @@ class ZfsAutobackup:
                     if not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, no_send=self.args.no_send)
+                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors)
             except Exception as e:
                 source_dataset.error(str(e))
                 if self.args.debug:
