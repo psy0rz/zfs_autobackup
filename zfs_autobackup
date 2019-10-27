@@ -326,6 +326,27 @@ class ExecuteNode:
         else:
             return(self.ssh_to)
 
+    def parse_stdout(self, line):
+        """parse stdout. can be overridden in subclass"""
+        if self.debug_output:
+            self.debug("STDOUT > "+line.rstrip())
+
+
+    def parse_stderr(self, line, hide_errors):
+        """parse stderr. can be overridden in subclass"""
+        if  hide_errors:
+            self.debug("STDERR > "+line.rstrip())
+        else:
+            self.error("STDERR > "+line.rstrip())
+
+    def parse_stderr_pipe(self, line, hide_errors):
+        """parse stderr from pipe input process. can be overridden in subclass"""
+        if hide_errors:
+            self.debug("STDERR|> "+line.rstrip())
+        else:
+            self.error("STDERR|> "+line.rstrip())
+
+
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False):
         """run a command on the node
 
@@ -404,26 +425,19 @@ class ExecuteNode:
                 line=p.stdout.readline()
                 if line!="":
                     output_lines.append(line.rstrip())
-                    if self.debug_output:
-                        self.debug("STDOUT > "+line.rstrip())
+                    self.parse_stdout(line)
                 else:
                     eof_count=eof_count+1
             if p.stderr in read_ready:
                 line=p.stderr.readline()
                 if line!="":
-                    if  hide_errors:
-                        self.debug("STDERR > "+line.rstrip())
-                    else:
-                        self.error("STDERR > "+line.rstrip())
+                    self.parse_stderr(line, hide_errors)
                 else:
                     eof_count=eof_count+1
             if isinstance(input, subprocess.Popen) and (input.stderr in read_ready):
                 line=input.stderr.readline()
                 if line!="":
-                    if hide_errors:
-                        self.debug("STDERR|> "+line.rstrip())
-                    else:
-                        self.error("STDERR|> "+line.rstrip())
+                    self.parse_stderr_pipe(line, hide_errors)
                 else:
                     eof_count=eof_count+1
 
