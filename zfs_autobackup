@@ -915,7 +915,7 @@ class ZfsDataset():
 
             return(snapshot)
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, no_send=False):
         """sync our snapshots to target_dataset"""
 
 
@@ -1173,11 +1173,13 @@ class ZfsAutobackup:
         parser.add_argument('target_path',    help='Target ZFS filesystem')
 
         parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
-        parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
+        #Not appliciable anymore, version 3 alreadhy does optimal cleaning
+        # parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
         parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
         parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
         parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
-        parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
+        #not sure if this ever was usefull:
+        # parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
 
         parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
         parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
@@ -1277,7 +1279,7 @@ class ZfsAutobackup:
                     if not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors)
+                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, no_send=self.args.no_send)
             except Exception as e:
                 source_dataset.error(str(e))
                 if self.args.debug:
