@@ -585,10 +585,14 @@ class ZfsDataset():
         """check if dataset exists.
         Use force to force a specific value to be cached, if you already know. Usefull for performance reasons"""
 
-        if self.force_exists!=None:
-            return(self.force_exists)
 
-        self.debug("Checking if filesystem exists")
+        if self.force_exists!=None:
+            self.debug("Checking if filesystem exists: forced to {}".format(self.force_exists))
+            return(self.force_exists)
+        else:
+            self.debug("Checking if filesystem exists")
+
+
         return(self.zfs_node.run(tab_split=True, cmd=[ "zfs", "list", self.name], readonly=True, valid_exitcodes=[ 0,1 ], hide_errors=True) and True)
 
 
@@ -815,7 +819,14 @@ class ZfsDataset():
 
         #invalidate cache, but we at least know we exist now
         self.invalidate()
-        self.force_exists=True
+
+        #in test mode we assume everything was ok and it exists
+        if self.zfs_node.readonly:
+            self.force_exists=True
+
+        #check if transfer was really ok (exit codes have been wrong before and can be ignore by some parameters)
+        if not self.exists:
+            raise(Exception("Target doesnt exist after transfer, something went wrong."))
 
         # if args.buffer and  args.ssh_target!="local":
         #     cmd.append("|mbuffer -m {}".format(args.buffer))
@@ -874,9 +885,13 @@ class ZfsDataset():
             return(None)
         else:
             snapshot=self.find_snapshot(target_dataset.our_snapshots[-1].snapshot_name)
+
             if not snapshot:
                 raise(Exception("Cant find latest target snapshot on source"))
 
+            snapshot.debug("common snapshot")
+
+            return(snapshot)
 
     def sync_snapshots(self, target_dataset, show_progress=False, resume=True):
         """sync our snapshots to target_dataset"""
