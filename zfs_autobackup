@@ -973,7 +973,7 @@ class ZfsDataset():
             return(snapshot)
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True):
         """sync our snapshots to target_dataset"""
 
 
@@ -1066,9 +1066,11 @@ class ZfsDataset():
 
                 #hold the new common snapshots and release the previous ones
                 target_snapshot.hold()
-                source_snapshot.hold()
+                if source_holds:
+                    source_snapshot.hold()
                 if prev_source_snapshot:
-                    prev_source_snapshot.release()
+                    if source_holds:
+                        prev_source_snapshot.release()
                     target_dataset.find_snapshot(prev_source_snapshot).release()
 
                 #we may destroy the previous snapshot now, if we dont want it anymore
@@ -1374,7 +1376,7 @@ class ZfsAutobackup:
                     if not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors)
+                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds)
             except Exception as e:
                 source_dataset.error(str(e))
                 if self.args.debug:
