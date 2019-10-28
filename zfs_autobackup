@@ -55,10 +55,6 @@ class Log:
 
 
 
-#fatal abort execution, exit code 255
-def abort(txt):
-    print(txt, file=sys.stderr)
-    sys.exit(255)
 
 
 class ThinnerRule:
@@ -394,7 +390,7 @@ class ExecuteNode:
             self.debug("Piping input")
             stdin=input.stdout
         else:
-            abort("Incompatible input")
+            raise(Exception("Program error: Incompatible input"))
 
         if self.readonly and not readonly:
             #todo: what happens if input is piped?
@@ -1346,8 +1342,8 @@ class ZfsAutobackup:
         self.set_title("Selecting")
         selected_source_datasets=source_node.selected_datasets
         if not selected_source_datasets:
-            abort("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(self.args.backup_name, self.args.ssh_source))
-
+            self.error("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(self.args.backup_name, self.args.ssh_source))
+            return(255)
 
         source_datasets=[]
 
@@ -1355,6 +1351,7 @@ class ZfsAutobackup:
         if not self.args.ignore_replicated:
             source_datasets=selected_source_datasets
         else:
+            self.set_title("Filtering already replicated filesystems")
             for selected_source_dataset in selected_source_datasets:
                 if selected_source_dataset.is_changed():
                     source_datasets.append(selected_source_dataset)
@@ -1385,6 +1382,7 @@ class ZfsAutobackup:
         if self.args.clear_mountpoint:
             set_properties.append("canmount=noauto")
 
+        fail_count=0
         for source_dataset in source_datasets:
 
             try:
@@ -1398,10 +1396,17 @@ class ZfsAutobackup:
 
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback)
             except Exception as e:
+                fail_count=fail_count+1
                 source_dataset.error(str(e))
                 if self.args.debug:
                     raise
 
+        if not fail_count:
+            set_title("All backups completed succesfully")
+        else:
+            self.error("{} datasets failed!".format(fail_count))
+
+        return(fail_count)
 
 zfs_autobackup=ZfsAutobackup()
-zfs_autobackup.run()
+sys.exit(zfs_autobackup.run())
