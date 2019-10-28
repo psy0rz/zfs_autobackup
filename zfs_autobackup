@@ -1106,6 +1106,11 @@ class ZfsNode(ExecuteNode):
 
         self.zfs_autobackup=zfs_autobackup #for logging
 
+        if ssh_to:
+            self.verbose("Datasets on: {}".format(ssh_to))
+        else:
+            self.verbose("Datasets are local")
+
         rules=thinner.human_rules()
         if rules:
             for rule in rules:
@@ -1333,16 +1338,19 @@ class ZfsAutobackup:
         if self.args.test:
             self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
-        self.set_title("Snapshot schedule")
+        self.set_title("Settings summary")
 
         description="[Source]"
         source_thinner=Thinner(self.args.keep_source)
         source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=source_thinner)
+        source_node.verbose("Backup all datasets that have 'autobackup:{}=true' or 'autobackup:{}=child'".format(self.args.backup_name, self.args.backup_name))
+
+        self.verbose("")
 
         description="[Target]"
         target_thinner=Thinner(self.args.keep_target)
         target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
-        # target_node.run(["/root/outputtest"], readonly=True)
+        target_node.verbose("Receive backups under: {}".format(self.args.target_path))
 
         self.set_title("Selecting")
         selected_source_datasets=source_node.selected_datasets
