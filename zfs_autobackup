@@ -912,6 +912,12 @@ class ZfsDataset():
         self.zfs_node.run(["zfs", "recv", "-A", self.name])
 
 
+    def rollback(self):
+        """rollback to this snapshot"""
+        self.debug("Rolling back")
+        self.zfs_node.run(["zfs", "rollback", self.name])
+
+
     def get_resume_snapshot(self, resume_token):
         """returns snapshot that will be resumed by this resume token (run this on source with target-token)"""
 
@@ -973,7 +979,7 @@ class ZfsDataset():
             return(snapshot)
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False):
         """sync our snapshots to target_dataset"""
 
 
@@ -991,6 +997,9 @@ class ZfsDataset():
             #start from beginning
             start_snapshot=self.our_snapshots[0]
         else:
+            #roll target back to common snapshot
+            if rollback:
+                target_dataset.find_snapshot(common_snapshot).rollback()
             start_snapshot=self.find_our_next_snapshot(common_snapshot)
 
         #resume?
@@ -1376,7 +1385,7 @@ class ZfsAutobackup:
                     if not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds)
+                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback)
             except Exception as e:
                 source_dataset.error(str(e))
                 if self.args.debug:
