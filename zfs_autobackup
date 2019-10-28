@@ -906,12 +906,28 @@ class ZfsDataset():
         target_snapshot.recv_pipe(pipe, resume=resume, filter_properties=filter_properties, set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code)
 
 
+    def get_resume_snapshot(self, resume_token):
+        """returns snapshot that will be resumed by this resume token (run this on source with target-token)"""
+
+        #use zfs send -n option to determine this
+        lines=self.zfs_node.run([ "zfs", "send", "-t", resume_token, "-n", "-v", ], valid_exitcodes=[ 0 ])
+        for line in lines:
+            matches=re.findall("toname = .*@(.*)", line)
+            if matches:
+                snapshot_name=matches[0]
+                return(ZfsDataset(self.zfs_node, self.filesystem_name+"@"+snapshot_name))
+
+
     def resume_transfer(self, target_dataset, show_progress=False, filter_properties=[], set_properties=[], ignore_recv_exit_code=False):
         """resume an interrupted transfer, if there is one"""
 
         #resume is a kind of special case since we dont know which snapshot we are transferring. (its encoded in the resume token)
         if 'receive_resume_token' in target_dataset.properties:
             target_dataset.verbose("resuming")
+            snapshot=self.get_resume_snapshot(target_dataset.properties['receive_resume_token'])
+            p(snapshot)
+            sys.exit(1)
+
             #just send and recv on dataset instead of snapshot object.
             pipe=self.send_pipe(show_progress=show_progress, resume_token=target_dataset.properties['receive_resume_token'])
             target_dataset.recv_pipe(pipe,resume=True, filter_properties=filter_properties, set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code)
@@ -945,6 +961,7 @@ class ZfsDataset():
             snapshot.debug("common snapshot")
 
             return(snapshot)
+
 
     def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False):
         """sync our snapshots to target_dataset"""
