@@ -570,8 +570,8 @@ class ZfsDataset():
             raise(Exception("Please call this on a dataset."))
 
         try:
-            index=self.our_snapshots.index(snapshot)
-            if index>0:
+            index=self.find_our_snapshot_index(snapshot)
+            if index!=None and index>0:
                 return(self.our_snapshots[index-1])
             else:
                 return(None)
@@ -586,8 +586,8 @@ class ZfsDataset():
             raise(Exception("Please call this on a dataset."))
 
         try:
-            index=self.our_snapshots.index(snapshot)
-            if index>=0 and index<len(self.our_snapshots)-1:
+            index=self.find_our_snapshot_index(snapshot)
+            if index!=None and index>=0 and index<len(self.our_snapshots)-1:
                 return(self.our_snapshots[index+1])
             else:
                 return(None)
@@ -667,11 +667,13 @@ class ZfsDataset():
 
     def hold(self):
         """hold dataset"""
-        self.zfs_node.run([ "zfs" , "hold", "autobackup:"+self.zfs_node.backup_name, self.name ])
+        self.debug("holding")
+        self.zfs_node.run([ "zfs" , "hold", "autobackup:"+self.zfs_node.backup_name, self.name ], valid_exitcodes=[ 0,1 ])
 
     def release(self):
         """release dataset"""
-        self.zfs_node.run([ "zfs" , "release", "autobackup:"+self.zfs_node.backup_name, self.name ])
+        self.debug("releasing")
+        self.zfs_node.run([ "zfs" , "release", "autobackup:"+self.zfs_node.backup_name, self.name ], valid_exitcodes=[ 0,1 ])
 
 
 
@@ -721,15 +723,34 @@ class ZfsDataset():
         return(ret)
 
 
-    # def progressive_thinning(self, schedule):
-    #     """cleanup snapshots by progressive thinning schedule"""
+    def find_snapshot(self, snapshot):
+        """find snapshot by snapshot (can be a snapshot_name or ZfsDataset)"""
 
+        if isinstance(snapshot,str):
+            snapshot_name=snapshot
+        else:
+            snapshot_name=snapshot.snapshot_name
 
-    def find_snapshot(self, snapshot_name):
-        """find snapshot by snapshot_name"""
         for snapshot in self.our_snapshots:
             if snapshot.snapshot_name==snapshot_name:
                 return(snapshot)
+
+        return(None)
+
+
+    def find_our_snapshot_index(self, snapshot):
+        """find our snapshot index by snapshot (can be a snapshot_name or ZfsDataset)"""
+
+        if isinstance(snapshot,str):
+            snapshot_name=snapshot
+        else:
+            snapshot_name=snapshot.snapshot_name
+
+        index=0
+        for snapshot in self.our_snapshots:
+            if snapshot.snapshot_name==snapshot_name:
+                return(index)
+            index=index+1
 
         return(None)
 
@@ -948,10 +969,20 @@ class ZfsDataset():
 
         #if something is resumed, fix the holds at this point
         if resumed:
+            #hold the current commons, relase the previous ones
             common_snapshot.hold()
-            target_dataset.find_snapshot(common_snapshot.snapshot_name).hold()
+            target_dataset.find_snapshot(common_snapshot).hold()
 
-            
+            prev_target_snapshot=target_dataset.find_our_prev_snapshot(common_snapshot)
+            if prev_target_snapshot:
+                prev_target_snapshot.release()
+
+            prev_source_snapshot=self.find_snapshot(prev_target_snapshot)
+            if prev_source_snapshot:
+                prev_source_snapshot.release()
+
+
+
 
         #create virtual target snapshots
         target_dataset.debug("Creating virtual target snapshots")
@@ -992,6 +1023,13 @@ class ZfsDataset():
             #does target actually want it?
             if target_snapshot in target_keeps:
                 source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=ignore_recv_exit_code)
+
+                #hold the new common snapshots and release the previous ones
+                target_snapshot.hold()
+                source_snapshot.hold()
+                if prev_source_snapshot:
+                    prev_source_snapshot.release()
+                    target_dataset.find_snapshot(prev_source_snapshot.snapshot_name)
 
                 #we may destroy the previous snapshot now, if we dont want it anymore
                 if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
