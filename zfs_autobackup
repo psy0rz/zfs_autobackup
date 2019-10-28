@@ -1310,6 +1310,9 @@ class ZfsAutobackup:
         if args.debug_output:
             args.debug=True
 
+        if self.args.test:
+            self.args.verbose=True
+
         self.log=Log(show_debug=self.args.debug, show_verbose=self.args.verbose)
 
 
@@ -1327,6 +1330,9 @@ class ZfsAutobackup:
         self.log.verbose("#### "+title)
 
     def run(self):
+        if self.args.test:
+            self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
+
         self.set_title("Snapshot schedule")
 
         description="[Source]"
@@ -1400,10 +1406,18 @@ class ZfsAutobackup:
                 if self.args.debug:
                     raise
 
+
+
         if not fail_count:
-            self.set_title("All backups completed succesfully")
+            if self.args.test:
+                self.set_title("All tests successfull.")
+            else:
+                self.set_title("All backups completed succesfully")
         else:
             self.error("{} datasets failed!".format(fail_count))
+
+        if self.args.test:
+            self.verbose("TEST MODE - DID NOT MAKE ANY BACKUPS!")
 
         return(fail_count)
 
