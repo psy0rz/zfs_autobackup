@@ -970,18 +970,17 @@ class ZfsDataset():
         #if something is resumed, fix the holds at this point
         if resumed:
             #hold the current commons, relase the previous ones
-            common_snapshot.hold()
-            target_dataset.find_snapshot(common_snapshot).hold()
+            if common_snapshot:
+                common_snapshot.hold()
+                target_dataset.find_snapshot(common_snapshot).hold()
 
-            prev_target_snapshot=target_dataset.find_our_prev_snapshot(common_snapshot)
-            if prev_target_snapshot:
-                prev_target_snapshot.release()
+                prev_target_snapshot=target_dataset.find_our_prev_snapshot(common_snapshot)
+                if prev_target_snapshot:
+                    prev_target_snapshot.release()
 
-            prev_source_snapshot=self.find_snapshot(prev_target_snapshot)
-            if prev_source_snapshot:
-                prev_source_snapshot.release()
-
-
+                    prev_source_snapshot=self.find_snapshot(prev_target_snapshot)
+                    if prev_source_snapshot:
+                        prev_source_snapshot.release()
 
 
         #create virtual target snapshots
@@ -1018,7 +1017,7 @@ class ZfsDataset():
         prev_source_snapshot=common_snapshot
         source_snapshot=start_snapshot
         while source_snapshot:
-            target_snapshot=target_dataset.find_snapshot(source_snapshot.snapshot_name) #"virtual"
+            target_snapshot=target_dataset.find_snapshot(source_snapshot) #"virtual"
 
             #does target actually want it?
             if target_snapshot in target_keeps:
@@ -1029,7 +1028,7 @@ class ZfsDataset():
                 source_snapshot.hold()
                 if prev_source_snapshot:
                     prev_source_snapshot.release()
-                    target_dataset.find_snapshot(prev_source_snapshot.snapshot_name)
+                    target_dataset.find_snapshot(prev_source_snapshot).release()
 
                 #we may destroy the previous snapshot now, if we dont want it anymore
                 if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
