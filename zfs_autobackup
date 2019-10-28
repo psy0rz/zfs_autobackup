@@ -476,6 +476,12 @@ class ZfsDataset():
 
     """
 
+    # illegal properties per dataset type. these will be filtered from --set-properties and --filter-properties
+    ILLEGAL_PROPERTIES={
+        'filesystem': [ ],
+        'volume': [ "canmount" ],
+    }
+
     def __init__(self, zfs_node, name, force_exists=None):
         """name: full path of the zfs dataset
         exists: specifiy if you already know a dataset exists or not. for performance reasons. (othewise it will have to check with zfs list when needed)
@@ -974,17 +980,27 @@ class ZfsDataset():
 
             return(snapshot)
 
+    def get_allowed_properties(self, filter_properties, set_properties):
+        """only returns lists of allowed properties for this dataset type"""
+
+        allowed_filter_properties=[]
+        allowed_set_properties=[]
+        illegal_properties=self.ILLEGAL_PROPERTIES[self.properties['type']]
+        for set_property in set_properties:
+            (property, value) = set_property.split("=")
+            if property not in illegal_properties:
+                allowed_set_properties.append(set_property)
+
+        for filter_property in filter_properties:
+            if filter_property not in illegal_properties:
+                allowed_filter_properties.append(filter_property)
+
+        return ( ( allowed_filter_properties, allowed_set_properties  )  )
+
 
     def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False):
-        """sync our snapshots to target_dataset"""
+        """sync this dataset's snapshots to target_dataset,"""
 
-
-        #resume something first?
-        # resumed=self.resume_transfer(target_dataset, show_progress=show_progress, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=ignore_recv_exit_code)
-        # if resumed:
-        #     #running in readonly mode and no snapshots yet? assume initial snapshot (otherwise we cant find common snapshot in next step)
-        #     if self.zfs_node.readonly and not target_dataset.our_snapshots:
-        #         target_dataset.snapshots.append(ZfsDataset(target_dataset.zfs_node, target_dataset.name + "@" + self.our_snapshots[0].snapshot_name))
 
         #determine start snapshot (the first snapshot after the common snapshot)
         target_dataset.debug("Determining start snapshot")
@@ -1008,24 +1024,6 @@ class ZfsDataset():
                 target_dataset.verbose("Cant resume, resume token no longer valid.")
                 target_dataset.abort_resume()
                 resume_token=None
-
-
-
-
-        # #if something is resumed, fix the holds at this point
-        # if resumed:
-        #     #hold the current commons, relase the previous ones
-        #     if common_snapshot:
-        #         common_snapshot.hold()
-        #         target_dataset.find_snapshot(common_snapshot).hold()
-        #
-        #         prev_target_snapshot=target_dataset.find_our_prev_snapshot(common_snapshot)
-        #         if prev_target_snapshot:
-        #             prev_target_snapshot.release()
-        #
-        #             prev_source_snapshot=self.find_snapshot(prev_target_snapshot)
-        #             if prev_source_snapshot:
-        #                 prev_source_snapshot.release()
 
 
         #create virtual target snapshots
@@ -1066,7 +1064,8 @@ class ZfsDataset():
 
             #does target actually want it?
             if target_snapshot in target_keeps:
-                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=ignore_recv_exit_code, resume_token=resume_token)
+                ( allowed_filter_properties, allowed_set_properties ) = self.get_allowed_properties(filter_properties, set_properties)
+                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=allowed_filter_properties, set_properties=allowed_set_properties, ignore_recv_exit_code=ignore_recv_exit_code, resume_token=resume_token)
                 resume_token=None
 
                 #hold the new common snapshots and release the previous ones
@@ -1289,8 +1288,8 @@ class ZfsAutobackup:
 
 
         # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
-        parser.add_argument('--clear-refreservation', action='store_true', help='Set refreservation property to none for new filesystems. Usefull when backupping SmartOS volumes. (recommended. same as --set-properties refreservation=none)')
-        parser.add_argument('--clear-mountpoint', action='store_true', help='Sets canmount=noauto property, to prevent the received filesystem from mounting over existing filesystems. (recommended. same as --set-properties canmount=noauto)')
+        parser.add_argument('--clear-refreservation', action='store_true', help='Filter "refreservation" property. (recommended, safes space. same as --filter-properties refreservation)')
+        parser.add_argument('--clear-mountpoint', action='store_true', help='Filter "canmount" property (recommended, prevents mount conflicts. same as --filter-properties canmount)')
         parser.add_argument('--filter-properties', type=str, help='List of propererties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
@@ -1377,10 +1376,10 @@ class ZfsAutobackup:
             set_properties=[]
 
         if self.args.clear_refreservation:
-            set_properties.append("refreservation=none")
+            filter_properties.append("refreservation")
 
         if self.args.clear_mountpoint:
-            set_properties.append("canmount=noauto")
+            filter_properties.append("canmount")
 
         fail_count=0
         for source_dataset in source_datasets:
@@ -1402,7 +1401,7 @@ class ZfsAutobackup:
                     raise
 
         if not fail_count:
-            set_title("All backups completed succesfully")
+            self.set_title("All backups completed succesfully")
         else:
             self.error("{} datasets failed!".format(fail_count))
 
