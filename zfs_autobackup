@@ -1343,14 +1343,14 @@ class ZfsAutobackup:
         description="[Source]"
         source_thinner=Thinner(self.args.keep_source)
         source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=source_thinner)
-        source_node.verbose("Backup all datasets that have 'autobackup:{}=true' or 'autobackup:{}=child'".format(self.args.backup_name, self.args.backup_name))
+        source_node.verbose("Send all datasets that have 'autobackup:{}=true' or 'autobackup:{}=child'".format(self.args.backup_name, self.args.backup_name))
 
         self.verbose("")
 
         description="[Target]"
         target_thinner=Thinner(self.args.keep_target)
         target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
-        target_node.verbose("Receive backups under: {}".format(self.args.target_path))
+        target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
         self.set_title("Selecting")
         selected_source_datasets=source_node.selected_datasets
