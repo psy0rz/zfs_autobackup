@@ -974,7 +974,14 @@ class ZfsDataset():
             snapshot=self.find_snapshot(target_dataset.our_snapshots[-1].snapshot_name)
 
             if not snapshot:
-                raise(Exception("Cant find latest target snapshot on source"))
+                #try to find another common snapshot as rollback-suggestion for admin
+                for target_snapshot in reversed(target_dataset.our_snapshots):
+                    if self.find_snapshot(target_snapshot):
+                        target_snapshot.error("Latest common snapshot, roll back to this.")
+                        raise(Exception("Cant find latest target snapshot on source."))
+                target_dataset.error("Cant find common snapshot with target. ")
+                raise(Exception("You probablly need to delete the target dataset to fix this."))
+
 
             snapshot.debug("common snapshot")
 
