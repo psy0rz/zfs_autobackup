@@ -626,11 +626,19 @@ class ZfsDataset():
         self.exists=1
 
 
-    def destroy(self):
+    def destroy(self, fail_exception=False):
+        """destroy the dataset. by default failures are not an exception, so we can continue making backups"""
         self.verbose("Destroying")
-        self.zfs_node.run(["zfs", "destroy", self.name])
-        self.invalidate()
-        self.force_exists=False
+        try:
+            self.zfs_node.run(["zfs", "destroy", self.name])
+            self.invalidate()
+            self.force_exists=False
+            return(True)
+        except:
+            if not fail_exception:
+                return(False)
+            else:
+                raise
 
 
     @cached_property
