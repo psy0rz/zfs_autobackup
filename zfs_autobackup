@@ -355,7 +355,7 @@ class ExecuteNode:
 
         #use ssh?
         if self.ssh_to != None:
-            encoded_cmd.extend(["ssh", self.ssh_to])
+            encoded_cmd.extend(["ssh".encode('utf-8'), self.ssh_to.encode('utf-8')])
 
             #make sure the command gets all the data in utf8 format:
             #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
@@ -368,7 +368,10 @@ class ExecuteNode:
                 encoded_cmd.append(arg.encode('utf-8'))
 
         #debug and test stuff
-        debug_txt=" ".join(encoded_cmd)
+        debug_txt=""
+        for c in encoded_cmd:
+            debug_txt=debug_txt+" "+c.decode()
+
         if pipe:
             debug_txt=debug_txt+" |"
 
@@ -383,7 +386,7 @@ class ExecuteNode:
         #determine stdin
         if input==None:
             stdin=None
-        elif isinstance(input,str):
+        elif isinstance(input,str) or type(input)=='unicode':
             self.debug("INPUT  > \n"+input.rstrip())
             stdin=subprocess.PIPE
         elif isinstance(input, subprocess.Popen):
@@ -400,7 +403,7 @@ class ExecuteNode:
         p=subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin, stderr=subprocess.PIPE)
 
         #Note: make streaming?
-        if isinstance(input,str):
+        if isinstance(input,str) or type(input)=='unicode':
             p.stdin.write(input)
 
         if pipe:
@@ -418,20 +421,20 @@ class ExecuteNode:
             (read_ready, write_ready, ex_ready)=select.select(selectors, [], [])
             eof_count=0
             if p.stdout in read_ready:
-                line=p.stdout.readline()
+                line=p.stdout.readline().decode('utf-8')
                 if line!="":
                     output_lines.append(line.rstrip())
                     self._parse_stdout(line)
                 else:
                     eof_count=eof_count+1
             if p.stderr in read_ready:
-                line=p.stderr.readline()
+                line=p.stderr.readline().decode('utf-8')
                 if line!="":
                     self._parse_stderr(line, hide_errors)
                 else:
                     eof_count=eof_count+1
             if isinstance(input, subprocess.Popen) and (input.stderr in read_ready):
-                line=input.stderr.readline()
+                line=input.stderr.readline().decode('utf-8')
                 if line!="":
                     self._parse_stderr_pipe(line, hide_errors)
                 else:
@@ -736,7 +739,7 @@ class ZfsDataset():
     def find_snapshot(self, snapshot):
         """find snapshot by snapshot (can be a snapshot_name or ZfsDataset)"""
 
-        if isinstance(snapshot,str):
+        if not isinstance(snapshot,ZfsDataset):
             snapshot_name=snapshot
         else:
             snapshot_name=snapshot.snapshot_name
@@ -751,7 +754,7 @@ class ZfsDataset():
     def find_our_snapshot_index(self, snapshot):
         """find our snapshot index by snapshot (can be a snapshot_name or ZfsDataset)"""
 
-        if isinstance(snapshot,str):
+        if not isinstance(snapshot,ZfsDataset):
             snapshot_name=snapshot
         else:
             snapshot_name=snapshot.snapshot_name
@@ -1283,7 +1286,7 @@ class ZfsAutobackup:
     def __init__(self):
 
         parser = argparse.ArgumentParser(
-            description='ZFS autobackup v3.0',
+            description='ZFS autobackup v3.0-beta1',
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
