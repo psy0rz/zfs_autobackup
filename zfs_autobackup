@@ -1425,7 +1425,7 @@ class ZfsAutobackup:
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback)
             except Exception as e:
                 fail_count=fail_count+1
-                source_dataset.error(str(e))
+                source_dataset.error("DATASET FAILED: "+str(e))
                 if self.args.debug:
                     raise
 
