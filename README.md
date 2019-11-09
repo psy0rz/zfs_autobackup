@@ -6,8 +6,8 @@ New in v3:
  * Backward compatible
  * Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
  * Cleaner output, with optional color support (pip install colorama). 
-  * Clear distinction between local and remote output.
-  * Summary at the beginning, displaying what will happen and the current thinning-schedule.
+   * Clear distinction between local and remote output.
+   * Summary at the beginning, displaying what will happen and the current thinning-schedule.
  * More effient destroying/skipping snaphots on the fly. (no more space issues if your backup is way behind)
  * Progress indicator (--progress)
  * Better property management (--set-properties and --filter-properties)
