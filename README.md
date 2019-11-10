@@ -2,6 +2,8 @@
 
 (checkout v3.0-beta for the new cool stuff: https://github.com/psy0rz/zfs_autobackup/blob/v3/README.md)
 
+Official releases: https://github.com/psy0rz/zfs_autobackup/releases
+
 Introduction
 ============
 
