@@ -1,5 +1,7 @@
 # ZFS autobackup v3 - TEST VERSION
 
+Official releases are here: https://github.com/psy0rz/zfs_autobackup/releases
+
 New in v3:
  * Complete rewrite, cleaner object oriented code.
  * Python 3 and 2 support.
