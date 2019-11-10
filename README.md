@@ -3,7 +3,7 @@
 New in v3:
  * Complete rewrite, cleaner object oriented code.
  * Python 3 and 2 support.
- * Backward compatible
+ * Backwards compatible with your current backups and parameters.
  * Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
  * Cleaner output, with optional color support (pip install colorama). 
    * Clear distinction between local and remote output.
@@ -11,5 +11,6 @@ New in v3:
  * More effient destroying/skipping snaphots on the fly. (no more space issues if your backup is way behind)
  * Progress indicator (--progress)
  * Better property management (--set-properties and --filter-properties)
- * More robust error handling
+ * Better resume handling, automaticly abort invalid resumes.
+ * More robust error handling.
  * Prepared for future enhanchements.
