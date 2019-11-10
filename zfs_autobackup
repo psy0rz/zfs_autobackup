@@ -288,8 +288,6 @@ class cached_property(object):
 
         propname=self.func.__name__
 
-        #store directly in dict so its cached from now on
-        # value = obj.__dict__[propname] = self.func(obj)
         if not hasattr(obj, '_cached_properties'):
             obj._cached_properties={}
 
@@ -343,12 +341,13 @@ class ExecuteNode:
             self.error("STDERR|> "+line.rstrip())
 
 
-    def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False):
+    def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False, return_stderr=False):
         """run a command on the node
 
         readonly: make this True if the command doesnt make any changes and is safe to execute in testmode
         pipe: Instead of executing, return a pipe-handle to be used to input to another run() command. (just like a | in linux)
         input: Can be None, a string or a pipe-handle you got from another run()
+        return_stderr: return both stdout and stderr as a tuple
         """
 
         encoded_cmd=[]
@@ -417,19 +416,27 @@ class ExecuteNode:
             selectors=[p.stdout, p.stderr ]
 
         output_lines=[]
+        error_lines=[]
         while True:
             (read_ready, write_ready, ex_ready)=select.select(selectors, [], [])
             eof_count=0
             if p.stdout in read_ready:
                 line=p.stdout.readline().decode('utf-8')
                 if line!="":
-                    output_lines.append(line.rstrip())
+                    if tab_split:
+                        output_lines.append(line.rstrip().split('\t'))
+                    else:
+                        output_lines.append(line.rstrip())
                     self._parse_stdout(line)
                 else:
                     eof_count=eof_count+1
             if p.stderr in read_ready:
                 line=p.stderr.readline().decode('utf-8')
                 if line!="":
+                    if tab_split:
+                        error_lines.append(line.rstrip().split('\t'))
+                    else:
+                        error_lines.append(line.rstrip())
                     self._parse_stderr(line, hide_errors)
                 else:
                     eof_count=eof_count+1
@@ -460,13 +467,10 @@ class ExecuteNode:
         if valid_exitcodes and p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
-        if not tab_split:
-            return(output_lines)
+        if return_stderr:
+            return ( output_lines, error_lines )
         else:
-            ret=[]
-            for line in output_lines:
-                ret.append(line.split("\t"))
-            return(ret)
+            return(output_lines)
 
 
 
@@ -479,7 +483,7 @@ class ZfsDataset():
 
     """
 
-    # illegal properties per dataset type. these will be filtered from --set-properties and --filter-properties
+    # illegal properties per dataset type. these will be removed from --set-properties and --filter-properties
     ILLEGAL_PROPERTIES={
         'filesystem': [ ],
         'volume': [ "canmount" ],
@@ -933,9 +937,13 @@ class ZfsDataset():
 
     def get_resume_snapshot(self, resume_token):
         """returns snapshot that will be resumed by this resume token (run this on source with target-token)"""
-
         #use zfs send -n option to determine this
-        lines=self.zfs_node.run([ "zfs", "send", "-t", resume_token, "-n", "-v" ], valid_exitcodes=[ 0, 255 ], readonly=True)
+        #NOTE: on smartos stderr, on linux stdout
+        ( stdout, stderr )=self.zfs_node.run([ "zfs", "send", "-t", resume_token, "-n", "-v" ], valid_exitcodes=[ 0, 255 ], readonly=True, return_stderr=True )
+        if stdout:
+            lines=stdout
+        else:
+            lines=stderr
         for line in lines:
             matches=re.findall("toname = .*@(.*)", line)
             if matches:
@@ -947,22 +955,6 @@ class ZfsDataset():
         return(None)
 
 
-    # def resume_transfer(self, target_dataset, show_progress=False, filter_properties=[], set_properties=[], ignore_recv_exit_code=False):
-    #     """resume an interrupted transfer, if there is one"""
-    #
-    #     #resume is a kind of special case since we dont know which snapshot we are transferring. (its encoded in the resume token)
-    #     if 'receive_resume_token' in target_dataset.properties:
-    #         target_dataset.verbose("resuming")
-    #         snapshot=self.get_resume_snapshot(target_dataset.properties['receive_resume_token'])
-    #         p(snapshot)
-    #         sys.exit(1)
-    #
-    #         #just send and recv on dataset instead of snapshot object.
-    #         pipe=self.send_pipe(show_progress=show_progress, resume_token=target_dataset.properties['receive_resume_token'])
-    #         target_dataset.recv_pipe(pipe,resume=True, filter_properties=filter_properties, set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code)
-    #         return(True)
-    #
-    #     return(False)
 
 
     def thin(self, keeps=[]):
@@ -1286,7 +1278,7 @@ class ZfsAutobackup:
     def __init__(self):
 
         parser = argparse.ArgumentParser(
-            description='ZFS autobackup v3.0-beta1',
+            description='ZFS autobackup v3.0-beta2',
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
@@ -1321,7 +1313,7 @@ class ZfsAutobackup:
 
         parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
         parser.add_argument('--verbose', action='store_true', help='verbose output')
-        parser.add_argument('--debug', action='store_true', help='Show zfs commands that are executed.')
+        parser.add_argument('--debug', action='store_true', help='Show zfs commands that are executed, stops after an exception.')
         parser.add_argument('--debug-output', action='store_true', help='Show zfs commands and their output/exit codes. (noisy)')
         parser.add_argument('--progress', action='store_true', help='show zfs progress output (to stderr)')
 
