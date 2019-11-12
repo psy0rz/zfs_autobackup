@@ -1100,9 +1100,15 @@ class ZfsDataset():
                 prev_source_snapshot=source_snapshot
             else:
                 source_snapshot.debug("skipped (target doesnt need it)")
+                #was it actually a resume?
+                if resume_token:
+                    target_dataset.debug("aborting resume, since we dont want that snapshot anymore")
+                    target_dataset.abort_resume()
+                    resume_token=None   
+
                 #destroy it if we also dont want it anymore:
                 if source_snapshot not in source_keeps:
-                    prev_source_snapshot.destroy()
+                    source_snapshot.destroy()
 
 
             source_snapshot=self.find_our_next_snapshot(source_snapshot)
