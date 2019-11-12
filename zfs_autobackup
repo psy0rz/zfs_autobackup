@@ -661,7 +661,13 @@ class ZfsDataset():
             return({})
 
 
-        return(dict(self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ])))
+        ret={}
+
+        for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ]):
+            if len(pair)==2:
+                ret[pair[0]]=pair[1]
+
+        return(ret)
 
 
     def is_changed(self):
