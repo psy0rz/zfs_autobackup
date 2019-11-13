@@ -1160,7 +1160,8 @@ class ZfsNode(ExecuteNode):
 
         if (line.find("nvlist version")==0 or
             line.find("resume token contents")==0 or
-            len(progress_fields)!=1):
+            len(progress_fields)!=1) or
+            line.find("skipping ")==0:
 
                 #always output for debugging offcourse
                 self.debug("STDERR|> "+line.rstrip())
