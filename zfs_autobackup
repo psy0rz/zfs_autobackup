@@ -1317,7 +1317,7 @@ class ZfsAutobackup:
 
         # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
         parser.add_argument('--clear-refreservation', action='store_true', help='Filter "refreservation" property. (recommended, safes space. same as --filter-properties refreservation)')
-        parser.add_argument('--clear-mountpoint', action='store_true', help='Filter "canmount" property (recommended, prevents mount conflicts. same as --filter-properties canmount)')
+        parser.add_argument('--clear-mountpoint', action='store_true', help='Filter "canmount" property. You still have to set canmount=noauto on the backup server. (recommended, prevents mount conflicts. same as --filter-properties canmount)')
         parser.add_argument('--filter-properties', type=str, help='List of propererties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
