@@ -16,3 +16,4 @@ New in v3:
  * Better resume handling, automaticly abort invalid resumes.
  * More robust error handling.
  * Prepared for future enhanchements.
+ * Supports raw backups for encryption.
