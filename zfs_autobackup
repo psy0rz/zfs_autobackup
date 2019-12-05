@@ -809,7 +809,7 @@ class ZfsDataset():
         return(self.from_names(names[1:]))
 
 
-    def send_pipe(self, prev_snapshot=None, resume=True, resume_token=None, show_progress=False):
+    def send_pipe(self, prev_snapshot=None, resume=True, resume_token=None, show_progress=False, raw=False):
         """returns a pipe with zfs send output for this snapshot
 
         resume: Use resuming (both sides need to support it)
@@ -827,6 +827,11 @@ class ZfsDataset():
         cmd.append("-c") # use compressed WRITE records
         if not resume:
             cmd.append("-D") # dedupped stream, sends less duplicate data
+
+        #raw? (for encryption)
+        if raw:
+            cmd.append("--raw")
+
 
         #progress output
         if show_progress:
@@ -908,7 +913,7 @@ class ZfsDataset():
         #     cmd.append("|mbuffer -m {}".format(args.buffer))
 
 
-    def transfer_snapshot(self, target_snapshot, prev_snapshot=None, resume=True, show_progress=False, filter_properties=[], set_properties=[], ignore_recv_exit_code=False, resume_token=None):
+    def transfer_snapshot(self, target_snapshot, prev_snapshot=None, resume=True, show_progress=False, filter_properties=[], set_properties=[], ignore_recv_exit_code=False, resume_token=None, raw=False):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for incremental transfer
 
         connects a send_pipe() to recv_pipe()
@@ -927,7 +932,7 @@ class ZfsDataset():
             target_snapshot.verbose("receiving incremental".format(self.snapshot_name))
 
         #do it
-        pipe=self.send_pipe(resume=resume, show_progress=show_progress, prev_snapshot=prev_snapshot, resume_token=resume_token)
+        pipe=self.send_pipe(resume=resume, show_progress=show_progress, prev_snapshot=prev_snapshot, resume_token=resume_token, raw=raw)
         target_snapshot.recv_pipe(pipe, resume=resume, filter_properties=filter_properties, set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code)
 
     def abort_resume(self):
@@ -1014,7 +1019,7 @@ class ZfsDataset():
         return ( ( allowed_filter_properties, allowed_set_properties  )  )
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False):
         """sync this dataset's snapshots to target_dataset,"""
 
 
@@ -1081,7 +1086,7 @@ class ZfsDataset():
             #does target actually want it?
             if target_snapshot in target_keeps:
                 ( allowed_filter_properties, allowed_set_properties ) = self.get_allowed_properties(filter_properties, set_properties)
-                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=allowed_filter_properties, set_properties=allowed_set_properties, ignore_recv_exit_code=ignore_recv_exit_code, resume_token=resume_token)
+                source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=allowed_filter_properties, set_properties=allowed_set_properties, ignore_recv_exit_code=ignore_recv_exit_code, resume_token=resume_token, raw=raw)
                 resume_token=None
 
                 #hold the new common snapshots and release the previous ones
@@ -1322,6 +1327,7 @@ class ZfsAutobackup:
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
         parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
+        parser.add_argument('--raw', action='store_true', help='For encrypted datasets, send data exactly as it exists on disk.')
 
 
         parser.add_argument('--test', action='store_true', help='dont change anything, just show what would be done (still does all read-only operations)')
@@ -1430,7 +1436,7 @@ class ZfsAutobackup:
                 if not target_dataset.parent.exists:
                     target_dataset.parent.create_filesystem(parents=True)
 
-                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback)
+                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw)
             except Exception as e:
                 fail_count=fail_count+1
                 source_dataset.error("DATASET FAILED: "+str(e))
