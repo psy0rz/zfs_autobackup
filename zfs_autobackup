@@ -27,6 +27,7 @@ except ImportError:
     use_color=False
 
 
+
 class Log:
     def __init__(self, show_debug=False, show_verbose=False):
         self.last_log=""
@@ -489,6 +490,8 @@ class ZfsDataset():
         'volume': [ "canmount" ],
     }
 
+    ZFS_MAX_UNCHANGED_BYTES=200000
+
     def __init__(self, zfs_node, name, force_exists=None):
         """name: full path of the zfs dataset
         exists: specifiy if you already know a dataset exists or not. for performance reasons. (othewise it will have to check with zfs list when needed)
@@ -654,7 +657,7 @@ class ZfsDataset():
         self.debug("Getting zfs properties")
 
         cmd=[
-            "zfs", "get", "-H", "-o", "property,value", "all", self.name
+            "zfs", "get", "-H", "-o", "property,value", "-p", "all", self.name
         ]
 
         if not self.exists:
@@ -674,7 +677,8 @@ class ZfsDataset():
         """dataset is changed since ANY latest snapshot ?"""
         self.debug("Checking if dataset is changed")
 
-        if self.properties['written']=="0B" or self.properties['written']=="0":
+        #NOTE: filesystems can have a very small amount written without actual changes in some cases
+        if int(self.properties['written'])<=self.ZFS_MAX_UNCHANGED_BYTES:
             return(False)
         else:
             return(True)
@@ -789,9 +793,10 @@ class ZfsDataset():
 
         latest_snapshot=self.snapshots[-1]
 
-        cmd=[ "zfs", "get","-H" ,"-ovalue", "written@"+str(latest_snapshot), self.name ]
+        cmd=[ "zfs", "get","-H" ,"-ovalue", "-p", "written@"+str(latest_snapshot), self.name ]
         output=self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
-        if output[0]=="0B" or output[0]=="0":
+        #NOTE: filesystems can have a very small amount written without actual changes in some cases
+        if int(output[0])<=self.ZFS_MAX_UNCHANGED_BYTES:
             return(False)
 
         return(True)
@@ -1296,7 +1301,7 @@ class ZfsAutobackup:
     def __init__(self):
 
         parser = argparse.ArgumentParser(
-            description='ZFS autobackup v3.0-beta3',
+            description='ZFS autobackup v3.0-beta4',
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
