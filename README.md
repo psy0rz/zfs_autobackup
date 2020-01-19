@@ -1,4 +1,6 @@
-# ZFS autobackup v3 - TEST VERSION
+ZFS autobackup v3 - TEST VERSION
+===================================
+
 
 Official releases are here: https://github.com/psy0rz/zfs_autobackup/releases
 

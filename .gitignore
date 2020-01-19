@@ -1,1 +1,6 @@
 .vscode/settings.json
+token
+dist/
+build/
+zfs_autobackup.egg-info
+.eggs/
