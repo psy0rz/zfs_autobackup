@@ -1301,7 +1301,7 @@ class ZfsAutobackup:
     def __init__(self):
 
         parser = argparse.ArgumentParser(
-            description='ZFS autobackup v3.0-beta4',
+            description='ZFS autobackup v3.0-beta5',
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
