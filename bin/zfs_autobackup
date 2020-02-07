@@ -791,7 +791,7 @@ class ZfsDataset():
         if not self.our_snapshots:
             return(True)
 
-        latest_snapshot=self.snapshots[-1]
+        latest_snapshot=self.our_snapshots[-1]
 
         cmd=[ "zfs", "get","-H" ,"-ovalue", "-p", "written@"+str(latest_snapshot), self.name ]
         output=self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
