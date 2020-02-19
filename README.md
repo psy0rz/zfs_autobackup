@@ -48,14 +48,19 @@ It has the following features:
 
 ## Installation
 
+Use pip or easy_install to install:
+
 ```console
-sadfas
+[root@server ~]# pip install zfs_autobackup
 
 ```
+
+Its also possible to just download zfs_autobackup and run it directly. 
 
 ## Usage
 
 ```console
+[root@server ~]# zfs_autobackup --help
 usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
                       [--no-snapshot] [--allow-empty] [--ignore-replicated]
@@ -236,7 +241,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
   ...
 ```
 
-Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target:
+#### Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target:
 
 ```console
 [root@pve ~]# zfs_autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume
