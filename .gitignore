@@ -1,0 +1,8 @@
+.vscode/settings.json
+token
+tokentest
+dist/
+build/
+zfs_autobackup.egg-info
+.eggs/
+__pycache__

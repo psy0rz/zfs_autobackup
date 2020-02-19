@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -e 
+
+
+rm -rf dist
+python3 setup.py sdist bdist_wheel
+# python2 setup.py sdist bdist_wheel
+
+
+gnome-keyring-daemon
+source tokentest
+
+
+python3 -m twine check dist/*
+python3 -m twine upload --repository-url https://test.pypi.org/legacy/ dist/* --verbose
+
