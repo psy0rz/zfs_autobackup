@@ -1,5 +1,8 @@
 import setuptools
 import bin.zfs_autobackup
+import os
+
+os.system("git tag -m'' -a v{}".format(bin.zfs_autobackup.VERSION))
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
