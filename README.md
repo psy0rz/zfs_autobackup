@@ -48,14 +48,14 @@ It has the following features:
 
 ## Installation
 
-```shell session
+```console
 sadfas
 
 ```
 
 ## Usage
 
-```shell session
+```console
 usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
                       [--no-snapshot] [--allow-empty] [--ignore-replicated]
@@ -156,7 +156,7 @@ Its important to choose a unique and consistent backup name. In this case we nam
 
 On the source zfs system set the ```autobackup:offsite``` zfs property to true:
 
-```shell session
+```console
 [root@pve ~]# zfs set autobackup:offsite1=true rpool
 [root@pve ~]# zfs get -t filesystem,volume autobackup:offsite1
 NAME                                    PROPERTY             VALUE                SOURCE
@@ -171,7 +171,7 @@ rpool/swap                              autobackup:offsite1  true               
 
 Because we dont want to backup everything, we can exclude certain filesystem by setting the property to false:
 
-```shell session
+```console
 [root@pve ~]# zfs set autobackup:offsite1=false rpool/swap
 [root@pve ~]# zfs get -t filesystem,volume autobackup:offsite1
 NAME                                    PROPERTY             VALUE                SOURCE
@@ -192,7 +192,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 #### Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data
 
-```shell session
+```console
 [root@backup ~]# zfs_autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose --resume
 
   #### Settings summary
@@ -238,7 +238,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target:
 
-```shell session
+```console
 [root@pve ~]# zfs_autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume
 
   #### Settings summary
@@ -272,7 +272,7 @@ Method 2: Run the script on the server and push the data to the backup server sp
 
 Add this to your ~/.ssh/config:
 
-```shell session
+```console
 Host *
     ControlPath ~/.ssh/control-master-%r@%h:%p
     ControlMaster auto
@@ -287,7 +287,7 @@ Thanks @mariusvw :)
 
 The correct way to do this is by creating ~/.ssh/config:
 
-```shell session
+```console
 Host smartos04
     Hostname 1.2.3.4
     Port 1234
@@ -320,7 +320,7 @@ Try using something like: --filter-properties xattr
 
 Restoring can be done with simple zfs commands. For example, use this to restore a specific SmartOS disk image to a temporary restore location:
 
-```shell session
+```console
 root@fs1:/home/psy#  zfs send fs1/zones/backup/zfsbackups/smartos01.server.com/zones/a3abd6c8-24c6-4125-9e35-192e2eca5908-disk0@smartos01_fs1-20160110000003 | ssh root@2.2.2.2 "zfs recv zones/restore"
 ```
 
@@ -332,7 +332,7 @@ You can monitor backups by using my zabbix-jobs script. (<https://github.com/psy
 
 Put this command directly after the zfs_backup command in your cronjob:
 
-```shell session
+```console
 zabbix-job-status backup_smartos01_fs1 daily $?
 ```
 
@@ -352,7 +352,7 @@ The backup will go to a machine named smartos03.
 
 On each node select the filesystems as following:
 
-```shell session
+```console
 root@h4:~# zfs set autobackup:h4_smartos03=true rpool
 root@h4:~# zfs set autobackup:h4_smartos03=false rpool/data
 root@h4:~# zfs set autobackup:data_smartos03=child rpool/data
@@ -371,7 +371,7 @@ Extra options needed for proxmox with HA:
 
 I use the following backup script on the backup server:
 
-```shell session
+```console
 for H in h4 h5 h6; do
   echo "################################### DATA $H"
   #backup data filesystems to a common place
