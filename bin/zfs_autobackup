@@ -6,6 +6,7 @@
 # Greetings from eth0 2019 :)
 
 from __future__ import print_function
+
 import os
 import sys
 import re
@@ -26,6 +27,7 @@ try:
 except ImportError:
     use_color=False
 
+VERSION="3.0-beta6"
 
 
 class Log:
@@ -1301,7 +1303,7 @@ class ZfsAutobackup:
     def __init__(self):
 
         parser = argparse.ArgumentParser(
-            description='ZFS autobackup v3.0-beta5',
+            description='ZFS autobackup '+VERSION,
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
@@ -1463,5 +1465,8 @@ class ZfsAutobackup:
 
         return(fail_count)
 
-zfs_autobackup=ZfsAutobackup()
-sys.exit(zfs_autobackup.run())
+if __name__ == "__main__":
+    zfs_autobackup=ZfsAutobackup()
+    sys.exit(zfs_autobackup.run())
+
+

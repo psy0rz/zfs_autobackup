@@ -1,8 +1,11 @@
 #!/bin/bash
 
+set -e 
+
+
 rm -rf dist
 python3 setup.py sdist bdist_wheel
-python2 setup.py sdist bdist_wheel
+# python2 setup.py sdist bdist_wheel
 
 
 gnome-keyring-daemon
