@@ -376,7 +376,7 @@ Extra options needed for proxmox with HA:
 
 I use the following backup script on the backup server:
 
-```console
+```shell
 for H in h4 h5 h6; do
   echo "################################### DATA $H"
   #backup data filesystems to a common place
