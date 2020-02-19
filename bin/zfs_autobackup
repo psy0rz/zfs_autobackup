@@ -27,7 +27,7 @@ try:
 except ImportError:
     use_color=False
 
-VERSION="3.0-rc1"
+VERSION="3.0-rc3"
 
 
 class Log:

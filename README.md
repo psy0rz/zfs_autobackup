@@ -43,17 +43,22 @@ It has the following features:
 * Keeps latest X snapshots remote and locally. (default 30, configurable)
 * Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
 * Easy installation:
-  * Just install zfs_autobackup via pip, or download it manually.
+  * Just install zfs-autobackup via pip, or download it manually.
   * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
-  * No separate config files or properties. Just one zfs_autobackup-command you can copy/paste in your backup script.
+  * No separate config files or properties. Just one zfs-autobackup command you can copy/paste in your backup script.
 
 ## Installation
 
-Use pip or easy_install to install:
+Use pip to install:
 
 ```console
-[root@server ~]# pip install zfs_autobackup
+[root@server ~]# pip install zfs-autobackup
+```
 
+On older servers you might have to use easy_install
+
+```console
+[root@server ~]# easy_install zfs-autobackup
 ```
 
 Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs_autobackup> and run it directly.
@@ -61,8 +66,8 @@ Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs
 ## Usage
 
 ```console
-[root@server ~]# zfs_autobackup --help
-usage: zfs_autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
+[root@server ~]# zfs-autobackup --help
+usage: zfs-autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
                       [--no-snapshot] [--allow-empty] [--ignore-replicated]
                       [--no-holds] [--resume] [--strip-path STRIP_PATH]
@@ -190,7 +195,7 @@ rpool/swap                              autobackup:offsite1  false              
 ...
 ```
 
-### Running zfs_autobackup
+### Running zfs-autobackup
 
 There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
 
@@ -199,7 +204,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 #### Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data
 
 ```console
-[root@backup ~]# zfs_autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose --resume
+[root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose --resume
 
   #### Settings summary
   [Source] Datasets on: pve.server.com
@@ -245,7 +250,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 #### Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target
 
 ```console
-[root@pve ~]# zfs_autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume
+[root@pve ~]# zfs-autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume
 
   #### Settings summary
   [Source] Datasets are local
@@ -267,7 +272,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 ## Tips
 
-* Use ```--verbose``` to see details, otherwise zfs_autobackup will be quiet and only show errors, like a nice unix command.
+* Use ```--verbose``` to see details, otherwise zfs-autobackup will be quiet and only show errors, like a nice unix command.
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.
 * Use ```--resume``` to be able to resume aborted backups. (not all zfs versions support this)
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
@@ -285,7 +290,7 @@ Host *
     ControlPersist 3600
 ```
 
-This will make all your ssh connections persistent and greatly speed up zfs_autobackup for jobs with short intervals.
+This will make all your ssh connections persistent and greatly speed up zfs-autobackup for jobs with short intervals.
 
 Thanks @mariusvw :)
 
@@ -313,8 +318,8 @@ Look in man ssh_config for many more options.
 
 This usually means you've created a new snapshot on the target side during a backup:
 
-* Solution 1: Restart zfs_autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
-* Solution 2: Destroy the newly created snapshot and restart zfs_autobackup.
+* Solution 1: Restart zfs-autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
+* Solution 2: Destroy the newly created snapshot and restart zfs-autobackup.
 
 > ### internal error: Invalid argument
 
@@ -346,9 +351,9 @@ This will update the zabbix server with the exitcode and will also alert you if 
 
 ## Backuping up a proxmox cluster with HA replication
 
-Due to the nature of proxmox we had to make a few enhancements to zfs_autobackup. This will probably also benefit other systems that use their own replication in combination with zfs_autobackup.
+Due to the nature of proxmox we had to make a few enhancements to zfs-autobackup. This will probably also benefit other systems that use their own replication in combination with zfs-autobackup.
 
-All data under rpool/data can be on multiple nodes of the cluster. The naming of those filesystem is unique over the whole cluster. Because of this we should backup rpool/data of all nodes to the same destination. This way we wont have duplicate backups of the filesystems that are replicated. Because of various options, you can even migrate hosts and zfs_autobackup will be fine. (and it will get the next backup from the new node automaticly)
+All data under rpool/data can be on multiple nodes of the cluster. The naming of those filesystem is unique over the whole cluster. Because of this we should backup rpool/data of all nodes to the same destination. This way we wont have duplicate backups of the filesystems that are replicated. Because of various options, you can even migrate hosts and zfs-autobackup will be fine. (and it will get the next backup from the new node automaticly)
 
 In the example below we have 3 nodes, named h4, h5 and h6.
 
@@ -381,12 +386,12 @@ I use the following backup script on the backup server:
 for H in h4 h5 h6; do
   echo "################################### DATA $H"
   #backup data filesystems to a common place
-  ./zfs_autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --no-holds $@
+  ./zfs-autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --no-holds $@
   zabbix-job-status backup_$H""_data_smartos03 daily $? >/dev/null 2>/dev/null
 
   echo "################################### RPOOL $H"
   #backup rpool to own place
-  ./zfs_autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint  --resume --ignore-transfer-errors $@
+  ./zfs-autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint  --resume --ignore-transfer-errors $@
   zabbix-job-status backup_$H""_smartos03 daily $? >/dev/null 2>/dev/null
 done
 ```
