@@ -4,20 +4,20 @@ ZFS autobackup v3 - TEST VERSION
 New in v3:
 ----------
 
- * Complete rewrite, cleaner object oriented code.
- * Python 3 and 2 support.
- * Backwards compatible with your current backups and parameters.
- * Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
- * Cleaner output, with optional color support (pip install colorama). 
- * Clear distinction between local and remote output.
- * Summary at the beginning, displaying what will happen and the current thinning-schedule.
- * More effient destroying/skipping snaphots on the fly. (no more space issues if your backup is way behind)
- * Progress indicator (--progress)
- * Better property management (--set-properties and --filter-properties)
- * Better resume handling, automaticly abort invalid resumes.
- * More robust error handling.
- * Prepared for future enhanchements.
- * Supports raw backups for encryption.
+* Complete rewrite, cleaner object oriented code.
+* Python 3 and 2 support.
+* Backwards compatible with your current backups and parameters.
+* Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
+* Cleaner output, with optional color support (pip install colorama). 
+* Clear distinction between local and remote output.
+* Summary at the beginning, displaying what will happen and the current thinning-schedule.
+* More effient destroying/skipping snaphots on the fly. (no more space issues if your backup is way behind)
+* Progress indicator (--progress)
+* Better property management (--set-properties and --filter-properties)
+* Better resume handling, automaticly abort invalid resumes.
+* More robust error handling.
+* Prepared for future enhanchements.
+* Supports raw backups for encryption.
 
 
 Introduction
@@ -31,9 +31,10 @@ It has the following features:
 * Automatically selects filesystems to backup by looking at a simple ZFS property. (recursive)
 * Creates consistent snapshots. (takes all snapshots at once, atomic.)
 * Multiple backups modes:
+  * Backup local data on the same server.
   * "push" local data to a backup-server via SSH.
   * "pull" remote data from a server via SSH and backup it locally.
-  * Backup local data on the same server.
+  * Or even pull data from a server while pushing the backup to another server. 
 * Can be scheduled via a simple cronjob or run directly from commandline.
 * Supports resuming of interrupted transfers. (via the zfs extensible_dataset feature)
 * Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
@@ -47,6 +48,13 @@ It has the following features:
   * Just install zfs_autobackup via pip, or download it manually.
   * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
   * No separate config files or properties. Just one zfs_autobackup-command you can copy/paste in your backup script.
+
+Installation
+============
+```
+(tbd)
+
+```
 
 Usage
 =====
@@ -188,7 +196,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data:
 ```
-[root@pve ~]# zfs_autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose --resume
+[root@backup ~]# zfs_autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose --resume
  
   #### Settings summary
   [Source] Datasets on: pve.server.com
@@ -233,9 +241,23 @@ Method 1: Run the script on the backup server and pull the data from the server 
 
 Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target:
 ```
-./zfs_autobackup --ssh-target root@2.2.2.2 smartos01_fs1 fs1/zones/backup/zfsbackups/smartos01.server.com --verbose  --compress
-...
-All done
+[root@pve ~]# zfs_autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume
+ 
+  #### Settings summary
+  [Source] Datasets are local
+  [Source] Keep the last 10 snapshots.
+  [Source] Keep oldest of 1 day, delete after 1 week.
+  [Source] Keep oldest of 1 week, delete after 1 month.
+  [Source] Keep oldest of 1 month, delete after 1 year.
+  [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
+  
+  [Target] Datasets on: backup.server.com
+  [Target] Keep the last 10 snapshots.
+  [Target] Keep oldest of 1 day, delete after 1 week.
+  [Target] Keep oldest of 1 week, delete after 1 month.
+  [Target] Keep oldest of 1 month, delete after 1 year.
+  [Target] Receive datasets under: backup/pve
+  ...
 
 ```
 
