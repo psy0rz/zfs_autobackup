@@ -1,9 +1,10 @@
-# ZFS autobackup v3 - TEST VERSION
+# ZFS autobackup
 
 ## New in v3
 
 * Complete rewrite, cleaner object oriented code.
 * Python 3 and 2 support.
+* Installable via pip.
 * Backwards compatible with your current backups and parameters.
 * Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
 * Cleaner output, with optional color support (pip install colorama).
@@ -55,7 +56,7 @@ Use pip or easy_install to install:
 
 ```
 
-Its also possible to just download zfs_autobackup and run it directly. 
+Its also possible to just download zfs_autobackup and run it directly.
 
 ## Usage
 
@@ -241,7 +242,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
   ...
 ```
 
-#### Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target:
+#### Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target
 
 ```console
 [root@pve ~]# zfs_autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume

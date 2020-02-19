@@ -27,7 +27,7 @@ try:
 except ImportError:
     use_color=False
 
-VERSION="3.0-beta6"
+VERSION="3.0-rc1"
 
 
 class Log:
@@ -912,7 +912,7 @@ class ZfsDataset():
         if self.zfs_node.readonly:
             self.force_exists=True
 
-        #check if transfer was really ok (exit codes have been wrong before and can be ignore by some parameters)
+        #check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and can be ignored by some parameters)
         if not self.exists:
             raise(Exception("Target doesnt exist after transfer, something went wrong."))
 
