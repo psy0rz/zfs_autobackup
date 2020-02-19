@@ -270,11 +270,14 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 ```
 
-### Making automatic backups
 
-Once you've got the command to work correctly in your situation either store it in a script or directly in a cronjob.
+### Automatic backups
 
-I usually set a nightly cronjob that executes the zfs-autobackup command.
+Now everytime you run the command, zfs-autobackup will create a new snapshot and replicate your data. 
+
+Older snapshots will evertually be deleted, depending on the --keep-source and --keep-target settings. (The defaults are shown above under the 'Settings summary')
+
+Once you've got the correct settings for your situation, you can just store the command in a cronjob. Or just create a script and run it manually when you need it.
 
 ## Tips
 
