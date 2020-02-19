@@ -270,6 +270,12 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 ```
 
+### Making automatic backups
+
+Once you've got the command to work correctly in your situation either store it in a script or directly in a cronjob.
+
+I usually set a nightly cronjob that executes the zfs-autobackup command.
+
 ## Tips
 
 * Use ```--verbose``` to see details, otherwise zfs-autobackup will be quiet and only show errors, like a nice unix command.
