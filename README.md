@@ -56,7 +56,7 @@ Use pip or easy_install to install:
 
 ```
 
-Its also possible to just download zfs_autobackup and run it directly.
+Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs_autobackup> and run it directly.
 
 ## Usage
 
