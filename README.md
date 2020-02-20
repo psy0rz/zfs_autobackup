@@ -264,9 +264,6 @@ optional arguments:
   --strip-path STRIP_PATH
                         number of directory to strip from path (use 1 when
                         cloning zones between 2 SmartOS machines)
-  --buffer BUFFER       Use mbuffer with specified size to speedup zfs
-                        transfer. (e.g. --buffer 1G) Will also show nice
-                        progress output.
   --clear-refreservation
                         Filter "refreservation" property. (recommended, safes
                         space. same as --filter-properties refreservation)
