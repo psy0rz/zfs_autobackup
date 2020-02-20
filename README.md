@@ -20,9 +20,21 @@
 
 ## Introduction
 
-ZFS autobackup is used to periodicly backup ZFS filesystems to other locations. This is done using the very effcient zfs send and receive commands.
+This is a tool I wrote to make replicating ZFS datasets easy and reliable. You can either use it as a backup tool or as a replication tool.
 
-It has the following features:
+You can select what to backup by setting a custom `ZFS property`. This allows you to set and forget: Configure it so it backups your entire pool, and you never have to worry about backupping again. Even new datasets you create later will be backupped.
+
+Other settings are just specified on the commandline. This also makes it easier to setup and test zfs-autobackup and helps you fix all the issues you might encounter. When you're done you can just copy/paste your command to a cron or script.
+
+Since its using ZFS commands, you can see what its actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (also something I missed in other tools)
+
+An imporant feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your zfs datasets.
+
+Another nice thing is progress reporting with `--progress`. Its very usefull with HUGE datasets, when you want to know how many hours/days it will take.
+
+zfs-autobackup tries to be the easiest to use backup tool for zfs.
+
+## Features
 
 * Works across operating systems: Tested with Linux, FreeBSD/FreeNAS and SmartOS.
 * Works in combination with existing replication systems. (Like Proxmox HA)
@@ -197,14 +209,14 @@ rpool/swap                              autobackup:offsite1  false              
 
 ### Running zfs-autobackup
 
-There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
+Before you start, make sure you can login to the server without password, by using `SSH keys`. Look at the troubleshooting section for more info.
 
-First install the ssh-key on the server that you specify with --ssh-source or --ssh-target.
+There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
 
 #### Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data
 
 ```console
-[root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose --resume
+[root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose
 
   #### Settings summary
   [Source] Datasets on: pve.server.com
@@ -236,7 +248,6 @@ First install the ssh-key on the server that you specify with --ssh-source or --
   [Source] Creating snapshot offsite1-20200218180123
   
   #### Transferring
-  [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175435: resuming
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175435: receiving full
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175547: receiving incremental
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175706: receiving incremental
@@ -250,7 +261,7 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 #### Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target
 
 ```console
-[root@pve ~]# zfs-autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose --resume
+[root@pve ~]# zfs-autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose
 
   #### Settings summary
   [Source] Datasets are local
@@ -270,10 +281,9 @@ First install the ssh-key on the server that you specify with --ssh-source or --
 
 ```
 
-
 ### Automatic backups
 
-Now everytime you run the command, zfs-autobackup will create a new snapshot and replicate your data. 
+Now everytime you run the command, zfs-autobackup will create a new snapshot and replicate your data.
 
 Older snapshots will evertually be deleted, depending on the --keep-source and --keep-target settings. (The defaults are shown above under the 'Settings summary')
 
@@ -322,6 +332,14 @@ Also uses compression on slow links.
 Look in man ssh_config for many more options.
 
 ## Troubleshooting
+
+### It keeps asking for my SSH password
+
+You forgot to setup automatic login via SSH keys:
+
+* Create a SSH key on the server that you want to run zfs-autobackup on. Use `ssh-keygen`.
+* Copy the public key to your clipboard. Get it with `cat /root/.ssh/id_rsa.pub`
+* Add the key to the server you specified with --ssh-source or --ssh-target. Create and add it to `/root/.ssh/authorized_keys`
 
 > ###  cannot receive incremental stream: invalid backup stream
 
