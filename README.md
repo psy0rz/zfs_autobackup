@@ -203,7 +203,7 @@ Or just create a script and run it manually when you need it.
 * Use ```--verbose``` to see details, otherwise zfs-autobackup will be quiet and only show errors, like a nice unix command.
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.
 * Use ```--resume``` to be able to resume aborted backups. (not all zfs versions support this)
-* Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
+* Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. (Normally, if there are changes the next backup will fail and will require a zfs rollback.) Note that readonly means you cant change the CONTENTS of the dataset directly. Its still possible to receive new datasets and manipulate properties etc.
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
 
