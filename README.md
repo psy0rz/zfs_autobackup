@@ -75,99 +75,6 @@ On older servers you might have to use easy_install
 
 Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs_autobackup> and run it directly.
 
-## Usage
-
-```console
-[root@server ~]# zfs-autobackup --help
-usage: zfs-autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
-                      [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
-                      [--no-snapshot] [--allow-empty] [--ignore-replicated]
-                      [--no-holds] [--resume] [--strip-path STRIP_PATH]
-                      [--buffer BUFFER] [--clear-refreservation]
-                      [--clear-mountpoint]
-                      [--filter-properties FILTER_PROPERTIES]
-                      [--set-properties SET_PROPERTIES] [--rollback]
-                      [--ignore-transfer-errors] [--raw] [--test] [--verbose]
-                      [--debug] [--debug-output] [--progress]
-                      backup_name target_path
-
-ZFS autobackup 3.0-beta6
-
-positional arguments:
-  backup_name           Name of the backup (you should set the zfs property
-                        "autobackup:backup-name" to true on filesystems you
-                        want to backup
-  target_path           Target ZFS filesystem
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --ssh-source SSH_SOURCE
-                        Source host to get backup from. (user@hostname)
-                        Default None.
-  --ssh-target SSH_TARGET
-                        Target host to push backup to. (user@hostname) Default
-                        None.
-  --keep-source KEEP_SOURCE
-                        Thinning schedule for old source snapshots. Default:
-                        10,1d1w,1w1m,1m1y
-  --keep-target KEEP_TARGET
-                        Thinning schedule for old target snapshots. Default:
-                        10,1d1w,1w1m,1m1y
-  --no-snapshot         dont create new snapshot (usefull for finishing
-                        uncompleted backups, or cleanups)
-  --allow-empty         if nothing has changed, still create empty snapshots.
-  --ignore-replicated   Ignore datasets that seem to be replicated some other
-                        way. (No changes since lastest snapshot. Usefull for
-                        proxmox HA replication)
-  --no-holds            Dont lock snapshots on the source. (Usefull to allow
-                        proxmox HA replication to switches nodes)
-  --resume              support resuming of interrupted transfers by using the
-                        zfs extensible_dataset feature (both zpools should
-                        have it enabled) Disadvantage is that you need to use
-                        zfs recv -A if another snapshot is created on the
-                        target during a receive. Otherwise it will keep
-                        failing.
-  --strip-path STRIP_PATH
-                        number of directory to strip from path (use 1 when
-                        cloning zones between 2 SmartOS machines)
-  --buffer BUFFER       Use mbuffer with specified size to speedup zfs
-                        transfer. (e.g. --buffer 1G) Will also show nice
-                        progress output.
-  --clear-refreservation
-                        Filter "refreservation" property. (recommended, safes
-                        space. same as --filter-properties refreservation)
-  --clear-mountpoint    Filter "canmount" property. You still have to set
-                        canmount=noauto on the backup server. (recommended,
-                        prevents mount conflicts. same as --filter-properties
-                        canmount)
-  --filter-properties FILTER_PROPERTIES
-                        List of propererties to "filter" when receiving
-                        filesystems. (you can still restore them with zfs
-                        inherit -S)
-  --set-properties SET_PROPERTIES
-                        List of propererties to override when receiving
-                        filesystems. (you can still restore them with zfs
-                        inherit -S)
-  --rollback            Rollback changes on the target before starting a
-                        backup. (normally you can prevent changes by setting
-                        the readonly property on the target_path to on)
-  --ignore-transfer-errors
-                        Ignore transfer errors (still checks if received
-                        filesystem exists. usefull for acltype errors)
-  --raw                 For encrypted datasets, send data exactly as it exists
-                        on disk.
-  --test                dont change anything, just show what would be done
-                        (still does all read-only operations)
-  --verbose             verbose output
-  --debug               Show zfs commands that are executed, stops after an
-                        exception.
-  --debug-output        Show zfs commands and their output/exit codes. (noisy)
-  --progress            show zfs progress output (to stderr)
-
-When a filesystem fails, zfs_backup will continue and report the number of
-failures at that end. Also the exit code will indicate the number of failures.
-
-```
 
 ## Backup example
 
@@ -285,9 +192,11 @@ There are 2 ways to run the backup, but the endresult is always the same. Its ju
 
 Now everytime you run the command, zfs-autobackup will create a new snapshot and replicate your data.
 
-Older snapshots will evertually be deleted, depending on the --keep-source and --keep-target settings. (The defaults are shown above under the 'Settings summary')
+Older snapshots will evertually be deleted, depending on the `--keep-source` and `--keep-target` settings. (The defaults are shown above under the 'Settings summary')
 
-Once you've got the correct settings for your situation, you can just store the command in a cronjob. Or just create a script and run it manually when you need it.
+Once you've got the correct settings for your situation, you can just store the command in a cronjob. 
+
+Or just create a script and run it manually when you need it.
 
 ## Tips
 
@@ -297,6 +206,103 @@ Once you've got the correct settings for your situation, you can just store the 
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. If there are changes the next backup will fail and will require a zfs rollback. (by using the --rollback option for example)
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
+
+## Usage
+
+Here you find all the options:
+
+```console
+[root@server ~]# zfs-autobackup --help
+usage: zfs-autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
+                      [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
+                      [--no-snapshot] [--allow-empty] [--ignore-replicated]
+                      [--no-holds] [--resume] [--strip-path STRIP_PATH]
+                      [--buffer BUFFER] [--clear-refreservation]
+                      [--clear-mountpoint]
+                      [--filter-properties FILTER_PROPERTIES]
+                      [--set-properties SET_PROPERTIES] [--rollback]
+                      [--ignore-transfer-errors] [--raw] [--test] [--verbose]
+                      [--debug] [--debug-output] [--progress]
+                      backup_name target_path
+
+ZFS autobackup 3.0-rc3
+
+positional arguments:
+  backup_name           Name of the backup (you should set the zfs property
+                        "autobackup:backup-name" to true on filesystems you
+                        want to backup
+  target_path           Target ZFS filesystem
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ssh-source SSH_SOURCE
+                        Source host to get backup from. (user@hostname)
+                        Default None.
+  --ssh-target SSH_TARGET
+                        Target host to push backup to. (user@hostname) Default
+                        None.
+  --keep-source KEEP_SOURCE
+                        Thinning schedule for old source snapshots. Default:
+                        10,1d1w,1w1m,1m1y
+  --keep-target KEEP_TARGET
+                        Thinning schedule for old target snapshots. Default:
+                        10,1d1w,1w1m,1m1y
+  --no-snapshot         dont create new snapshot (usefull for finishing
+                        uncompleted backups, or cleanups)
+  --allow-empty         if nothing has changed, still create empty snapshots.
+  --ignore-replicated   Ignore datasets that seem to be replicated some other
+                        way. (No changes since lastest snapshot. Usefull for
+                        proxmox HA replication)
+  --no-holds            Dont lock snapshots on the source. (Usefull to allow
+                        proxmox HA replication to switches nodes)
+  --resume              support resuming of interrupted transfers by using the
+                        zfs extensible_dataset feature (both zpools should
+                        have it enabled) Disadvantage is that you need to use
+                        zfs recv -A if another snapshot is created on the
+                        target during a receive. Otherwise it will keep
+                        failing.
+  --strip-path STRIP_PATH
+                        number of directory to strip from path (use 1 when
+                        cloning zones between 2 SmartOS machines)
+  --buffer BUFFER       Use mbuffer with specified size to speedup zfs
+                        transfer. (e.g. --buffer 1G) Will also show nice
+                        progress output.
+  --clear-refreservation
+                        Filter "refreservation" property. (recommended, safes
+                        space. same as --filter-properties refreservation)
+  --clear-mountpoint    Filter "canmount" property. You still have to set
+                        canmount=noauto on the backup server. (recommended,
+                        prevents mount conflicts. same as --filter-properties
+                        canmount)
+  --filter-properties FILTER_PROPERTIES
+                        List of propererties to "filter" when receiving
+                        filesystems. (you can still restore them with zfs
+                        inherit -S)
+  --set-properties SET_PROPERTIES
+                        List of propererties to override when receiving
+                        filesystems. (you can still restore them with zfs
+                        inherit -S)
+  --rollback            Rollback changes on the target before starting a
+                        backup. (normally you can prevent changes by setting
+                        the readonly property on the target_path to on)
+  --ignore-transfer-errors
+                        Ignore transfer errors (still checks if received
+                        filesystem exists. usefull for acltype errors)
+  --raw                 For encrypted datasets, send data exactly as it exists
+                        on disk.
+  --test                dont change anything, just show what would be done
+                        (still does all read-only operations)
+  --verbose             verbose output
+  --debug               Show zfs commands that are executed, stops after an
+                        exception.
+  --debug-output        Show zfs commands and their output/exit codes. (noisy)
+  --progress            show zfs progress output (to stderr)
+
+When a filesystem fails, zfs_backup will continue and report the number of
+failures at that end. Also the exit code will indicate the number of failures.
+
+```
+
 
 ### Speeding up SSH and prevent connection flooding
 
