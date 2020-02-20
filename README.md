@@ -76,7 +76,7 @@ On older servers you might have to use easy_install
 Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs_autobackup> and run it directly.
 
 
-## Backup example
+## Example
 
 In this example we're going to backup a machine called `pve` to our backupserver.
 
