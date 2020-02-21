@@ -1,1 +1,1 @@
-zfs_autobackup
+zfs-autobackup

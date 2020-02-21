@@ -17,7 +17,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     
     url="https://github.com/psy0rz/zfs_autobackup",
-    scripts=["bin/zfs_autobackup", "bin/zfs-autobackup"],
+    scripts=["bin/zfs-autobackup"],
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 2",
