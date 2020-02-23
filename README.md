@@ -61,11 +61,13 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
 ## Installation
 
-Use pip to install:
+### Using pip:
 
 ```console
 [root@server ~]# pip install zfs-autobackup
 ```
+
+### Using easy_install (on older installations)
 
 On older servers you might have to use easy_install
 
@@ -73,7 +75,11 @@ On older servers you might have to use easy_install
 [root@server ~]# easy_install zfs-autobackup
 ```
 
-Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs_autobackup> and run it directly.
+### Direct download
+
+Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs-autobackup> and run it directly.
+
+The only requirement that is sometimes missing is the `argparse` python module. Optionally you can install `colorma` for colors.
 
 
 ## Example
@@ -120,7 +126,9 @@ Before you start, make sure you can login to the server without password, by usi
 
 There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
 
-#### Method 1: Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data
+#### Method 1: Pull backup
+
+Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data.
 
 ```console
 [root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose
@@ -165,7 +173,9 @@ There are 2 ways to run the backup, but the endresult is always the same. Its ju
   ...
 ```
 
-#### Method 2: Run the script on the server and push the data to the backup server specified by --ssh-target
+#### Method 2: push backup
+
+Run the script on the server and push the data to the backup server specified by --ssh-target.
 
 ```console
 [root@pve ~]# zfs-autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose
