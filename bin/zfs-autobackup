@@ -27,7 +27,7 @@ try:
 except ImportError:
     use_color=False
 
-VERSION="3.0-rc3"
+VERSION="3.0-rc4"
 
 
 class Log:
@@ -528,14 +528,18 @@ class ZfsDataset():
         self.force_exists=None
 
 
+    def split_path(self):
+        """return the path elements as an array"""
+        return(self.name.split("/"))
+
     def lstrip_path(self,count):
         """return name with first count components stripped"""
-        return("/".join(self.name.split("/")[count:]))
+        return("/".join(self.split_path()[count:]))
 
 
     def rstrip_path(self,count):
         """return name with last count components stripped"""
-        return("/".join(self.name.split("/")[:-count]))
+        return("/".join(self.split_path()[:-count]))
 
 
     @property
@@ -1223,14 +1227,14 @@ class ZfsNode(ExecuteNode):
 
 
     def consistent_snapshot(self, datasets, snapshot_name, allow_empty=True):
-        """create a consistent (atomic) snapshot of specified datasets.
+        """create a consistent (atomic) snapshot of specified datasets, per pool.
 
         allow_empty: Allow empty snapshots. (compared to our latest snapshot)
         """
 
-        cmd=[ "zfs", "snapshot" ]
+        pools={}
 
-        noop=True
+        #collect snapshots that we want to make, per pool
         for dataset in datasets:
             if not allow_empty:
                 if not dataset.is_changed_ours:
@@ -1238,17 +1242,29 @@ class ZfsNode(ExecuteNode):
                     continue
 
             snapshot=ZfsDataset(dataset.zfs_node, dataset.name+"@"+snapshot_name)
-            cmd.append(str(snapshot))
+  
+            pool=dataset.split_path()[0]
+            if not pool in pools:
+                pools[pool]=[]
+
+            pools[pool].append(snapshot)
 
             #add snapshot to cache (also usefull in testmode)
             dataset.snapshots.append(snapshot)
 
-            noop=False
 
-        if noop:
-            self.verbose("No changes, not creating snapshot.")
-        else:
-            self.verbose("Creating snapshot {}".format(snapshot_name))
+        if not pools:
+            self.verbose("No changes anywhere: not creating snapshots.")
+            return
+
+        #create consitent snapshot per pool
+        for (pool_name, snapshots) in pools.items():
+            cmd=[ "zfs", "snapshot" ]
+
+
+            cmd.extend(map(lambda snapshot: str(snapshot), snapshots))
+
+            self.verbose("Creating snapshots {} in pool {}".format(snapshot_name, pool_name))
             self.run(cmd, readonly=False)
 
 
@@ -1391,7 +1407,7 @@ class ZfsAutobackup:
         self.set_title("Selecting")
         selected_source_datasets=source_node.selected_datasets
         if not selected_source_datasets:
-            self.error("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on {1}".format(self.args.backup_name, self.args.ssh_source))
+            self.error("No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets you want to backup.".format(self.args.backup_name))
             return(255)
 
         source_datasets=[]
