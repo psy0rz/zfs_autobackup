@@ -61,13 +61,15 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
 ## Installation
 
-### Using pip:
+### Using pip
+
+The recommended way on most servers is to use pip:
 
 ```console
 [root@server ~]# pip install zfs-autobackup
 ```
 
-### Using easy_install (on older installations)
+### Using easy_install
 
 On older servers you might have to use easy_install
 
@@ -77,10 +79,11 @@ On older servers you might have to use easy_install
 
 ### Direct download
 
-Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3/bin/zfs-autobackup> and run it directly.
+Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/master/bin/zfs-autobackup> and run it directly.
 
 The only requirement that is sometimes missing is the `argparse` python module. Optionally you can install `colorma` for colors.
 
+It should work with python 2.7 and higher.
 
 ## Example
 
