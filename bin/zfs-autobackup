@@ -1067,7 +1067,7 @@ class ZfsDataset():
             target_dataset.snapshots.append(virtual_snapshot)
             source_snapshot=self.find_our_next_snapshot(source_snapshot)
 
-        #now let thinner decide what we want on both sides
+        #now let thinner decide what we want on both sides as final state (after transfers are done)
         self.debug("Create thinning list")
         (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
         (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
@@ -1090,9 +1090,10 @@ class ZfsDataset():
 
         #now send/destroy the rest off the source
         prev_source_snapshot=common_snapshot
+        prev_target_snapshot=target_dataset.find_snapshot(common_snapshot) 
         source_snapshot=start_snapshot
         while source_snapshot:
-            target_snapshot=target_dataset.find_snapshot(source_snapshot) #"virtual"
+            target_snapshot=target_dataset.find_snapshot(source_snapshot) #virtual
 
             #does target actually want it?
             if target_snapshot in target_keeps:
@@ -1109,11 +1110,15 @@ class ZfsDataset():
                         prev_source_snapshot.release()
                     target_dataset.find_snapshot(prev_source_snapshot).release()
 
-                #we may destroy the previous snapshot now, if we dont want it anymore
+                #we may destroy the previous source snapshot now, if we dont want it anymore
                 if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
                     prev_source_snapshot.destroy()
 
+                if prev_target_snapshot and (prev_target_snapshot not in target_keeps):
+                    prev_target_snapshot.destroy()
+
                 prev_source_snapshot=source_snapshot
+                prev_target_snapshot=target_snapshot
             else:
                 source_snapshot.debug("skipped (target doesnt need it)")
                 #was it actually a resume?
