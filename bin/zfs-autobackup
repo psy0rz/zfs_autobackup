@@ -20,7 +20,6 @@ from pprint import pprint as p
 import select
 
 
-import imp
 try:
     import colorama
     use_color=True
