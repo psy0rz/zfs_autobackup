@@ -26,7 +26,7 @@ try:
 except ImportError:
     use_color=False
 
-VERSION="3.0-rc4"
+VERSION="3.0-rc4.1"
 
 
 class Log:
@@ -580,36 +580,35 @@ class ZfsDataset():
             return(ZfsDataset(self.zfs_node, self.rstrip_path(1)))
 
 
-    def find_our_prev_snapshot(self, snapshot):
-        """find our previous snapshot in this dataset. None if it doesnt exist"""
+    def find_prev_snapshot(self, snapshot, other_snapshots=False):
+        """find previous snapshot in this dataset. None if it doesnt exist.
+        
+        other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
+        """
 
         if self.is_snapshot:
             raise(Exception("Please call this on a dataset."))
 
-        try:
-            index=self.find_our_snapshot_index(snapshot)
-            if index!=None and index>0:
-                return(self.our_snapshots[index-1])
-            else:
-                return(None)
-        except:
-            return(None)
+        index=self.find_snapshot_index(snapshot)
+        while index:
+            index=index-1
+            if other_snapshots or self.snapshots[index].is_ours():
+                return(self.snapshots[index])
+        return(None)
 
 
-    def find_our_next_snapshot(self, snapshot):
-        """find our next snapshot in this dataset. None if it doesnt exist"""
+    def find_next_snapshot(self, snapshot, other_snapshots=False):
+        """find next snapshot in this dataset. None if it doesnt exist"""
 
         if self.is_snapshot:
             raise(Exception("Please call this on a dataset."))
 
-        try:
-            index=self.find_our_snapshot_index(snapshot)
-            if index!=None and index>=0 and index<len(self.our_snapshots)-1:
-                return(self.our_snapshots[index+1])
-            else:
-                return(None)
-        except:
-            return(None)
+        index=self.find_snapshot_index(snapshot)
+        while index!=None and index<len(self.snapshots)-1:
+            index=index+1
+            if other_snapshots or self.snapshots[index].is_ours():
+                return(self.snapshots[index])
+        return(None)
 
 
     @cached_property
@@ -763,15 +762,15 @@ class ZfsDataset():
         else:
             snapshot_name=snapshot.snapshot_name
 
-        for snapshot in self.our_snapshots:
+        for snapshot in self.snapshots:
             if snapshot.snapshot_name==snapshot_name:
                 return(snapshot)
 
         return(None)
 
 
-    def find_our_snapshot_index(self, snapshot):
-        """find our snapshot index by snapshot (can be a snapshot_name or ZfsDataset)"""
+    def find_snapshot_index(self, snapshot):
+        """find snapshot index by snapshot (can be a snapshot_name or ZfsDataset)"""
 
         if not isinstance(snapshot,ZfsDataset):
             snapshot_name=snapshot
@@ -779,7 +778,7 @@ class ZfsDataset():
             snapshot_name=snapshot.snapshot_name
 
         index=0
-        for snapshot in self.our_snapshots:
+        for snapshot in self.snapshots:
             if snapshot.snapshot_name==snapshot_name:
                 return(index)
             index=index+1
@@ -991,25 +990,24 @@ class ZfsDataset():
         """find latest coommon snapshot between us and target
         returns None if its an initial transfer
         """
-        if not target_dataset.our_snapshots:
+        if not target_dataset.snapshots:
             #target has nothing yet
             return(None)
         else:
-            snapshot=self.find_snapshot(target_dataset.our_snapshots[-1].snapshot_name)
+            # snapshot=self.find_snapshot(target_dataset.snapshots[-1].snapshot_name)
 
-            if not snapshot:
-                #try to find another common snapshot as rollback-suggestion for admin
-                for target_snapshot in reversed(target_dataset.our_snapshots):
-                    if self.find_snapshot(target_snapshot):
-                        target_snapshot.error("Latest common snapshot, roll back to this.")
-                        raise(Exception("Cant find latest target snapshot on source."))
-                target_dataset.error("Cant find common snapshot with target. ")
-                raise(Exception("You probablly need to delete the target dataset to fix this."))
+            # if not snapshot:
+            #try to common snapshot 
+            for target_snapshot in reversed(target_dataset.snapshots):
+                if self.find_snapshot(target_snapshot):
+                    target_snapshot.debug("common snapshot")
+                    return(target_snapshot)
+                    # target_snapshot.error("Latest common snapshot, roll back to this.")
+                    # raise(Exception("Cant find latest target snapshot on source."))
+            target_dataset.error("Cant find common snapshot with target. ")
+            raise(Exception("You probablly need to delete the target dataset to fix this."))
 
 
-            snapshot.debug("common snapshot")
-
-            return(snapshot)
 
     def get_allowed_properties(self, filter_properties, set_properties):
         """only returns lists of allowed properties for this dataset type"""
@@ -1029,21 +1027,20 @@ class ZfsDataset():
         return ( ( allowed_filter_properties, allowed_set_properties  )  )
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False):
         """sync this dataset's snapshots to target_dataset,"""
-
 
         #determine start snapshot (the first snapshot after the common snapshot)
         target_dataset.debug("Determining start snapshot")
         common_snapshot=self.find_common_snapshot(target_dataset)
         if not common_snapshot:
             #start from beginning
-            start_snapshot=self.our_snapshots[0]
+            start_snapshot=self.snapshots[0]
         else:
             #roll target back to common snapshot
             if rollback:
                 target_dataset.find_snapshot(common_snapshot).rollback()
-            start_snapshot=self.find_our_next_snapshot(common_snapshot)
+            start_snapshot=self.find_next_snapshot(common_snapshot, other_snapshots)
 
         #resume?
         resume_token=None
@@ -1061,26 +1058,27 @@ class ZfsDataset():
         target_dataset.debug("Creating virtual target snapshots")
         source_snapshot=start_snapshot
         while source_snapshot:
-            #create virtual target snapshot
+            #create virtual target snapshot     
             virtual_snapshot=ZfsDataset(target_dataset.zfs_node, target_dataset.filesystem_name+"@"+source_snapshot.snapshot_name,force_exists=False)
             target_dataset.snapshots.append(virtual_snapshot)
-            source_snapshot=self.find_our_next_snapshot(source_snapshot)
+            source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
 
         #now let thinner decide what we want on both sides as final state (after transfers are done)
+        #only thin our own snapshots. (for now)
         self.debug("Create thinning list")
         (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
         (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
 
         #stuff that is before common snapshot can be deleted rightaway
         if common_snapshot:
-            for source_snapshot in self.our_snapshots:
+            for source_snapshot in self.snapshots:
                 if source_snapshot.snapshot_name==common_snapshot.snapshot_name:
                     break
 
                 if source_snapshot in source_obsoletes:
                     source_snapshot.destroy()
 
-            for target_snapshot in target_dataset.our_snapshots:
+            for target_snapshot in target_dataset.snapshots:
                 if target_snapshot.snapshot_name==common_snapshot.snapshot_name:
                     break
 
@@ -1095,7 +1093,7 @@ class ZfsDataset():
             target_snapshot=target_dataset.find_snapshot(source_snapshot) #virtual
 
             #does target actually want it?
-            if target_snapshot in target_keeps:
+            if target_snapshot not in target_obsoletes:
                 ( allowed_filter_properties, allowed_set_properties ) = self.get_allowed_properties(filter_properties, set_properties)
                 source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=allowed_filter_properties, set_properties=allowed_set_properties, ignore_recv_exit_code=ignore_recv_exit_code, resume_token=resume_token, raw=raw)
                 resume_token=None
@@ -1110,10 +1108,10 @@ class ZfsDataset():
                     target_dataset.find_snapshot(prev_source_snapshot).release()
 
                 #we may destroy the previous source snapshot now, if we dont want it anymore
-                if prev_source_snapshot and (prev_source_snapshot not in source_keeps):
+                if prev_source_snapshot and (prev_source_snapshot in source_obsoletes):
                     prev_source_snapshot.destroy()
 
-                if prev_target_snapshot and (prev_target_snapshot not in target_keeps):
+                if prev_target_snapshot and (prev_target_snapshot in target_obsoletes):
                     prev_target_snapshot.destroy()
 
                 prev_source_snapshot=source_snapshot
@@ -1127,11 +1125,11 @@ class ZfsDataset():
                     resume_token=None   
 
                 #destroy it if we also dont want it anymore:
-                if source_snapshot not in source_keeps:
+                if source_snapshot in source_obsoletes:
                     source_snapshot.destroy()
 
 
-            source_snapshot=self.find_our_next_snapshot(source_snapshot)
+            source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
 
 
 
@@ -1333,17 +1331,18 @@ class ZfsAutobackup:
         parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
         parser.add_argument('target_path',    help='Target ZFS filesystem')
 
-        parser.add_argument('--no-snapshot', action='store_true', help='dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
+        parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
+        parser.add_argument('--no-snapshot', action='store_true', help='Dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
         #Not appliciable anymore, version 3 alreadhy does optimal cleaning
         # parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
-        parser.add_argument('--allow-empty', action='store_true', help='if nothing has changed, still create empty snapshots.')
+        parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots.')
         parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
         parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
         #not sure if this ever was usefull:
         # parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
 
-        parser.add_argument('--resume', action='store_true', help='support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
-        parser.add_argument('--strip-path', default=0, type=int, help='number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+        parser.add_argument('--resume', action='store_true', help='Support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
+        parser.add_argument('--strip-path', default=0, type=int, help='Number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
         # parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
 
 
@@ -1463,7 +1462,7 @@ class ZfsAutobackup:
                 if not target_dataset.parent.exists:
                     target_dataset.parent.create_filesystem(parents=True)
 
-                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw)
+                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots)
             except Exception as e:
                 fail_count=fail_count+1
                 source_dataset.error("DATASET FAILED: "+str(e))
