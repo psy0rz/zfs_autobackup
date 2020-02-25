@@ -26,7 +26,7 @@ except ImportError:
     use_color=False
 
 VERSION="3.0-rc5"
-
+HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
 
 class Log:
     def __init__(self, show_debug=False, show_verbose=False):
@@ -641,9 +641,13 @@ class ZfsDataset():
 
     def destroy(self, fail_exception=False):
         """destroy the dataset. by default failures are not an exception, so we can continue making backups"""
+
         self.verbose("Destroying")
+
+        self.release()
+
         try:
-            self.zfs_node.run(["zfs", "destroy", self.name])
+            self.zfs_node.run(["zfs", "destroy", "-d", self.name])
             self.invalidate()
             self.force_exists=False
             return(True)
@@ -695,16 +699,35 @@ class ZfsDataset():
             return(False)
 
 
+    @property
+    def _hold_name(self):
+        return("zfs_autobackup:"+self.zfs_node.backup_name)
+
+
+    @property
+    def holds(self):
+        """get list of holds for dataset"""
+
+        output=self.zfs_node.run([ "zfs" , "holds", "-H", self.name ], valid_exitcodes=[ 0 ], tab_split=True, readonly=True)
+        return(map(lambda fields: fields[1], output))
+
+
+    def is_hold(self):
+        """did we hold this snapshot?"""
+        return(self._hold_name in self.holds)
+
+
     def hold(self):
         """hold dataset"""
         self.debug("holding")
-        self.zfs_node.run([ "zfs" , "hold", "zfs_autobackup:"+self.zfs_node.backup_name, self.name ], valid_exitcodes=[ 0,1 ])
+        self.zfs_node.run([ "zfs" , "hold", self._hold_name, self.name ], valid_exitcodes=[ 0,1 ])
+
 
     def release(self):
         """release dataset"""
-        self.debug("releasing")
-        self.zfs_node.run([ "zfs" , "release", "zfs_autobackup:"+self.zfs_node.backup_name, self.name ], valid_exitcodes=[ 0,1 ])
-
+        if self.zfs_node.readonly or self.is_hold():
+            self.debug("releasing")
+            self.zfs_node.run([ "zfs" , "release", self._hold_name, self.name ], valid_exitcodes=[ 0,1 ])
 
 
     @property
@@ -1324,7 +1347,7 @@ class ZfsAutobackup:
     def __init__(self):
 
         parser = argparse.ArgumentParser(
-            description='ZFS autobackup '+VERSION,
+            description=HEADER,
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
@@ -1394,7 +1417,7 @@ class ZfsAutobackup:
 
     def run(self):
 
-        self.verbose ("zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION))
+        self.verbose (HEADER)
 
         if self.args.test:
             self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
