@@ -13,7 +13,6 @@ import re
 import traceback
 import subprocess
 import pprint
-# import cStringIO
 import time
 import argparse
 from pprint import pprint as p
@@ -26,7 +25,7 @@ try:
 except ImportError:
     use_color=False
 
-VERSION="3.0-rc4.1"
+VERSION="3.0-rc4.2"
 
 
 class Log:
@@ -1028,7 +1027,7 @@ class ZfsDataset():
 
 
     def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False):
-        """sync this dataset's snapshots to target_dataset,"""
+        """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
         #determine start snapshot (the first snapshot after the common snapshot)
         target_dataset.debug("Determining start snapshot")
@@ -1036,6 +1035,10 @@ class ZfsDataset():
         if not common_snapshot:
             #start from beginning
             start_snapshot=self.snapshots[0]
+
+            if not start_snapshot.is_ours() and not other_snapshots:
+                # try to start at a snapshot thats ours
+                start_snapshot=self.find_next_snapshot(start_snapshot, other_snapshots)
         else:
             #roll target back to common snapshot
             if rollback:
@@ -1390,6 +1393,9 @@ class ZfsAutobackup:
         self.log.verbose("#### "+title)
 
     def run(self):
+
+        self.verbose ("zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION))
+
         if self.args.test:
             self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
