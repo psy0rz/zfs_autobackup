@@ -17,6 +17,7 @@
 * More robust error handling.
 * Prepared for future enhanchements.
 * Supports raw backups for encryption.
+* Custom SSH client config.
 
 ## Introduction
 
@@ -226,7 +227,8 @@ Here you find all the options:
 
 ```console
 [root@server ~]# zfs-autobackup --help
-usage: zfs-autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
+usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG]
+                      [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
                       [--no-snapshot] [--allow-empty] [--ignore-replicated]
                       [--no-holds] [--resume] [--strip-path STRIP_PATH]
@@ -248,6 +250,8 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --ssh-config SSH_COFNIG
+                        Custom SSH client config
   --ssh-source SSH_SOURCE
                         Source host to get backup from. (user@hostname)
                         Default None.
@@ -323,6 +327,32 @@ Host *
     ControlPath ~/.ssh/control-master-%r@%h:%p
     ControlMaster auto
     ControlPersist 3600
+```
+
+Or more advanced
+```console
+Host *
+    StrictHostKeyChecking yes
+    UpdateHostKeys ask
+    GSSAPIAuthentication no
+    ForwardAgent no
+    HashKnownHosts no
+    CheckHostIP yes
+    ConnectionAttempts 3
+    ExitOnForwardFailure yes
+    Compression yes
+    ServerAliveCountMax 4
+    ServerAliveInterval 5
+    TCPKeepAlive yes
+    ControlMaster auto
+    ControlPath ~/.ssh/control-master-%r@%h:%p
+    ControlPersist 3600
+    AddKeysToAgent no
+    IdentityFile ~/.ssh/id_ed25519-backup
+    IdentityFile ~/.ssh/id_rsa-backup
+    User root
+    SendEnv LANG LC_*
+    LogLevel INFO
 ```
 
 This will make all your ssh connections persistent and greatly speed up zfs-autobackup for jobs with short intervals.
