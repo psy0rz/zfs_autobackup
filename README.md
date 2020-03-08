@@ -143,14 +143,14 @@ Run the script on the backup server and pull the data from the server specfied b
   [Source] Keep oldest of 1 week, delete after 1 month.
   [Source] Keep oldest of 1 month, delete after 1 year.
   [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
-  
+
   [Target] Datasets are local
   [Target] Keep the last 10 snapshots.
   [Target] Keep oldest of 1 day, delete after 1 week.
   [Target] Keep oldest of 1 week, delete after 1 month.
   [Target] Keep oldest of 1 month, delete after 1 year.
   [Target] Receive datasets under: backup/pve
-  
+
   #### Selecting
   [Source] rpool: Selected (direct selection)
   [Source] rpool/ROOT: Selected (inherited selection)
@@ -158,13 +158,13 @@ Run the script on the backup server and pull the data from the server specfied b
   [Source] rpool/data: Selected (inherited selection)
   [Source] rpool/data/vm-100-disk-0: Selected (inherited selection)
   [Source] rpool/swap: Ignored (disabled)
-  
+
   #### Snapshotting
   [Source] rpool: No changes since offsite1-20200218175435
   [Source] rpool/ROOT: No changes since offsite1-20200218175435
   [Source] rpool/data: No changes since offsite1-20200218175435
   [Source] Creating snapshot offsite1-20200218180123
-  
+
   #### Transferring
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175435: receiving full
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175547: receiving incremental
@@ -190,7 +190,7 @@ Run the script on the server and push the data to the backup server specified by
   [Source] Keep oldest of 1 week, delete after 1 month.
   [Source] Keep oldest of 1 month, delete after 1 year.
   [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
-  
+
   [Target] Datasets on: backup.server.com
   [Target] Keep the last 10 snapshots.
   [Target] Keep oldest of 1 day, delete after 1 week.
@@ -207,7 +207,7 @@ Now everytime you run the command, zfs-autobackup will create a new snapshot and
 
 Older snapshots will evertually be deleted, depending on the `--keep-source` and `--keep-target` settings. (The defaults are shown above under the 'Settings summary')
 
-Once you've got the correct settings for your situation, you can just store the command in a cronjob. 
+Once you've got the correct settings for your situation, you can just store the command in a cronjob.
 
 Or just create a script and run it manually when you need it.
 
