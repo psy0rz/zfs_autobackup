@@ -581,7 +581,7 @@ class ZfsDataset():
 
     def find_prev_snapshot(self, snapshot, other_snapshots=False):
         """find previous snapshot in this dataset. None if it doesnt exist.
-        
+
         other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
         """
 
@@ -1019,7 +1019,7 @@ class ZfsDataset():
             # snapshot=self.find_snapshot(target_dataset.snapshots[-1].snapshot_name)
 
             # if not snapshot:
-            #try to common snapshot 
+            #try to common snapshot
             for target_snapshot in reversed(target_dataset.snapshots):
                 if self.find_snapshot(target_snapshot):
                     target_snapshot.debug("common snapshot")
@@ -1084,7 +1084,7 @@ class ZfsDataset():
         target_dataset.debug("Creating virtual target snapshots")
         source_snapshot=start_snapshot
         while source_snapshot:
-            #create virtual target snapshot     
+            #create virtual target snapshot
             virtual_snapshot=ZfsDataset(target_dataset.zfs_node, target_dataset.filesystem_name+"@"+source_snapshot.snapshot_name,force_exists=False)
             target_dataset.snapshots.append(virtual_snapshot)
             source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
@@ -1113,7 +1113,7 @@ class ZfsDataset():
 
         #now send/destroy the rest off the source
         prev_source_snapshot=common_snapshot
-        prev_target_snapshot=target_dataset.find_snapshot(common_snapshot) 
+        prev_target_snapshot=target_dataset.find_snapshot(common_snapshot)
         source_snapshot=start_snapshot
         while source_snapshot:
             target_snapshot=target_dataset.find_snapshot(source_snapshot) #virtual
@@ -1148,7 +1148,7 @@ class ZfsDataset():
                 if resume_token:
                     target_dataset.debug("aborting resume, since we dont want that snapshot anymore")
                     target_dataset.abort_resume()
-                    resume_token=None   
+                    resume_token=None
 
                 #destroy it if we also dont want it anymore:
                 if source_snapshot in source_obsoletes:
@@ -1206,7 +1206,7 @@ class ZfsNode(ExecuteNode):
             line.find("resume token contents")==0 or
             len(progress_fields)!=1 or
             line.find("skipping ")==0):
- 
+
                 #always output for debugging offcourse
                 self.debug("STDERR|> "+line.rstrip())
 
@@ -1270,7 +1270,7 @@ class ZfsNode(ExecuteNode):
                     continue
 
             snapshot=ZfsDataset(dataset.zfs_node, dataset.name+"@"+snapshot_name)
-  
+
             pool=dataset.split_path()[0]
             if not pool in pools:
                 pools[pool]=[]
@@ -1516,5 +1516,3 @@ class ZfsAutobackup:
 if __name__ == "__main__":
     zfs_autobackup=ZfsAutobackup()
     sys.exit(zfs_autobackup.run())
-
-
