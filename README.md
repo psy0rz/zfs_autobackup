@@ -313,6 +313,11 @@ failures at that end. Also the exit code will indicate the number of failures.
 
 ```
 
+### Generate SSH key
+```
+ssh-keygen -o -a 256 -t ed25519 -f ~/.ssh/id_ed25519-backup -C "Backups <backup@domain.example>"
+ssh-keygen -o -a 256 -b 16384 -t rsa -f ~/.ssh/id_rsa-backup -C "Backups <backup@domain.example>"
+```
 
 ### Speeding up SSH and prevent connection flooding
 
