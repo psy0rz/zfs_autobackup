@@ -17,6 +17,7 @@
 * More robust error handling.
 * Prepared for future enhanchements.
 * Supports raw backups for encryption.
+* Custom SSH client config.
 
 ## Introduction
 
@@ -143,14 +144,14 @@ Run the script on the backup server and pull the data from the server specfied b
   [Source] Keep oldest of 1 week, delete after 1 month.
   [Source] Keep oldest of 1 month, delete after 1 year.
   [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
-  
+
   [Target] Datasets are local
   [Target] Keep the last 10 snapshots.
   [Target] Keep oldest of 1 day, delete after 1 week.
   [Target] Keep oldest of 1 week, delete after 1 month.
   [Target] Keep oldest of 1 month, delete after 1 year.
   [Target] Receive datasets under: backup/pve
-  
+
   #### Selecting
   [Source] rpool: Selected (direct selection)
   [Source] rpool/ROOT: Selected (inherited selection)
@@ -158,13 +159,13 @@ Run the script on the backup server and pull the data from the server specfied b
   [Source] rpool/data: Selected (inherited selection)
   [Source] rpool/data/vm-100-disk-0: Selected (inherited selection)
   [Source] rpool/swap: Ignored (disabled)
-  
+
   #### Snapshotting
   [Source] rpool: No changes since offsite1-20200218175435
   [Source] rpool/ROOT: No changes since offsite1-20200218175435
   [Source] rpool/data: No changes since offsite1-20200218175435
   [Source] Creating snapshot offsite1-20200218180123
-  
+
   #### Transferring
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175435: receiving full
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175547: receiving incremental
@@ -190,7 +191,7 @@ Run the script on the server and push the data to the backup server specified by
   [Source] Keep oldest of 1 week, delete after 1 month.
   [Source] Keep oldest of 1 month, delete after 1 year.
   [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
-  
+
   [Target] Datasets on: backup.server.com
   [Target] Keep the last 10 snapshots.
   [Target] Keep oldest of 1 day, delete after 1 week.
@@ -207,7 +208,7 @@ Now everytime you run the command, zfs-autobackup will create a new snapshot and
 
 Older snapshots will evertually be deleted, depending on the `--keep-source` and `--keep-target` settings. (The defaults are shown above under the 'Settings summary')
 
-Once you've got the correct settings for your situation, you can just store the command in a cronjob. 
+Once you've got the correct settings for your situation, you can just store the command in a cronjob.
 
 Or just create a script and run it manually when you need it.
 
@@ -228,7 +229,8 @@ Here you find all the options:
 
 ```console
 [root@server ~]# zfs-autobackup --help
-usage: zfs-autobackup [-h] [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
+usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG]
+                      [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
                       [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
                       [--no-snapshot] [--allow-empty] [--ignore-replicated]
                       [--no-holds] [--resume] [--strip-path STRIP_PATH]
@@ -250,6 +252,8 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --ssh-config SSH_COFNIG
+                        Custom SSH client config
   --ssh-source SSH_SOURCE
                         Source host to get backup from. (user@hostname)
                         Default None.
@@ -325,6 +329,32 @@ Host *
     ControlPath ~/.ssh/control-master-%r@%h:%p
     ControlMaster auto
     ControlPersist 3600
+```
+
+Or more advanced
+```console
+Host *
+    StrictHostKeyChecking yes
+    UpdateHostKeys ask
+    GSSAPIAuthentication no
+    ForwardAgent no
+    HashKnownHosts no
+    CheckHostIP yes
+    ConnectionAttempts 3
+    ExitOnForwardFailure yes
+    Compression yes
+    ServerAliveCountMax 4
+    ServerAliveInterval 5
+    TCPKeepAlive yes
+    ControlMaster auto
+    ControlPath ~/.ssh/control-master-%r@%h:%p
+    ControlPersist 3600
+    AddKeysToAgent no
+    IdentityFile ~/.ssh/id_ed25519-backup
+    IdentityFile ~/.ssh/id_rsa-backup
+    User root
+    SendEnv LANG LC_*
+    LogLevel INFO
 ```
 
 This will make all your ssh connections persistent and greatly speed up zfs-autobackup for jobs with short intervals.

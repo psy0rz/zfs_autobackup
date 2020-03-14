@@ -306,12 +306,14 @@ class ExecuteNode:
     """an endpoint to execute local or remote commands via ssh"""
 
 
-    def __init__(self, ssh_to=None, readonly=False, debug_output=False):
-        """ssh_to: server you want to ssh to. none means local
+    def __init__(self, ssh_config=None, ssh_to=None, readonly=False, debug_output=False):
+        """ssh_config: custom ssh config
+           ssh_to: server you want to ssh to. none means local
            readonly: only execute commands that dont make any changes (usefull for testing-runs)
            debug_output: show output and exit codes of commands in debugging output.
         """
 
+        self.ssh_config=ssh_config
         self.ssh_to=ssh_to
         self.readonly=readonly
         self.debug_output=debug_output
@@ -356,7 +358,12 @@ class ExecuteNode:
 
         #use ssh?
         if self.ssh_to != None:
-            encoded_cmd.extend(["ssh".encode('utf-8'), self.ssh_to.encode('utf-8')])
+            encoded_cmd.append("ssh".encode('utf-8'))
+
+            if self.ssh_config != None:
+                encoded_cmd.extend(["-F".encode('utf-8'), self.ssh_config.encode('utf-8')])
+
+            encoded_cmd.append(self.ssh_to.encode('utf-8'))
 
             #make sure the command gets all the data in utf8 format:
             #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
@@ -585,7 +592,7 @@ class ZfsDataset():
 
     def find_prev_snapshot(self, snapshot, other_snapshots=False):
         """find previous snapshot in this dataset. None if it doesnt exist.
-        
+
         other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
         """
 
@@ -1023,7 +1030,7 @@ class ZfsDataset():
             # snapshot=self.find_snapshot(target_dataset.snapshots[-1].snapshot_name)
 
             # if not snapshot:
-            #try to common snapshot 
+            #try to common snapshot
             for target_snapshot in reversed(target_dataset.snapshots):
                 if self.find_snapshot(target_snapshot):
                     target_snapshot.debug("common snapshot")
@@ -1078,7 +1085,7 @@ class ZfsDataset():
         target_dataset.debug("Creating virtual target snapshots")
         source_snapshot=start_snapshot
         while source_snapshot:
-            #create virtual target snapshot     
+            #create virtual target snapshot
             virtual_snapshot=ZfsDataset(target_dataset.zfs_node, target_dataset.filesystem_name+"@"+source_snapshot.snapshot_name,force_exists=False)
             target_dataset.snapshots.append(virtual_snapshot)
             source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
@@ -1177,7 +1184,7 @@ class ZfsDataset():
                 if resume_token:
                     target_dataset.debug("aborting resume, since we dont want that snapshot anymore")
                     target_dataset.abort_resume()
-                    resume_token=None   
+                    resume_token=None
 
 
             source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
@@ -1188,7 +1195,7 @@ class ZfsDataset():
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, backup_name, zfs_autobackup, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
+    def __init__(self, backup_name, zfs_autobackup, ssh_config=None, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
         self.backup_name=backup_name
         if not description:
             self.description=ssh_to
@@ -1196,6 +1203,9 @@ class ZfsNode(ExecuteNode):
             self.description=description
 
         self.zfs_autobackup=zfs_autobackup #for logging
+
+        if ssh_config:
+            self.verbose("Using custom SSH config: {}".format(ssh_config))
 
         if ssh_to:
             self.verbose("Datasets on: {}".format(ssh_to))
@@ -1212,7 +1222,7 @@ class ZfsNode(ExecuteNode):
         self.thinner=thinner
 
 
-        ExecuteNode.__init__(self, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
+        ExecuteNode.__init__(self, ssh_config=ssh_config, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
 
     def reset_progress(self):
@@ -1232,7 +1242,7 @@ class ZfsNode(ExecuteNode):
             len(progress_fields)!=1 or
             line.find("skipping ")==0 or
             re.match("send from .*estimated size is ", line)):
- 
+
                 #always output for debugging offcourse
                 self.debug(prefix+line.rstrip())
 
@@ -1299,7 +1309,7 @@ class ZfsNode(ExecuteNode):
                     continue
 
             snapshot=ZfsDataset(dataset.zfs_node, dataset.name+"@"+snapshot_name)
-  
+
             pool=dataset.split_path()[0]
             if not pool in pools:
                 pools[pool]=[]
@@ -1377,6 +1387,7 @@ class ZfsAutobackup:
         parser = argparse.ArgumentParser(
             description=HEADER,
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. Also the exit code will indicate the number of failures.')
+        parser.add_argument('--ssh-config', default=None, help='Custom ssh client config')
         parser.add_argument('--ssh-source', default=None, help='Source host to get backup from. (user@hostname) Default %(default)s.')
         parser.add_argument('--ssh-target', default=None, help='Target host to push backup to. (user@hostname) Default  %(default)s.')
         parser.add_argument('--keep-source', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old source snapshots. Default: %(default)s')
@@ -1453,14 +1464,14 @@ class ZfsAutobackup:
 
         description="[Source]"
         source_thinner=Thinner(self.args.keep_source)
-        source_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=source_thinner)
+        source_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=source_thinner)
         source_node.verbose("Send all datasets that have 'autobackup:{}=true' or 'autobackup:{}=child'".format(self.args.backup_name, self.args.backup_name))
 
         self.verbose("")
 
         description="[Target]"
         target_thinner=Thinner(self.args.keep_target)
-        target_node=ZfsNode(self.args.backup_name, self, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
+        target_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
         target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
         self.set_title("Selecting")
@@ -1547,5 +1558,3 @@ class ZfsAutobackup:
 if __name__ == "__main__":
     zfs_autobackup=ZfsAutobackup()
     sys.exit(zfs_autobackup.run())
-
-
