@@ -18,12 +18,13 @@ import argparse
 from pprint import pprint as p
 import select
 
-
-try:
-    import colorama
-    use_color=True
-except ImportError:
-    use_color=False
+use_color=False
+if sys.stdout.isatty():
+    try:
+        import colorama
+        use_color=True
+    except ImportError:
+        pass
 
 VERSION="3.0-rc6"
 HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
