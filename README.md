@@ -219,6 +219,8 @@ Or just create a script and run it manually when you need it.
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. (Normally, if there are changes the next backup will fail and will require a zfs rollback.) Note that readonly means you cant change the CONTENTS of the dataset directly. Its still possible to receive new datasets and manipulate properties etc.
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
+* You can split up the snapshotting and sending tasks by creating two cronjobs. Use ```--no-send``` for the snapshotter-cronjob and use ```--no-snapshot``` for the send-cronjob. This is usefull if you only want to send at night or if your send take too long.
+
 
 ## Usage
 
