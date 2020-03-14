@@ -25,7 +25,7 @@ try:
 except ImportError:
     use_color=False
 
-VERSION="3.0-rc5"
+VERSION="3.0-rc6"
 HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
 
 class Log:
@@ -507,6 +507,9 @@ class ZfsDataset():
         return(self.name)
 
     def __eq__(self, obj):
+        if not isinstance(obj, ZfsDataset):
+            return(False)
+
         return(self.name == obj.name)
 
     def verbose(self,txt):
@@ -777,7 +780,7 @@ class ZfsDataset():
 
 
     def find_snapshot(self, snapshot):
-        """find snapshot by snapshot (can be a snapshot_name or ZfsDataset)"""
+        """find snapshot by snapshot (can be a snapshot_name or a different ZfsDataset )"""
 
         if not isinstance(snapshot,ZfsDataset):
             snapshot_name=snapshot
@@ -1049,24 +1052,75 @@ class ZfsDataset():
         return ( ( allowed_filter_properties, allowed_set_properties  )  )
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False):
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False, no_send=False):
         """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
         #determine start snapshot (the first snapshot after the common snapshot)
         target_dataset.debug("Determining start snapshot")
         common_snapshot=self.find_common_snapshot(target_dataset)
-        if not common_snapshot:
-            #start from beginning
-            start_snapshot=self.snapshots[0]
 
-            if not start_snapshot.is_ours() and not other_snapshots:
-                # try to start at a snapshot thats ours
-                start_snapshot=self.find_next_snapshot(start_snapshot, other_snapshots)
+        if not common_snapshot:
+            if not self.snapshots:
+                start_snapshot=None
+            else:
+                #start from beginning
+                start_snapshot=self.snapshots[0]
+
+                if not start_snapshot.is_ours() and not other_snapshots:
+                    # try to start at a snapshot thats ours
+                    start_snapshot=self.find_next_snapshot(start_snapshot, other_snapshots)
         else:
-            #roll target back to common snapshot
-            if rollback:
-                target_dataset.find_snapshot(common_snapshot).rollback()
             start_snapshot=self.find_next_snapshot(common_snapshot, other_snapshots)
+
+
+        #make target snapshot list the same as source, by adding virtual non-existing ones to the list.
+        target_dataset.debug("Creating virtual target snapshots")
+        source_snapshot=start_snapshot
+        while source_snapshot:
+            #create virtual target snapshot     
+            virtual_snapshot=ZfsDataset(target_dataset.zfs_node, target_dataset.filesystem_name+"@"+source_snapshot.snapshot_name,force_exists=False)
+            target_dataset.snapshots.append(virtual_snapshot)
+            source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
+
+
+        #now let thinner decide what we want on both sides as final state (after all transfers are done)
+        self.debug("Create thinning list")
+        if self.our_snapshots:
+            (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
+        else:
+            source_keeps=[]
+            source_obsoletes=[]
+
+        if target_dataset.our_snapshots:
+            (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
+        else:
+            target_keeps=[]
+            target_obsoletes=[]
+
+
+        #on source: destroy all obsoletes before common. but after common only delete snapshots that are obsolete on both sides.
+        before_common=True
+        for source_snapshot in self.snapshots:
+            if not common_snapshot or source_snapshot.snapshot_name==common_snapshot.snapshot_name:
+                before_common=False
+                #never destroy common snapshot
+            else:
+                target_snapshot=target_dataset.find_snapshot(source_snapshot)
+                if (source_snapshot in source_obsoletes) and (before_common or (target_snapshot in target_obsoletes)):
+                    source_snapshot.destroy()
+
+
+        #on target: destroy everything thats obsolete, except common_snapshot
+        for target_snapshot in target_dataset.snapshots:
+            if (not common_snapshot or target_snapshot.snapshot_name!=common_snapshot.snapshot_name) and (target_snapshot in target_obsoletes):
+                if target_snapshot.exists:
+                    target_snapshot.destroy()
+
+
+        #now actually transfer the snapshots, if we want
+        if no_send:
+            return
+
 
         #resume?
         resume_token=None
@@ -1080,47 +1134,20 @@ class ZfsDataset():
                 resume_token=None
 
 
-        #create virtual target snapshots
-        target_dataset.debug("Creating virtual target snapshots")
-        source_snapshot=start_snapshot
-        while source_snapshot:
-            #create virtual target snapshot     
-            virtual_snapshot=ZfsDataset(target_dataset.zfs_node, target_dataset.filesystem_name+"@"+source_snapshot.snapshot_name,force_exists=False)
-            target_dataset.snapshots.append(virtual_snapshot)
-            source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
+        #roll target back to common snapshot on target?
+        if common_snapshot and rollback:
+            target_dataset.find_snapshot(common_snapshot).rollback()
 
-        #now let thinner decide what we want on both sides as final state (after transfers are done)
-        #only thin our own snapshots. (for now)
-        self.debug("Create thinning list")
-        (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
-        (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
 
-        #stuff that is before common snapshot can be deleted rightaway
-        if common_snapshot:
-            for source_snapshot in self.snapshots:
-                if source_snapshot.snapshot_name==common_snapshot.snapshot_name:
-                    break
-
-                if source_snapshot in source_obsoletes:
-                    source_snapshot.destroy()
-
-            for target_snapshot in target_dataset.snapshots:
-                if target_snapshot.snapshot_name==common_snapshot.snapshot_name:
-                    break
-
-                if target_snapshot in target_obsoletes:
-                    target_snapshot.destroy()
-
-        #now send/destroy the rest off the source
+        #now actually the snapshots
         prev_source_snapshot=common_snapshot
-        prev_target_snapshot=target_dataset.find_snapshot(common_snapshot) 
         source_snapshot=start_snapshot
         while source_snapshot:
-            target_snapshot=target_dataset.find_snapshot(source_snapshot) #virtual
+            target_snapshot=target_dataset.find_snapshot(source_snapshot) #still virtual
 
             #does target actually want it?
             if target_snapshot not in target_obsoletes:
-                ( allowed_filter_properties, allowed_set_properties ) = self.get_allowed_properties(filter_properties, set_properties)
+                ( allowed_filter_properties, allowed_set_properties ) = self.get_allowed_properties(filter_properties, set_properties) #NOTE: should we let transfer_snapshot handle this?
                 source_snapshot.transfer_snapshot(target_snapshot, prev_snapshot=prev_source_snapshot, show_progress=show_progress, resume=resume,  filter_properties=allowed_filter_properties, set_properties=allowed_set_properties, ignore_recv_exit_code=ignore_recv_exit_code, resume_token=resume_token, raw=raw)
                 resume_token=None
 
@@ -1133,15 +1160,16 @@ class ZfsDataset():
                         prev_source_snapshot.release()
                     target_dataset.find_snapshot(prev_source_snapshot).release()
 
-                #we may destroy the previous source snapshot now, if we dont want it anymore
-                if prev_source_snapshot and (prev_source_snapshot in source_obsoletes):
+                # we may now destroy the previous source snapshot if its obsolete
+                if prev_source_snapshot in source_obsoletes:
                     prev_source_snapshot.destroy()
 
-                if prev_target_snapshot and (prev_target_snapshot in target_obsoletes):
+                # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot, the rest was already destroyed or will not be send)
+                prev_target_snapshot=target_dataset.find_snapshot(common_snapshot)
+                if prev_target_snapshot in target_obsoletes:
                     prev_target_snapshot.destroy()
 
                 prev_source_snapshot=source_snapshot
-                prev_target_snapshot=target_snapshot
             else:
                 source_snapshot.debug("skipped (target doesnt need it)")
                 #was it actually a resume?
@@ -1149,10 +1177,6 @@ class ZfsDataset():
                     target_dataset.debug("aborting resume, since we dont want that snapshot anymore")
                     target_dataset.abort_resume()
                     resume_token=None   
-
-                #destroy it if we also dont want it anymore:
-                if source_snapshot in source_obsoletes:
-                    source_snapshot.destroy()
 
 
             source_snapshot=self.find_next_snapshot(source_snapshot, other_snapshots)
@@ -1195,9 +1219,9 @@ class ZfsNode(ExecuteNode):
         self._progress_total_bytes=0
         self._progress_start_time=time.time()
 
-    def _parse_stderr_pipe(self, line, hide_errors):
-        """try to parse progress output of a piped zfs recv -Pv """
 
+    def parse_zfs_progress(self, line, hide_errors, prefix):
+        """try to parse progress output of zfs recv -Pv, and dont show it as error to the user """
 
         #is it progress output?
         progress_fields=line.rstrip().split("\t")
@@ -1205,10 +1229,11 @@ class ZfsNode(ExecuteNode):
         if (line.find("nvlist version")==0 or
             line.find("resume token contents")==0 or
             len(progress_fields)!=1 or
-            line.find("skipping ")==0):
+            line.find("skipping ")==0 or
+            re.match("send from .*estimated size is ", line)):
  
                 #always output for debugging offcourse
-                self.debug("STDERR|> "+line.rstrip())
+                self.debug(prefix+line.rstrip())
 
                 #actual usefull info
                 if len(progress_fields)>=3:
@@ -1230,15 +1255,18 @@ class ZfsNode(ExecuteNode):
 
                 return
 
-            # #is it progress output?
-            # if progress_output.find("nv")
 
-
-        #normal output without progress stuff
+        #still do the normal stderr output handling
         if hide_errors:
-            self.debug("STDERR|> "+line.rstrip())
+            self.debug(prefix+line.rstrip())
         else:
-            self.error("STDERR|> "+line.rstrip())
+            self.error(prefix+line.rstrip())
+
+    def _parse_stderr_pipe(self, line, hide_errors):
+        self.parse_zfs_progress(line, hide_errors, "STDERR|> ")
+
+    def _parse_stderr(self, line, hide_errors):
+        self.parse_zfs_progress(line, hide_errors, "STDERR > ")
 
     def verbose(self,txt):
         self.zfs_autobackup.verbose("{} {}".format(self.description, txt))
@@ -1278,8 +1306,7 @@ class ZfsNode(ExecuteNode):
             pools[pool].append(snapshot)
 
             #add snapshot to cache (also usefull in testmode)
-            dataset.snapshots.append(snapshot)
-
+            dataset.snapshots.append(snapshot) #NOTE: this will trigger zfs list
 
         if not pools:
             self.verbose("No changes anywhere: not creating snapshots.")
@@ -1358,9 +1385,8 @@ class ZfsAutobackup:
         parser.add_argument('target_path',    help='Target ZFS filesystem')
 
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
-        parser.add_argument('--no-snapshot', action='store_true', help='Dont create new snapshot (usefull for finishing uncompleted backups, or cleanups)')
-        #Not appliciable anymore, version 3 alreadhy does optimal cleaning
-        # parser.add_argument('--no-send', action='store_true', help='dont send snapshots (usefull to only do a cleanup)')
+        parser.add_argument('--no-snapshot', action='store_true', help='Dont create new snapshots (usefull for finishing uncompleted backups, or cleanups)')
+        parser.add_argument('--no-send', action='store_true', help='Dont send snapshots (usefull for cleanups, or if you want a serperate send-cronjob)')
         parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots.')
         parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
         parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
@@ -1461,7 +1487,11 @@ class ZfsAutobackup:
             source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), allow_empty=self.args.allow_empty)
 
 
-        self.set_title("Transferring")
+
+        if self.args.no_send:        
+            self.set_title("Thinning")
+        else:
+            self.set_title("Sending and thinning")
 
         if self.args.filter_properties:
             filter_properties=self.args.filter_properties.split(",")
@@ -1477,7 +1507,7 @@ class ZfsAutobackup:
             filter_properties.append("refreservation")
 
         if self.args.clear_mountpoint:
-            set_properties.append( "canmount=noauto"  )
+            set_properties.append("canmount=noauto")
 
         fail_count=0
         for source_dataset in source_datasets:
@@ -1488,10 +1518,10 @@ class ZfsAutobackup:
                 target_dataset=ZfsDataset(target_node, target_name)
 
                 #ensure parents exists
-                if not target_dataset.parent.exists:
+                if not self.args.no_send and not target_dataset.parent.exists:
                     target_dataset.parent.create_filesystem(parents=True)
 
-                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots)
+                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots, no_send=self.args.no_send)
             except Exception as e:
                 fail_count=fail_count+1
                 source_dataset.error("DATASET FAILED: "+str(e))
