@@ -88,13 +88,70 @@ It should work with python 2.7 and higher.
 
 ## Example
 
-In this example we're going to backup a machine called `pve` to our backupserver.
+In this example we're going to backup a machine called `pve` to a machine called `backup`.
 
-Its important to choose a unique and consistent backup name. In this case we name our backup: `offsite1`.
+### Setup SSH login
+
+zfs-autobackup needs passwordless login via ssh. This means generating an ssh key and copying it to the remote server.
+
+#### Generate SSH key on `backup`
+
+On the server that runs zfs-autobackup you need to create an SSH key. You only need to do this once.
+
+Use the `ssh-keygen` command and leave the passphrase empty:
+
+```console
+root@backup:~# ssh-keygen 
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /root/.ssh/id_rsa.
+Your public key has been saved in /root/.ssh/id_rsa.pub.
+The key fingerprint is:
+SHA256:McJhCxvaxvFhO/3e8Lf5gzSrlTWew7/bwrd2U2EHymE root@backup
+The key's randomart image is:
++---[RSA 2048]----+
+|    + =          |
+|   + X *    E .  |
+|  . = B +  o o . |
+|   .   o +  o  o.|
+|        S o   .oo|
+|         . + o= +|
+|          . ++==.|
+|            .+o**|
+|           .. +B@|
++----[SHA256]-----+
+root@backup:~# 
+```
+
+
+#### Copy SSH key to `pve`
+
+Now you need to copy the public part of the key to `pve`
+
+The `ssh-copy-id` command is a handy tool to automate this. It will just ask for your password.
+
+```console
+root@backup:~# ssh-copy-id root@pve.server.com
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/root/.ssh/id_rsa.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+Password: 
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with:   "ssh 'root@pve.server.com'"
+and check to make sure that only the key(s) you wanted were added.
+
+root@backup:~# 
+```
 
 ### Select filesystems to backup
 
-On the source zfs system set the ```autobackup:offsite``` zfs property to true:
+Its important to choose a unique and consistent backup name. In this case we name our backup: `offsite1`.
+
+On the source zfs system set the ```autobackup:offsite1``` zfs property to true:
 
 ```console
 [root@pve ~]# zfs set autobackup:offsite1=true rpool
@@ -126,13 +183,7 @@ rpool/swap                              autobackup:offsite1  false              
 
 ### Running zfs-autobackup
 
-Before you start, make sure you can login to the server without password, by using `SSH keys`. Look at the troubleshooting section for more info.
-
-There are 2 ways to run the backup, but the endresult is always the same. Its just a matter of security (trust relations between the servers) and preference.
-
-#### Method 1: Pull backup
-
-Run the script on the backup server and pull the data from the server specfied by --ssh-source. This is usually the preferred way and prevents a hacked server from accesing the backup-data.
+Run the script on the backup server and pull the data from the server specfied by --ssh-source. 
 
 ```console
 [root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose
@@ -166,7 +217,7 @@ Run the script on the backup server and pull the data from the server specfied b
   [Source] rpool/data: No changes since offsite1-20200218175435
   [Source] Creating snapshot offsite1-20200218180123
 
-  #### Transferring
+  #### Sending and thinning
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175435: receiving full
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175547: receiving incremental
   [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175706: receiving incremental
@@ -177,30 +228,9 @@ Run the script on the backup server and pull the data from the server specfied b
   ...
 ```
 
-#### Method 2: push backup
+Note that this is called a "pull" backup: The backup server pulls the backup from the server. This is usually the preferred way.
 
-Run the script on the server and push the data to the backup server specified by --ssh-target.
-
-```console
-[root@pve ~]# zfs-autobackup --ssh-target backup.server.com offsite1 backup/pve --progress --verbose
-
-  #### Settings summary
-  [Source] Datasets are local
-  [Source] Keep the last 10 snapshots.
-  [Source] Keep oldest of 1 day, delete after 1 week.
-  [Source] Keep oldest of 1 week, delete after 1 month.
-  [Source] Keep oldest of 1 month, delete after 1 year.
-  [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
-
-  [Target] Datasets on: backup.server.com
-  [Target] Keep the last 10 snapshots.
-  [Target] Keep oldest of 1 day, delete after 1 week.
-  [Target] Keep oldest of 1 week, delete after 1 month.
-  [Target] Keep oldest of 1 month, delete after 1 year.
-  [Target] Receive datasets under: backup/pve
-  ...
-
-```
+Its also possible to let a server push its backup to the backup-server. However this has security implications. In that case you would setup the SSH keys the other way around and use the --ssh-target parameter on the server.
 
 ### Automatic backups
 
@@ -214,14 +244,45 @@ Or just create a script and run it manually when you need it.
 
 ## Tips
 
-* Use ```--verbose``` to see details, otherwise zfs-autobackup will be quiet and only show errors, like a nice unix command.
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.
-* Use ```--resume``` to be able to resume aborted backups. (not all zfs versions support this)
+* You can split up the snapshotting and sending tasks by creating two cronjobs. Use ```--no-send``` for the snapshotter-cronjob and use ```--no-snapshot``` for the send-cronjob. This is usefull if you only want to send at night or if your send take too long.
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. (Normally, if there are changes the next backup will fail and will require a zfs rollback.) Note that readonly means you cant change the CONTENTS of the dataset directly. Its still possible to receive new datasets and manipulate properties etc.
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
-* You can split up the snapshotting and sending tasks by creating two cronjobs. Use ```--no-send``` for the snapshotter-cronjob and use ```--no-snapshot``` for the send-cronjob. This is usefull if you only want to send at night or if your send take too long.
+* Use ```--resume``` to be able to resume aborted backups. (not all zfs versions support this)
 
+### Speeding up SSH 
+
+You can make your ssh connections persistent and greatly speed up zfs-autobackup:
+
+On the backup-server add this to your ~/.ssh/config:
+
+```console
+Host *
+    ControlPath ~/.ssh/control-master-%r@%h:%p
+    ControlMaster auto
+    ControlPersist 3600
+```
+
+Thanks @mariusvw :)
+
+### Specifying ssh port or options
+
+The correct way to do this is by creating ~/.ssh/config:
+
+```console
+Host smartos04
+    Hostname 1.2.3.4
+    Port 1234
+    user root
+    Compression yes
+```
+
+This way you can just specify "smartos04" as host.
+
+Also uses compression on slow links.
+
+Look in man ssh_config for many more options.
 
 ## Usage
 
@@ -229,12 +290,12 @@ Here you find all the options:
 
 ```console
 [root@server ~]# zfs-autobackup --help
-usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG]
-                      [--ssh-source SSH_SOURCE] [--ssh-target SSH_TARGET]
-                      [--keep-source KEEP_SOURCE] [--keep-target KEEP_TARGET]
-                      [--no-snapshot] [--allow-empty] [--ignore-replicated]
-                      [--no-holds] [--resume] [--strip-path STRIP_PATH]
-                      [--buffer BUFFER] [--clear-refreservation]
+usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG] [--ssh-source SSH_SOURCE]
+                      [--ssh-target SSH_TARGET] [--keep-source KEEP_SOURCE]
+                      [--keep-target KEEP_TARGET] [--other-snapshots]
+                      [--no-snapshot] [--no-send] [--allow-empty]
+                      [--ignore-replicated] [--no-holds] [--resume]
+                      [--strip-path STRIP_PATH] [--clear-refreservation]
                       [--clear-mountpoint]
                       [--filter-properties FILTER_PROPERTIES]
                       [--set-properties SET_PROPERTIES] [--rollback]
@@ -242,7 +303,7 @@ usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG]
                       [--debug] [--debug-output] [--progress]
                       backup_name target_path
 
-ZFS autobackup 3.0-rc3
+zfs-autobackup v3.0-rc6 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
@@ -252,8 +313,8 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --ssh-config SSH_COFNIG
-                        Custom SSH client config
+  --ssh-config SSH_CONFIG
+                        Custom ssh client config
   --ssh-source SSH_SOURCE
                         Source host to get backup from. (user@hostname)
                         Default None.
@@ -266,30 +327,33 @@ optional arguments:
   --keep-target KEEP_TARGET
                         Thinning schedule for old target snapshots. Default:
                         10,1d1w,1w1m,1m1y
-  --no-snapshot         dont create new snapshot (usefull for finishing
+  --other-snapshots     Send over other snapshots as well, not just the ones
+                        created by this tool.
+  --no-snapshot         Dont create new snapshots (usefull for finishing
                         uncompleted backups, or cleanups)
-  --allow-empty         if nothing has changed, still create empty snapshots.
+  --no-send             Dont send snapshots (usefull for cleanups, or if you
+                        want a serperate send-cronjob)
+  --allow-empty         If nothing has changed, still create empty snapshots.
   --ignore-replicated   Ignore datasets that seem to be replicated some other
                         way. (No changes since lastest snapshot. Usefull for
                         proxmox HA replication)
   --no-holds            Dont lock snapshots on the source. (Usefull to allow
                         proxmox HA replication to switches nodes)
-  --resume              support resuming of interrupted transfers by using the
+  --resume              Support resuming of interrupted transfers by using the
                         zfs extensible_dataset feature (both zpools should
                         have it enabled) Disadvantage is that you need to use
                         zfs recv -A if another snapshot is created on the
                         target during a receive. Otherwise it will keep
                         failing.
   --strip-path STRIP_PATH
-                        number of directory to strip from path (use 1 when
+                        Number of directory to strip from path (use 1 when
                         cloning zones between 2 SmartOS machines)
   --clear-refreservation
                         Filter "refreservation" property. (recommended, safes
                         space. same as --filter-properties refreservation)
-  --clear-mountpoint    Filter "canmount" property. You still have to set
-                        canmount=noauto on the backup server. (recommended,
-                        prevents mount conflicts. same as --filter-properties
-                        canmount)
+  --clear-mountpoint    Set property canmount=noauto for new datasets.
+                        (recommended, prevents mount conflicts. same as --set-
+                        properties canmount=noauto)
   --filter-properties FILTER_PROPERTIES
                         List of propererties to "filter" when receiving
                         filesystems. (you can still restore them with zfs
@@ -316,98 +380,22 @@ optional arguments:
 
 When a filesystem fails, zfs_backup will continue and report the number of
 failures at that end. Also the exit code will indicate the number of failures.
-
 ```
-
-### Generate SSH key
-With passphrase:
-```
-ssh-keygen -o -a 256 -t ed25519 -f ~/.ssh/id_ed25519-backup -C "Backups <backup@domain.example>"
-ssh-keygen -o -a 256 -b 16384 -t rsa -f ~/.ssh/id_rsa-backup -C "Backups <backup@domain.example>"
-```
-Without passphrase:
-```
-ssh-keygen -q -N '' -o -a 256 -t ed25519 -f ~/.ssh/id_ed25519-backup -C "Backups <backup@domain.example>"
-ssh-keygen -q -N '' -o -a 256 -b 16384 -t rsa -f ~/.ssh/id_rsa-backup -C "Backups <backup@domain.example>"
-```
-
-### Speeding up SSH and prevent connection flooding
-
-Add this to your ~/.ssh/config:
-
-```console
-Host *
-    ControlPath ~/.ssh/control-master-%r@%h:%p
-    ControlMaster auto
-    ControlPersist 3600
-```
-
-Or more advanced
-```console
-Host *
-    StrictHostKeyChecking yes
-    UpdateHostKeys ask
-    GSSAPIAuthentication no
-    ForwardAgent no
-    HashKnownHosts no
-    CheckHostIP yes
-    ConnectionAttempts 3
-    ExitOnForwardFailure yes
-    Compression yes
-    ServerAliveCountMax 4
-    ServerAliveInterval 5
-    TCPKeepAlive yes
-    ControlMaster auto
-    ControlPath ~/.ssh/control-master-%r@%h:%p
-    ControlPersist 3600
-    AddKeysToAgent no
-    IdentityFile ~/.ssh/id_ed25519-backup
-    IdentityFile ~/.ssh/id_rsa-backup
-    User root
-    SendEnv LANG LC_*
-    LogLevel INFO
-```
-
-This will make all your ssh connections persistent and greatly speed up zfs-autobackup for jobs with short intervals.
-
-Thanks @mariusvw :)
-
-### Specifying ssh port or options
-
-The correct way to do this is by creating ~/.ssh/config:
-
-```console
-Host smartos04
-    Hostname 1.2.3.4
-    Port 1234
-    user root
-    Compression yes
-```
-
-This way you can just specify "smartos04" as host.
-
-Also uses compression on slow links.
-
-Look in man ssh_config for many more options.
 
 ## Troubleshooting
 
 ### It keeps asking for my SSH password
 
-You forgot to setup automatic login via SSH keys:
+You forgot to setup automatic login via SSH keys, look in the example how to do this.
 
-* Create a SSH key on the server that you want to run zfs-autobackup on. Use `ssh-keygen`.
-* Copy the public key to your clipboard. Get it with `cat /root/.ssh/id_rsa.pub`
-* Add the key to the server you specified with --ssh-source or --ssh-target. Create and add it to `/root/.ssh/authorized_keys`
-
-> ###  cannot receive incremental stream: invalid backup stream
+### It says 'cannot receive incremental stream: invalid backup stream'
 
 This usually means you've created a new snapshot on the target side during a backup:
 
 * Solution 1: Restart zfs-autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
 * Solution 2: Destroy the newly created snapshot and restart zfs-autobackup.
 
-> ### internal error: Invalid argument
+### It says 'internal error: Invalid argument'
 
 In some cases (Linux -> FreeBSD) this means certain properties are not fully supported on the target system.
 
