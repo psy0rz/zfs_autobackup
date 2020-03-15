@@ -101,11 +101,11 @@ On the server that runs zfs-autobackup you need to create an SSH key. You only n
 Use the `ssh-keygen` command and leave the passphrase empty:
 
 ```console
-root@backup:~# ssh-keygen 
+root@backup:~# ssh-keygen
 Generating public/private rsa key pair.
-Enter file in which to save the key (/root/.ssh/id_rsa): 
-Enter passphrase (empty for no passphrase): 
-Enter same passphrase again: 
+Enter file in which to save the key (/root/.ssh/id_rsa):
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
 Your identification has been saved in /root/.ssh/id_rsa.
 Your public key has been saved in /root/.ssh/id_rsa.pub.
 The key fingerprint is:
@@ -122,9 +122,8 @@ The key's randomart image is:
 |            .+o**|
 |           .. +B@|
 +----[SHA256]-----+
-root@backup:~# 
+root@backup:~#
 ```
-
 
 #### Copy SSH key to `pve`
 
@@ -137,14 +136,14 @@ root@backup:~# ssh-copy-id root@pve.server.com
 /usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/root/.ssh/id_rsa.pub"
 /usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
 /usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
-Password: 
+Password:
 
 Number of key(s) added: 1
 
 Now try logging into the machine, with:   "ssh 'root@pve.server.com'"
 and check to make sure that only the key(s) you wanted were added.
 
-root@backup:~# 
+root@backup:~#
 ```
 
 ### Select filesystems to backup
@@ -183,7 +182,7 @@ rpool/swap                              autobackup:offsite1  false              
 
 ### Running zfs-autobackup
 
-Run the script on the backup server and pull the data from the server specfied by --ssh-source. 
+Run the script on the backup server and pull the data from the server specfied by --ssh-source.
 
 ```console
 [root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose
@@ -251,7 +250,7 @@ Or just create a script and run it manually when you need it.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
 * Use ```--resume``` to be able to resume aborted backups. (not all zfs versions support this)
 
-### Speeding up SSH 
+### Speeding up SSH
 
 You can make your ssh connections persistent and greatly speed up zfs-autobackup:
 
