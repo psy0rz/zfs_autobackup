@@ -498,7 +498,6 @@ class ZfsDataset():
         'volume': [ "canmount" ],
     }
 
-    ZFS_MAX_UNCHANGED_BYTES=200000
 
     def __init__(self, zfs_node, name, force_exists=None):
         """name: full path of the zfs dataset
@@ -691,12 +690,14 @@ class ZfsDataset():
         return(ret)
 
 
-    def is_changed(self):
+    def is_changed(self, min_changed_bytes=1):
         """dataset is changed since ANY latest snapshot ?"""
         self.debug("Checking if dataset is changed")
 
-        #NOTE: filesystems can have a very small amount written without actual changes in some cases
-        if int(self.properties['written'])<=self.ZFS_MAX_UNCHANGED_BYTES:
+        if min_changed_bytes==0:
+            return(True)
+
+        if int(self.properties['written'])<min_changed_bytes:
             return(False)
         else:
             return(True)
@@ -820,23 +821,34 @@ class ZfsDataset():
 
 
     @cached_property
-    def is_changed_ours(self):
-        """dataset is changed since OUR latest snapshot?"""
-
-        self.debug("Checking if dataset is changed since our snapshot")
-
-        if not self.our_snapshots:
-            return(True)
+    def written_since_ours(self):
+        """get number of bytes written since our last snapshot"""
+        self.debug("Getting bytes written since our last snapshot")
 
         latest_snapshot=self.our_snapshots[-1]
 
         cmd=[ "zfs", "get","-H" ,"-ovalue", "-p", "written@"+str(latest_snapshot), self.name ]
+
         output=self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[ 0 ])
+
+        return(int(output[0]))
+
+
+    def is_changed_ours(self, min_changed_bytes=1):
+        """dataset is changed since OUR latest snapshot?"""
+
+        if min_changed_bytes==0:
+            return(True)
+
+        if not self.our_snapshots:
+            return(True)
+
         #NOTE: filesystems can have a very small amount written without actual changes in some cases
-        if int(output[0])<=self.ZFS_MAX_UNCHANGED_BYTES:
+        if self.written_since_ours<min_changed_bytes:
             return(False)
 
         return(True)
+
 
     @cached_property
     def recursive_datasets(self, types="filesystem,volume"):
@@ -1293,20 +1305,18 @@ class ZfsNode(ExecuteNode):
         return(self.backup_name+"-"+time.strftime("%Y%m%d%H%M%S"))
 
 
-    def consistent_snapshot(self, datasets, snapshot_name, allow_empty=True):
+    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
 
-        allow_empty: Allow empty snapshots. (compared to our latest snapshot)
         """
 
         pools={}
 
         #collect snapshots that we want to make, per pool
         for dataset in datasets:
-            if not allow_empty:
-                if not dataset.is_changed_ours:
-                    dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
-                    continue
+            if not dataset.is_changed_ours(min_changed_bytes):
+                dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
+                continue
 
             snapshot=ZfsDataset(dataset.zfs_node, dataset.name+"@"+snapshot_name)
 
@@ -1399,7 +1409,8 @@ class ZfsAutobackup:
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
         parser.add_argument('--no-snapshot', action='store_true', help='Dont create new snapshots (usefull for finishing uncompleted backups, or cleanups)')
         parser.add_argument('--no-send', action='store_true', help='Dont send snapshots (usefull for cleanups, or if you want a serperate send-cronjob)')
-        parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots.')
+        parser.add_argument('--min-change', type=int, default=200000, help='Number of bytes written after which we consider a dataset changed (default %(default)s)')
+        parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots. (same as --min-change=0)')
         parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
         parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
         #not sure if this ever was usefull:
@@ -1436,6 +1447,9 @@ class ZfsAutobackup:
 
         if self.args.test:
             self.args.verbose=True
+
+        if args.allow_empty:
+            args.min_change=0
 
         self.log=Log(show_debug=self.args.debug, show_verbose=self.args.verbose)
 
@@ -1488,7 +1502,7 @@ class ZfsAutobackup:
         else:
             self.set_title("Filtering already replicated filesystems")
             for selected_source_dataset in selected_source_datasets:
-                if selected_source_dataset.is_changed():
+                if selected_source_dataset.is_changed(self.args.min_change):
                     source_datasets.append(selected_source_dataset)
                 else:
                     selected_source_dataset.verbose("Ignoring, already replicated")
@@ -1496,7 +1510,7 @@ class ZfsAutobackup:
 
         if not self.args.no_snapshot:
             self.set_title("Snapshotting")
-            source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), allow_empty=self.args.allow_empty)
+            source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), min_changed_bytes=self.args.min_change)
 
 
 
