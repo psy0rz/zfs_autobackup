@@ -26,7 +26,7 @@ if sys.stdout.isatty():
     except ImportError:
         pass
 
-VERSION="3.0-rc7"
+VERSION="3.0-rc8"
 HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
 
 class Log:
@@ -170,7 +170,6 @@ class Thinner:
         """thin list of objects with current schedule rules.
         objects: list of objects to thin. every object should have timestamp attribute.
         keep_objects: objects to always keep (these should also be in normal objects list, so we can use them to perhaps delete other obsolete objects)
-
 
             return( keeps, removes )
         """
@@ -961,7 +960,7 @@ class ZfsDataset():
 
         #check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and can be ignored by some parameters)
         if not self.exists:
-            self.error("doesnt exist")
+            self.error("error during transfer")
             raise(Exception("Target doesnt exist after transfer, something went wrong."))
 
         # if args.buffer and  args.ssh_target!="local":
@@ -996,9 +995,13 @@ class ZfsDataset():
 
 
     def rollback(self):
-        """rollback to this snapshot"""
+        """rollback to latest existing snapshot on this dataset"""
         self.debug("Rolling back")
-        self.zfs_node.run(["zfs", "rollback", self.name])
+
+        for snapshot in reversed(self.snapshots):
+            if snapshot.exists:
+                self.zfs_node.run(["zfs", "rollback", snapshot.name])
+                return
 
 
     def get_resume_snapshot(self, resume_token):
@@ -1023,17 +1026,21 @@ class ZfsDataset():
 
 
 
-    def thin(self, keeps=[]):
+    def thin(self, keeps=[], ignores=[]):
         """determines list of snapshots that should be kept or deleted based on the thinning schedule. cull the herd!
         keep: list of snapshots to always keep (usually the last)
+        ignores: snapshots to completely ignore (usually incompatible target snapshots that are going to be destroyed anyway)
 
         returns: ( keeps, obsoletes )
         """
-        return(self.zfs_node.thinner.thin(self.our_snapshots, keep_objects=keeps))
+
+        snapshots=[snapshot for snapshot in self.our_snapshots if snapshot not in ignores]
+
+        return(self.zfs_node.thinner.thin(snapshots, keep_objects=keeps))
 
 
     def find_common_snapshot(self, target_dataset):
-        """find latest coommon snapshot between us and target
+        """find latest common snapshot between us and target
         returns None if its an initial transfer
         """
         if not target_dataset.snapshots:
@@ -1044,15 +1051,47 @@ class ZfsDataset():
 
             # if not snapshot:
             #try to common snapshot
-            for target_snapshot in reversed(target_dataset.snapshots):
-                if self.find_snapshot(target_snapshot):
-                    target_snapshot.debug("common snapshot")
-                    return(target_snapshot)
-                    # target_snapshot.error("Latest common snapshot, roll back to this.")
-                    # raise(Exception("Cant find latest target snapshot on source."))
-            target_dataset.error("Cant find common snapshot with target. ")
+            for source_snapshot in reversed(self.snapshots):
+                if target_dataset.find_snapshot(source_snapshot):
+                    source_snapshot.debug("common snapshot")
+                    return(source_snapshot)
+            target_dataset.error("Cant find common snapshot with source.")
             raise(Exception("You probablly need to delete the target dataset to fix this."))
 
+
+    def find_start_snapshot(self, common_snapshot, other_snapshots):
+        """finds first snapshot to send"""
+
+        if not common_snapshot:
+            if not self.snapshots:
+                start_snapshot=None
+            else:
+                #start from beginning
+                start_snapshot=self.snapshots[0]
+
+                if not start_snapshot.is_ours() and not other_snapshots:
+                    # try to start at a snapshot thats ours
+                    start_snapshot=self.find_next_snapshot(start_snapshot, other_snapshots)
+        else:
+            start_snapshot=self.find_next_snapshot(common_snapshot, other_snapshots)
+
+        return(start_snapshot)
+
+
+    def find_incompatible_snapshots(self, common_snapshot):
+        """returns a list of snapshots that is incompatible for a zfs recv onto the common_snapshot.
+        all direct followup snapshots with written=0 are compatible."""
+
+        ret=[]
+
+        if common_snapshot and self.snapshots:
+            followup=True
+            for snapshot in self.snapshots[self.find_snapshot_index(common_snapshot)+1:]:
+                if not followup or int(snapshot.properties['written'])!=0:
+                    followup=False
+                    ret.append(snapshot)
+
+        return(ret)
 
 
     def get_allowed_properties(self, filter_properties, set_properties):
@@ -1073,26 +1112,17 @@ class ZfsDataset():
         return ( ( allowed_filter_properties, allowed_set_properties  )  )
 
 
-    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False, no_send=False):
+
+
+    def sync_snapshots(self, target_dataset, show_progress=False, resume=True,  filter_properties=[], set_properties=[], ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False, no_send=False, destroy_incompatible=False):
         """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
-        #determine start snapshot (the first snapshot after the common snapshot)
+        #determine common and start snapshot 
         target_dataset.debug("Determining start snapshot")
         common_snapshot=self.find_common_snapshot(target_dataset)
-
-        if not common_snapshot:
-            if not self.snapshots:
-                start_snapshot=None
-            else:
-                #start from beginning
-                start_snapshot=self.snapshots[0]
-
-                if not start_snapshot.is_ours() and not other_snapshots:
-                    # try to start at a snapshot thats ours
-                    start_snapshot=self.find_next_snapshot(start_snapshot, other_snapshots)
-        else:
-            start_snapshot=self.find_next_snapshot(common_snapshot, other_snapshots)
-
+        start_snapshot=self.find_start_snapshot(common_snapshot, other_snapshots)
+        #should be destroyed before attempting zfs recv:
+        incompatible_target_snapshots=target_dataset.find_incompatible_snapshots(common_snapshot) 
 
         #make target snapshot list the same as source, by adding virtual non-existing ones to the list.
         target_dataset.debug("Creating virtual target snapshots")
@@ -1113,27 +1143,27 @@ class ZfsDataset():
             source_obsoletes=[]
 
         if target_dataset.our_snapshots:
-            (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]])
+            (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]], ignores=incompatible_target_snapshots)
         else:
             target_keeps=[]
             target_obsoletes=[]
 
 
-        #on source: destroy all obsoletes before common. but after common only delete snapshots that are obsolete on both sides.
+        #on source: destroy all obsoletes before common. but after common, only delete snapshots that target also doesnt want to explicitly keep
         before_common=True
         for source_snapshot in self.snapshots:
-            if not common_snapshot or source_snapshot.snapshot_name==common_snapshot.snapshot_name:
+            if common_snapshot and source_snapshot.snapshot_name==common_snapshot.snapshot_name:
                 before_common=False
                 #never destroy common snapshot
             else:
                 target_snapshot=target_dataset.find_snapshot(source_snapshot)
-                if (source_snapshot in source_obsoletes) and (before_common or (target_snapshot in target_obsoletes)):
+                if (source_snapshot in source_obsoletes) and (before_common or (target_snapshot not in target_keeps)):
                     source_snapshot.destroy()
 
 
         #on target: destroy everything thats obsolete, except common_snapshot
         for target_snapshot in target_dataset.snapshots:
-            if (not common_snapshot or target_snapshot.snapshot_name!=common_snapshot.snapshot_name) and (target_snapshot in target_obsoletes):
+            if (target_snapshot in target_obsoletes) and (not common_snapshot or target_snapshot.snapshot_name!=common_snapshot.snapshot_name):
                 if target_snapshot.exists:
                     target_snapshot.destroy()
 
@@ -1143,7 +1173,7 @@ class ZfsDataset():
             return
 
 
-        #resume?
+       #resume?
         resume_token=None
         if 'receive_resume_token' in target_dataset.properties:
             resume_token=target_dataset.properties['receive_resume_token']
@@ -1155,12 +1185,25 @@ class ZfsDataset():
                 resume_token=None
 
 
-        #roll target back to common snapshot on target?
-        if common_snapshot and rollback:
-            target_dataset.find_snapshot(common_snapshot).rollback()
+        #incompatible target snapshots?
+        if incompatible_target_snapshots:
+            if not destroy_incompatible:
+                for snapshot in incompatible_target_snapshots:
+                    snapshot.error("Incompatible snapshot")
+                raise(Exception("Please destroy incompatible snapshots or use --destroy-incompatible."))
+            else:
+                for snapshot in incompatible_target_snapshots:
+                    snapshot.verbose("Incompatible snapshot")
+                    snapshot.destroy()
+                    target_dataset.snapshots.remove(snapshot)
 
 
-        #now actually the snapshots
+        #rollback target to latest?
+        if rollback:
+            target_dataset.rollback()
+
+
+        #now actually transfer the snapshots
         prev_source_snapshot=common_snapshot
         source_snapshot=start_snapshot
         while source_snapshot:
@@ -1427,7 +1470,8 @@ class ZfsAutobackup:
         parser.add_argument('--clear-mountpoint', action='store_true', help='Set property canmount=noauto for new datasets. (recommended, prevents mount conflicts. same as --set-properties canmount=noauto)')
         parser.add_argument('--filter-properties', type=str, help='List of propererties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
-        parser.add_argument('--rollback', action='store_true', help='Rollback changes on the target before starting a backup. (normally you can prevent changes by setting the readonly property on the target_path to on)')
+        parser.add_argument('--rollback', action='store_true', help='Rollback changes to the latest target snapshot before starting. (normally you can prevent changes by setting the readonly property on the target_path to on)')
+        parser.add_argument('--destroy-incompatible', action='store_true', help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
         parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
         parser.add_argument('--raw', action='store_true', help='For encrypted datasets, send data exactly as it exists on disk.')
 
@@ -1451,6 +1495,9 @@ class ZfsAutobackup:
 
         if args.allow_empty:
             args.min_change=0
+
+        if args.destroy_incompatible:
+            args.rollback=True
 
         self.log=Log(show_debug=self.args.debug, show_verbose=self.args.verbose)
 
@@ -1548,7 +1595,7 @@ class ZfsAutobackup:
                 if not self.args.no_send and not target_dataset.parent.exists:
                     target_dataset.parent.create_filesystem(parents=True)
 
-                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots, no_send=self.args.no_send)
+                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots, no_send=self.args.no_send, destroy_incompatible=self.args.destroy_incompatible)
             except Exception as e:
                 fail_count=fail_count+1
                 self.error("DATASET FAILED: "+str(e))
