@@ -294,17 +294,18 @@ Here you find all the options:
 usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG] [--ssh-source SSH_SOURCE]
                       [--ssh-target SSH_TARGET] [--keep-source KEEP_SOURCE]
                       [--keep-target KEEP_TARGET] [--other-snapshots]
-                      [--no-snapshot] [--no-send] [--allow-empty]
-                      [--ignore-replicated] [--no-holds] [--resume]
-                      [--strip-path STRIP_PATH] [--clear-refreservation]
-                      [--clear-mountpoint]
+                      [--no-snapshot] [--no-send] [--min-change MIN_CHANGE]
+                      [--allow-empty] [--ignore-replicated] [--no-holds]
+                      [--resume] [--strip-path STRIP_PATH]
+                      [--clear-refreservation] [--clear-mountpoint]
                       [--filter-properties FILTER_PROPERTIES]
                       [--set-properties SET_PROPERTIES] [--rollback]
-                      [--ignore-transfer-errors] [--raw] [--test] [--verbose]
-                      [--debug] [--debug-output] [--progress]
+                      [--destroy-incompatible] [--ignore-transfer-errors]
+                      [--raw] [--test] [--verbose] [--debug] [--debug-output]
+                      [--progress]
                       backup_name target_path
 
-zfs-autobackup v3.0-rc6 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
+zfs-autobackup v3.0-rc8 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
 
 positional arguments:
   backup_name           Name of the backup (you should set the zfs property
@@ -334,7 +335,11 @@ optional arguments:
                         uncompleted backups, or cleanups)
   --no-send             Dont send snapshots (usefull for cleanups, or if you
                         want a serperate send-cronjob)
+  --min-change MIN_CHANGE
+                        Number of bytes written after which we consider a
+                        dataset changed (default 200000)
   --allow-empty         If nothing has changed, still create empty snapshots.
+                        (same as --min-change=0)
   --ignore-replicated   Ignore datasets that seem to be replicated some other
                         way. (No changes since lastest snapshot. Usefull for
                         proxmox HA replication)
@@ -363,9 +368,12 @@ optional arguments:
                         List of propererties to override when receiving
                         filesystems. (you can still restore them with zfs
                         inherit -S)
-  --rollback            Rollback changes on the target before starting a
-                        backup. (normally you can prevent changes by setting
+  --rollback            Rollback changes to the latest target snapshot before
+                        starting. (normally you can prevent changes by setting
                         the readonly property on the target_path to on)
+  --destroy-incompatible
+                        Destroy incompatible snapshots on target. Use with
+                        care! (implies --rollback)
   --ignore-transfer-errors
                         Ignore transfer errors (still checks if received
                         filesystem exists. usefull for acltype errors)
