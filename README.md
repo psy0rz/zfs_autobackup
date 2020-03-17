@@ -67,8 +67,10 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 The recommended way on most servers is to use pip:
 
 ```console
-[root@server ~]# pip install zfs-autobackup
+[root@server ~]# pip install --upgrade zfs-autobackup
 ```
+
+This can also be used to upgrade zfs-autobackup to the newest stable version.
 
 ### Using easy_install
 

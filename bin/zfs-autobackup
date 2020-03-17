@@ -961,6 +961,7 @@ class ZfsDataset():
 
         #check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and can be ignored by some parameters)
         if not self.exists:
+            self.error("doesnt exist")
             raise(Exception("Target doesnt exist after transfer, something went wrong."))
 
         # if args.buffer and  args.ssh_target!="local":
@@ -1550,7 +1551,7 @@ class ZfsAutobackup:
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, resume=self.args.resume, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots, no_send=self.args.no_send)
             except Exception as e:
                 fail_count=fail_count+1
-                source_dataset.error("DATASET FAILED: "+str(e))
+                self.error("DATASET FAILED: "+str(e))
                 if self.args.debug:
                     raise
 
