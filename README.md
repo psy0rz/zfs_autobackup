@@ -15,7 +15,7 @@
 * Better property management (--set-properties and --filter-properties)
 * Better resume handling, automaticly abort invalid resumes.
 * More robust error handling.
-* Prepared for future enhanchements.
+* Prepared for future enhancements.
 * Supports raw backups for encryption.
 * Custom SSH client config.
 
@@ -31,7 +31,7 @@ Since its using ZFS commands, you can see what its actually doing by specifying 
 
 An imporant feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your zfs datasets.
 
-Another nice thing is progress reporting with `--progress`. Its very usefull with HUGE datasets, when you want to know how many hours/days it will take.
+Another nice thing is progress reporting with `--progress`. Its very useful with HUGE datasets, when you want to know how many hours/days it will take.
 
 zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
@@ -235,13 +235,84 @@ Its also possible to let a server push its backup to the backup-server. However 
 
 ### Automatic backups
 
-Now everytime you run the command, zfs-autobackup will create a new snapshot and replicate your data.
+Now every time you run the command, zfs-autobackup will create a new snapshot and replicate your data.
 
-Older snapshots will evertually be deleted, depending on the `--keep-source` and `--keep-target` settings. (The defaults are shown above under the 'Settings summary')
+Older snapshots will eventually be deleted, depending on the `--keep-source` and `--keep-target` settings. (The defaults are shown above under the 'Settings summary')
 
 Once you've got the correct settings for your situation, you can just store the command in a cronjob.
 
 Or just create a script and run it manually when you need it.
+
+### Thinning out obsolete snapshots
+
+The thinner is the thing that destroys old snapshots on the source and target.
+
+The thinner operates "stateless": There is nothing in the name or properties of a snapshot that indicates how long it will be kept. Everytime zfs-autobackup runs, it will look at the timestamp of all the existing snapshots. From there it will determine which snapshots are obsolete according to your schedule. The advantage of this stateless system is that you can always change the schedule.
+
+Note that the thinner will ONLY destroy snapshots that are matching the naming pattern of zfs-autobackup. If you use `--other-snapshots`, it wont destroy those snapshots after replicating them to the target.
+
+#### Thinning schedule
+
+The thinner is specified by a comma separated string. The default thinning schedule is: `10,1d1w,1w1m,1m1y`. 
+
+If you run zfs-autobackup with the `--verbose` option it will show you what this means:
+
+```console
+  [Source] Keep the last 10 snapshots.
+  [Source] Keep oldest of 1 day, delete after 1 week.
+  [Source] Keep oldest of 1 week, delete after 1 month.
+  [Source] Keep oldest of 1 month, delete after 1 year.
+```
+
+* The plain number 10 means: keep at least the 10 most recent snapshots, regardless how old they are.
+* 1d1w means: Keep a daily snapshot, for one week.
+* 1w1m means: Keep a weekly snapshot, for a month etc.
+* These are the time units you can use:
+  * `y`: Years
+  * `m`: Months
+  * `d`: Days
+  * `h`: Hours
+  * `min`: Minutes
+  * `s`: Seconds
+
+You can specify as many rules as you need. The order of the rules doesn't matter.
+
+Keep in mind its up to you to actually run zfs-autobackup often enough: If you want to keep hourly snapshots, you have to make sure you at least run it every hour.
+
+However, its no problem if you run it more or less often than that: The thinner will still do its best to choose an optimal set of snapshots to choose.
+
+If you want to keep as few snapshots as possible, just specify 0. (`--keep-source=0` for example)
+
+If you want to keep ALL the snapshots, just specify a very high number.
+
+#### More details about the Thinner
+
+We will give a practical example of how the thinner operates.
+
+Say we want have 3 thinner rules: 
+
+* We want to keep daily snapshots for 7 days.
+* We want to keep weekly snapshots for 4 weeks.
+* We want to keep monthly snapshots for 12 months.
+
+So far we have taken 4 snapshots at random moments:
+
+![thinner example](doc/thinner.png)
+
+For every rule, the thinner will divide the timeline in blocks and assign each snapshot to a block.
+
+A block can only be assigned one snapshot: If multiple snapshots fall into the same block, it only assigns it to the oldest that we want to keep.
+
+The colors show to which block a snapshot belongs:
+
+* Snapshot 1: This snapshot belongs to daily block 1, weekly block 0 and monthly block 0. However the daily block is too old. 
+* Snapshot 2: Since weekly block 0 and monthly block 0 already have a snapshot, it only belongs to daily block 4.
+* Snapshot 3: This snapshot belongs to daily block 8 and weekly block 1.
+* Snapshot 4: Since daily block 8 already has a snapshot, this one doesn't belong to anything and can be deleted right away. (it will be keeped for now since its the last snapshot)
+
+zfs-autobackup will re-evaluate this on every run: As soon as a snapshot doesn't belong to any block anymore it will be destroyed.
+
+Snapshots on the source that still have to be send to the target wont be destroyed off course. (If the target still wants them, according to the target schedule)
 
 ## Tips
 
@@ -334,7 +405,7 @@ optional arguments:
   --no-snapshot         Dont create new snapshots (usefull for finishing
                         uncompleted backups, or cleanups)
   --no-send             Dont send snapshots (usefull for cleanups, or if you
-                        want a serperate send-cronjob)
+                        want a separate send-cronjob)
   --min-change MIN_CHANGE
                         Number of bytes written after which we consider a
                         dataset changed (default 200000)
@@ -361,11 +432,11 @@ optional arguments:
                         (recommended, prevents mount conflicts. same as --set-
                         properties canmount=noauto)
   --filter-properties FILTER_PROPERTIES
-                        List of propererties to "filter" when receiving
+                        List of properties to "filter" when receiving
                         filesystems. (you can still restore them with zfs
                         inherit -S)
   --set-properties SET_PROPERTIES
-                        List of propererties to override when receiving
+                        List of properties to override when receiving
                         filesystems. (you can still restore them with zfs
                         inherit -S)
   --rollback            Rollback changes to the latest target snapshot before
@@ -401,7 +472,7 @@ You forgot to setup automatic login via SSH keys, look in the example how to do 
 
 This usually means you've created a new snapshot on the target side during a backup:
 
-* Solution 1: Restart zfs-autobackup and make sure you dont use --resume. If you did use --resume, be sure to "abort" the recveive on the target side with zfs recv -A.
+* Solution 1: Restart zfs-autobackup and make sure you don't use --resume. If you did use --resume, be sure to "abort" the receive on the target side with zfs recv -A.
 * Solution 2: Destroy the newly created snapshot and restart zfs-autobackup.
 
 ### It says 'internal error: Invalid argument'
@@ -430,13 +501,13 @@ Put this command directly after the zfs_backup command in your cronjob:
 zabbix-job-status backup_smartos01_fs1 daily $?
 ```
 
-This will update the zabbix server with the exitcode and will also alert you if the job didnt run for more than 2 days.
+This will update the zabbix server with the exit code and will also alert you if the job didn't run for more than 2 days.
 
 ## Backuping up a proxmox cluster with HA replication
 
 Due to the nature of proxmox we had to make a few enhancements to zfs-autobackup. This will probably also benefit other systems that use their own replication in combination with zfs-autobackup.
 
-All data under rpool/data can be on multiple nodes of the cluster. The naming of those filesystem is unique over the whole cluster. Because of this we should backup rpool/data of all nodes to the same destination. This way we wont have duplicate backups of the filesystems that are replicated. Because of various options, you can even migrate hosts and zfs-autobackup will be fine. (and it will get the next backup from the new node automaticly)
+All data under rpool/data can be on multiple nodes of the cluster. The naming of those filesystem is unique over the whole cluster. Because of this we should backup rpool/data of all nodes to the same destination. This way we wont have duplicate backups of the filesystems that are replicated. Because of various options, you can even migrate hosts and zfs-autobackup will be fine. (and it will get the next backup from the new node automatically)
 
 In the example below we have 3 nodes, named h4, h5 and h6.
 
