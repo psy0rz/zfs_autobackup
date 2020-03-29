@@ -308,7 +308,7 @@ class ExecuteNode:
     def __init__(self, ssh_config=None, ssh_to=None, readonly=False, debug_output=False):
         """ssh_config: custom ssh config
            ssh_to: server you want to ssh to. none means local
-           readonly: only execute commands that dont make any changes (usefull for testing-runs)
+           readonly: only execute commands that don't make any changes (usefull for testing-runs)
            debug_output: show output and exit codes of commands in debugging output.
         """
 
@@ -347,7 +347,7 @@ class ExecuteNode:
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False, return_stderr=False):
         """run a command on the node
 
-        readonly: make this True if the command doesnt make any changes and is safe to execute in testmode
+        readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
         pipe: Instead of executing, return a pipe-handle to be used to input to another run() command. (just like a | in linux)
         input: Can be None, a string or a pipe-handle you got from another run()
         return_stderr: return both stdout and stderr as a tuple
@@ -365,9 +365,9 @@ class ExecuteNode:
             encoded_cmd.append(self.ssh_to.encode('utf-8'))
 
             #make sure the command gets all the data in utf8 format:
-            #(this is neccesary if LC_ALL=en_US.utf8 is not set in the environment)
+            #(this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
             for arg in cmd:
-                #add single quotes for remote commands to support spaces and other wierd stuff (remote commands are executed in a shell)
+                #add single quotes for remote commands to support spaces and other weird stuff (remote commands are executed in a shell)
                 encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
 
         else:
@@ -486,7 +486,7 @@ class ExecuteNode:
 
 class ZfsDataset():
     """a zfs dataset (filesystem/volume/snapshot/clone)
-    Note that a dataset doesnt have to actually exist (yet/anymore)
+    Note that a dataset doesn't have to actually exist (yet/anymore)
     Also most properties are cached for performance-reasons, but also to allow --test to function correctly.
 
     """
@@ -500,7 +500,7 @@ class ZfsDataset():
 
     def __init__(self, zfs_node, name, force_exists=None):
         """name: full path of the zfs dataset
-        exists: specifiy if you already know a dataset exists or not. for performance reasons. (othewise it will have to check with zfs list when needed)
+        exists: specify if you already know a dataset exists or not. for performance reasons. (otherwise it will have to check with zfs list when needed)
         """
         self.zfs_node=zfs_node
         self.name=name #full name
@@ -589,7 +589,7 @@ class ZfsDataset():
 
 
     def find_prev_snapshot(self, snapshot, other_snapshots=False):
-        """find previous snapshot in this dataset. None if it doesnt exist.
+        """find previous snapshot in this dataset. None if it doesn't exist.
 
         other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
         """
@@ -606,7 +606,7 @@ class ZfsDataset():
 
 
     def find_next_snapshot(self, snapshot, other_snapshots=False):
-        """find next snapshot in this dataset. None if it doesnt exist"""
+        """find next snapshot in this dataset. None if it doesn't exist"""
 
         if self.is_snapshot:
             raise(Exception("Please call this on a dataset."))
@@ -636,7 +636,7 @@ class ZfsDataset():
 
 
     def create_filesystem(self, parents=False):
-        """create a filesytem"""
+        """create a filesystem"""
         if parents:
             self.verbose("Creating filesystem and parents")
             self.zfs_node.run(["zfs", "create", "-p", self.name ])
@@ -703,7 +703,7 @@ class ZfsDataset():
 
 
     def is_ours(self):
-        """return true if this snapshot is created by this backup_nanme"""
+        """return true if this snapshot is created by this backup_name"""
         if re.match("^"+self.zfs_node.backup_name+"-[0-9]*$", self.snapshot_name):
             return(True)
         else:
@@ -866,7 +866,7 @@ class ZfsDataset():
         """returns a pipe with zfs send output for this snapshot
 
         resume: Use resuming (both sides need to support it)
-        resume_token: resume sending from this token. (in that case we dont need to know snapshot names)
+        resume_token: resume sending from this token. (in that case we don't need to know snapshot names)
 
         """
         #### build source command
@@ -892,7 +892,7 @@ class ZfsDataset():
             cmd.append("-P")
 
 
-        #resume a previous send? (dont need more parameters in that case)
+        #resume a previous send? (don't need more parameters in that case)
         if resume_token:
             cmd.extend([ "-t", resume_token ])
 
@@ -910,7 +910,7 @@ class ZfsDataset():
         # if args.buffer and args.ssh_source!="local":
         #     cmd.append("|mbuffer -m {}".format(args.buffer))
 
-        #NOTE: this doenst start the send yet, it only returns a subprocess.Pipe
+        #NOTE: this doesn't start the send yet, it only returns a subprocess.Pipe
         return(self.zfs_node.run(cmd, pipe=True))
 
 
@@ -925,7 +925,7 @@ class ZfsDataset():
 
         cmd.extend(["zfs", "recv"])
 
-        #dont mount filesystem that is received
+        #don't mount filesystem that is received
         cmd.append("-u")
 
         for property in filter_properties:
@@ -961,7 +961,7 @@ class ZfsDataset():
         #check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and can be ignored by some parameters)
         if not self.exists:
             self.error("error during transfer")
-            raise(Exception("Target doesnt exist after transfer, something went wrong."))
+            raise(Exception("Target doesn't exist after transfer, something went wrong."))
 
         # if args.buffer and  args.ssh_target!="local":
         #     cmd.append("|mbuffer -m {}".format(args.buffer))
@@ -982,7 +982,7 @@ class ZfsDataset():
         if not prev_snapshot:
             target_snapshot.verbose("receiving full".format(self.snapshot_name))
         else:
-            #incemental
+            #incremental
             target_snapshot.verbose("receiving incremental".format(self.snapshot_name))
 
         #do it
@@ -1056,7 +1056,7 @@ class ZfsDataset():
                     source_snapshot.debug("common snapshot")
                     return(source_snapshot)
             target_dataset.error("Cant find common snapshot with source.")
-            raise(Exception("You probablly need to delete the target dataset to fix this."))
+            raise(Exception("You probably need to delete the target dataset to fix this."))
 
 
     def find_start_snapshot(self, common_snapshot, other_snapshots):
@@ -1149,7 +1149,7 @@ class ZfsDataset():
             target_obsoletes=[]
 
 
-        #on source: destroy all obsoletes before common. but after common, only delete snapshots that target also doesnt want to explicitly keep
+        #on source: destroy all obsoletes before common. but after common, only delete snapshots that target also doesn't want to explicitly keep
         before_common=True
         for source_snapshot in self.snapshots:
             if common_snapshot and source_snapshot.snapshot_name==common_snapshot.snapshot_name:
@@ -1235,10 +1235,10 @@ class ZfsDataset():
 
                 prev_source_snapshot=source_snapshot
             else:
-                source_snapshot.debug("skipped (target doesnt need it)")
+                source_snapshot.debug("skipped (target doesn't need it)")
                 #was it actually a resume?
                 if resume_token:
-                    target_dataset.debug("aborting resume, since we dont want that snapshot anymore")
+                    target_dataset.debug("aborting resume, since we don't want that snapshot anymore")
                     target_dataset.abort_resume()
                     resume_token=None
 
@@ -1288,7 +1288,7 @@ class ZfsNode(ExecuteNode):
 
 
     def parse_zfs_progress(self, line, hide_errors, prefix):
-        """try to parse progress output of zfs recv -Pv, and dont show it as error to the user """
+        """try to parse progress output of zfs recv -Pv, and don't show it as error to the user """
 
         #is it progress output?
         progress_fields=line.rstrip().split("\t")
@@ -1377,7 +1377,7 @@ class ZfsNode(ExecuteNode):
             self.verbose("No changes anywhere: not creating snapshots.")
             return
 
-        #create consitent snapshot per pool
+        #create consistent snapshot per pool
         for (pool_name, snapshots) in pools.items():
             cmd=[ "zfs", "snapshot" ]
 
@@ -1451,12 +1451,12 @@ class ZfsAutobackup:
         parser.add_argument('target_path',    help='Target ZFS filesystem')
 
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
-        parser.add_argument('--no-snapshot', action='store_true', help='Dont create new snapshots (usefull for finishing uncompleted backups, or cleanups)')
-        parser.add_argument('--no-send', action='store_true', help='Dont send snapshots (usefull for cleanups, or if you want a serperate send-cronjob)')
+        parser.add_argument('--no-snapshot', action='store_true', help='Don\'t create new snapshots (usefull for finishing uncompleted backups, or cleanups)')
+        parser.add_argument('--no-send', action='store_true', help='Don\'t send snapshots (usefull for cleanups, or if you want a serperate send-cronjob)')
         parser.add_argument('--min-change', type=int, default=200000, help='Number of bytes written after which we consider a dataset changed (default %(default)s)')
         parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots. (same as --min-change=0)')
         parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
-        parser.add_argument('--no-holds', action='store_true',  help='Dont lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
+        parser.add_argument('--no-holds', action='store_true',  help='Don\'t lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
         #not sure if this ever was usefull:
         # parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
 
@@ -1468,7 +1468,7 @@ class ZfsAutobackup:
         # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
         parser.add_argument('--clear-refreservation', action='store_true', help='Filter "refreservation" property. (recommended, safes space. same as --filter-properties refreservation)')
         parser.add_argument('--clear-mountpoint', action='store_true', help='Set property canmount=noauto for new datasets. (recommended, prevents mount conflicts. same as --set-properties canmount=noauto)')
-        parser.add_argument('--filter-properties', type=str, help='List of propererties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
+        parser.add_argument('--filter-properties', type=str, help='List of properties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes to the latest target snapshot before starting. (normally you can prevent changes by setting the readonly property on the target_path to on)')
         parser.add_argument('--destroy-incompatible', action='store_true', help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
@@ -1608,7 +1608,7 @@ class ZfsAutobackup:
             if self.args.test:
                 self.set_title("All tests successfull.")
             else:
-                self.set_title("All backups completed succesfully")
+                self.set_title("All backups completed successfully")
         else:
             self.error("{} datasets failed!".format(fail_count))
 
