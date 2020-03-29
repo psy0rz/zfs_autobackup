@@ -26,7 +26,7 @@ if sys.stdout.isatty():
     except ImportError:
         pass
 
-VERSION="3.0-rc8"
+VERSION="3.0-rc9"
 HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
 
 class Log:
@@ -1453,7 +1453,7 @@ class ZfsAutobackup:
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
         parser.add_argument('--no-snapshot', action='store_true', help='Don\'t create new snapshots (usefull for finishing uncompleted backups, or cleanups)')
         parser.add_argument('--no-send', action='store_true', help='Don\'t send snapshots (usefull for cleanups, or if you want a serperate send-cronjob)')
-        parser.add_argument('--min-change', type=int, default=200000, help='Number of bytes written after which we consider a dataset changed (default %(default)s)')
+        parser.add_argument('--min-change', type=int, default=1, help='Number of bytes written after which we consider a dataset changed (default %(default)s)')
         parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots. (same as --min-change=0)')
         parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
         parser.add_argument('--no-holds', action='store_true',  help='Don\'t lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')

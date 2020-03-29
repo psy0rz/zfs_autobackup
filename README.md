@@ -408,7 +408,7 @@ optional arguments:
                         want a separate send-cronjob)
   --min-change MIN_CHANGE
                         Number of bytes written after which we consider a
-                        dataset changed (default 200000)
+                        dataset changed (default 1)
   --allow-empty         If nothing has changed, still create empty snapshots.
                         (same as --min-change=0)
   --ignore-replicated   Ignore datasets that seem to be replicated some other
@@ -533,6 +533,7 @@ Extra options needed for proxmox with HA:
 
 * --no-holds: To allow proxmox to destroy our snapshots if a VM migrates to another node.
 * --ignore-replicated: To ignore the replicated filesystems of proxmox on the receiving proxmox nodes. (e.g: only backup from the node where the VM is active)
+* --min-change 200000: Ignore replicated works by checking if there are no changes since the last snapshot. However for some reason proxmox always has some small changes. (Probably house-keeping data are something? This always was fine and suddenly changed with an update)
 
 I use the following backup script on the backup server:
 
@@ -540,7 +541,7 @@ I use the following backup script on the backup server:
 for H in h4 h5 h6; do
   echo "################################### DATA $H"
   #backup data filesystems to a common place
-  ./zfs-autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --no-holds $@
+  ./zfs-autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --min-change 200000 --no-holds $@
   zabbix-job-status backup_$H""_data_smartos03 daily $? >/dev/null 2>/dev/null
 
   echo "################################### RPOOL $H"
