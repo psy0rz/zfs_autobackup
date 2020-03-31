@@ -1432,6 +1432,24 @@ class ZfsNode(ExecuteNode):
         return(selected_filesystems)
 
 
+    def received_datasets(self, target_path):
+        """determine already received datasets for this backup
+
+           returns: list of ZfsDataset        
+        """
+        #get all source filesystems that have the backup property
+        lines=self.run(tab_split=True, readonly=True, cmd=[
+            "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "-r", "autobackup:"+self.backup_name, target_path
+        ])
+
+        #consider all datasets in target_path with the correct autobackup property, as a received dataset 
+        ret=[]
+        for line in lines:
+            (name,value,source)=line
+            dataset=ZfsDataset(self, name)
+
+        return(ret)
+
 
 
 
@@ -1528,6 +1546,7 @@ class ZfsAutobackup:
         if self.args.test:
             self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
+
         self.set_title("Settings summary")
 
         description="[Source]"
@@ -1542,6 +1561,7 @@ class ZfsAutobackup:
         target_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
         target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
+
         self.set_title("Selecting")
         selected_source_datasets=source_node.selected_datasets
         if not selected_source_datasets:
@@ -1549,6 +1569,7 @@ class ZfsAutobackup:
             return(255)
 
         source_datasets=[]
+
 
         #filter out already replicated stuff?
         if not self.args.ignore_replicated:
@@ -1565,7 +1586,6 @@ class ZfsAutobackup:
         if not self.args.no_snapshot:
             self.set_title("Snapshotting")
             source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), min_changed_bytes=self.args.min_change)
-
 
 
         if self.args.no_send:        
@@ -1589,6 +1609,14 @@ class ZfsAutobackup:
         if self.args.clear_mountpoint:
             set_properties.append("canmount=noauto")
 
+
+        #thin/destroy obsolete datasets on target
+        for dataset in target_node.received_datasets(self.args.target_path):
+            if dataset not in source_datasets:
+                dataset.verbose("Obsolete")
+
+
+        #sync datasets
         fail_count=0
         for source_dataset in source_datasets:
 
