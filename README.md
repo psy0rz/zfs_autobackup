@@ -304,7 +304,7 @@ Say we want have 3 thinner rules:
 
 So far we have taken 4 snapshots at random moments:
 
-![thinner example](doc/thinner.png)
+![thinner example](https://raw.githubusercontent.com/psy0rz/zfs_autobackup/master/doc/thinner.png)
 
 For every rule, the thinner will divide the timeline in blocks and assign each snapshot to a block.
 
