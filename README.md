@@ -4,16 +4,16 @@
 
 * Complete rewrite, cleaner object oriented code.
 * Python 3 and 2 support.
-* Installable via pip.
+* Installable via [pip](https://pypi.org/project/zfs-autobackup/).
 * Backwards compatible with your current backups and parameters.
 * Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
 * Cleaner output, with optional color support (pip install colorama).
 * Clear distinction between local and remote output.
 * Summary at the beginning, displaying what will happen and the current thinning-schedule.
-* More effient destroying/skipping snaphots on the fly. (no more space issues if your backup is way behind)
+* More efficient destroying/skipping snapshots on the fly. (no more space issues if your backup is way behind)
 * Progress indicator (--progress)
 * Better property management (--set-properties and --filter-properties)
-* Better resume handling, automaticly abort invalid resumes.
+* Better resume handling, automatically abort invalid resumes.
 * More robust error handling.
 * Prepared for future enhancements.
 * Supports raw backups for encryption.
@@ -29,7 +29,7 @@ Other settings are just specified on the commandline. This also makes it easier 
 
 Since its using ZFS commands, you can see what its actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (also something I missed in other tools)
 
-An imporant feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your zfs datasets.
+An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your zfs datasets.
 
 Another nice thing is progress reporting with `--progress`. Its very useful with HUGE datasets, when you want to know how many hours/days it will take.
 
@@ -64,7 +64,7 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
 ### Using pip
 
-The recommended way on most servers is to use pip:
+The recommended way on most servers is to use [pip](https://pypi.org/project/zfs-autobackup/):
 
 ```console
 [root@server ~]# pip install --upgrade zfs-autobackup
@@ -167,7 +167,7 @@ rpool/swap                              autobackup:offsite1  true               
 ...
 ```
 
-Because we dont want to backup everything, we can exclude certain filesystem by setting the property to false:
+Because we don't want to backup everything, we can exclude certain filesystem by setting the property to false:
 
 ```console
 [root@pve ~]# zfs set autobackup:offsite1=false rpool/swap
@@ -184,7 +184,7 @@ rpool/swap                              autobackup:offsite1  false              
 
 ### Running zfs-autobackup
 
-Run the script on the backup server and pull the data from the server specfied by --ssh-source.
+Run the script on the backup server and pull the data from the server specified by --ssh-source.
 
 ```console
 [root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose
