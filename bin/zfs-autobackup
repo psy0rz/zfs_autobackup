@@ -40,6 +40,7 @@ class Log:
             print(colorama.Fore.RED+colorama.Style.BRIGHT+ "! "+txt+colorama.Style.RESET_ALL, file=sys.stderr)
         else:
             print("! "+txt, file=sys.stderr)
+        sys.stderr.flush()
 
     def verbose(self, txt):
         if self.show_verbose:
@@ -47,6 +48,7 @@ class Log:
                 print(colorama.Style.NORMAL+ "  "+txt+colorama.Style.RESET_ALL)
             else:
                 print("  "+txt)
+            sys.stdout.flush()
 
     def debug(self, txt):
         if self.show_debug:
@@ -54,6 +56,7 @@ class Log:
                 print(colorama.Fore.GREEN+ "# "+txt+colorama.Style.RESET_ALL)
             else:
                 print("# "+txt)
+            sys.stdout.flush()
 
 
 
@@ -1317,8 +1320,8 @@ class ZfsNode(ExecuteNode):
                             bytes_left=self._progress_total_bytes-bytes
                             minutes_left=int((bytes_left/(bytes/(time.time()-self._progress_start_time)))/60)
 
-                            print(">>> {}% {}MB/s (total {}MB, {} minutes left)  \r".format(percentage, speed, int(self._progress_total_bytes/(1024*1024)), minutes_left), end='')
-                            sys.stdout.flush()
+                            print(">>> {}% {}MB/s (total {}MB, {} minutes left)     \r".format(percentage, speed, int(self._progress_total_bytes/(1024*1024)), minutes_left), end='', file=sys.stderr)
+                            sys.stderr.flush()
 
                 return
 
@@ -1480,13 +1483,16 @@ class ZfsAutobackup:
         parser.add_argument('--verbose', action='store_true', help='verbose output')
         parser.add_argument('--debug', action='store_true', help='Show zfs commands that are executed, stops after an exception.')
         parser.add_argument('--debug-output', action='store_true', help='Show zfs commands and their output/exit codes. (noisy)')
-        parser.add_argument('--progress', action='store_true', help='show zfs progress output (to stderr)')
+        parser.add_argument('--progress', action='store_true', help='show zfs progress output (to stderr). Enabled by default on ttys.')
 
         #note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args()
 
         self.args=args
 
+        if sys.stderr.isatty():
+            args.progress=True
+       
         if args.debug_output:
             args.debug=True
 
