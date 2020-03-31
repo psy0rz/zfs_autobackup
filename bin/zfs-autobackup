@@ -117,7 +117,7 @@ class ThinnerRule:
 
         self.rule_str=rule_str
 
-        self.human_str="Keep oldest of {} {}{}, delete after {} {}{}.".format(
+        self.human_str="Keep every {} {}{}, delete after {} {}{}.".format(
             period_amount, self.TIME_DESC[period_unit], period_amount!=1 and "s" or "", ttl_amount, self.TIME_DESC[ttl_unit], ttl_amount!=1 and "s" or "" )
 
 

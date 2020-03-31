@@ -192,16 +192,16 @@ Run the script on the backup server and pull the data from the server specfied b
   #### Settings summary
   [Source] Datasets on: pve.server.com
   [Source] Keep the last 10 snapshots.
-  [Source] Keep oldest of 1 day, delete after 1 week.
-  [Source] Keep oldest of 1 week, delete after 1 month.
-  [Source] Keep oldest of 1 month, delete after 1 year.
+  [Source] Keep every 1 day, delete after 1 week.
+  [Source] Keep every 1 week, delete after 1 month.
+  [Source] Keep every 1 month, delete after 1 year.
   [Source] Send all datasets that have 'autobackup:offsite1=true' or 'autobackup:offsite1=child'
 
   [Target] Datasets are local
   [Target] Keep the last 10 snapshots.
-  [Target] Keep oldest of 1 day, delete after 1 week.
-  [Target] Keep oldest of 1 week, delete after 1 month.
-  [Target] Keep oldest of 1 month, delete after 1 year.
+  [Target] Keep every 1 day, delete after 1 week.
+  [Target] Keep every 1 week, delete after 1 month.
+  [Target] Keep every 1 month, delete after 1 year.
   [Target] Receive datasets under: backup/pve
 
   #### Selecting
@@ -253,27 +253,34 @@ Note that the thinner will ONLY destroy snapshots that are matching the naming p
 
 #### Thinning schedule
 
-The thinner is specified by a comma separated string. The default thinning schedule is: `10,1d1w,1w1m,1m1y`. 
+The default thinning schedule is: `10,1d1w,1w1m,1m1y`.
 
-If you run zfs-autobackup with the `--verbose` option it will show you what this means:
+The schedule consists of multiple rules separated by a `,`
 
-```console
-  [Source] Keep the last 10 snapshots.
-  [Source] Keep oldest of 1 day, delete after 1 week.
-  [Source] Keep oldest of 1 week, delete after 1 month.
-  [Source] Keep oldest of 1 month, delete after 1 year.
-```
+A plain number specifies how many snapshots you want to always keep, regardless of time or interval.
 
-* The plain number 10 means: keep at least the 10 most recent snapshots, regardless how old they are.
-* 1d1w means: Keep a daily snapshot, for one week.
-* 1w1m means: Keep a weekly snapshot, for a month etc.
-* These are the time units you can use:
+The format of the other rules is: `<Interval><TTL>`.
+
+* Interval: The minimum interval between the snapshots. Snapshots with intervals smaller than this will be destroyed.
+* TTL: The maximum time to life time of a snapshot, after that they will be destroyed.
+* These are the time units you can use for interval and TTL:
   * `y`: Years
   * `m`: Months
   * `d`: Days
   * `h`: Hours
   * `min`: Minutes
   * `s`: Seconds
+
+Since this might sound very complicated, the `--verbose` option will show you what it all means:
+
+```console
+  [Source] Keep the last 10 snapshots.
+  [Source] Keep every 1 day, delete after 1 week.
+  [Source] Keep every 1 week, delete after 1 month.
+  [Source] Keep every 1 month, delete after 1 year.
+```
+
+A snapshot will only be destroyed if it not needed anymore by ANY of the rules.
 
 You can specify as many rules as you need. The order of the rules doesn't matter.
 
