@@ -1397,6 +1397,9 @@ class ZfsNode(ExecuteNode):
 
            returns: list of ZfsDataset
         """
+
+        self.debug("Getting selected datasets")
+
         #get all source filesystems that have the backup property
         lines=self.run(tab_split=True, readonly=True, cmd=[
             "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "autobackup:"+self.backup_name
@@ -1432,24 +1435,30 @@ class ZfsNode(ExecuteNode):
         return(selected_filesystems)
 
 
-    def received_datasets(self, target_path):
-        """determine already received datasets for this backup
+    # def received_datasets(self, target_path):
+    #     """determine already received datasets for this backup
 
-           returns: list of ZfsDataset        
-        """
-        #get all source filesystems that have the backup property
-        lines=self.run(tab_split=True, readonly=True, cmd=[
-            "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "-r", "autobackup:"+self.backup_name, target_path
-        ])
+    #        returns: list of ZfsDataset        
+    #     """
 
-        #consider all datasets in target_path with the correct autobackup property, as a received dataset 
-        ret=[]
-        for line in lines:
-            (name,value,source)=line
-            dataset=ZfsDataset(self, name)
-            dataset.verbose("disse")
+    #     dataset=ZfsDataset(self, name)
 
-        return(ret)
+
+    #     #get all source filesystems that have the backup property
+
+    #     self.debug("Getting received datasets")
+    #     lines=self.run(tab_split=True, readonly=True, cmd=[
+    #         "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "-r", "autobackup:"+self.backup_name, target_path
+    #     ])
+
+    #     #consider all datasets in target_path with the correct autobackup property, as a received dataset 
+    #     ret=[]
+    #     for line in lines:
+    #         (name,value,source)=line
+    #         dataset=ZfsDataset(self, name)
+    #         dataset.verbose("disse")
+
+    #     return(ret)
 
 
 
@@ -1612,9 +1621,10 @@ class ZfsAutobackup:
 
 
             #thin/destroy obsolete datasets on target
-            for dataset in target_node.received_datasets(self.args.target_path):
+            for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
                 if dataset not in source_datasets:
                     dataset.verbose("Obsolete")
+    
 
 
             #sync datasets
