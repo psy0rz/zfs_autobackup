@@ -1666,8 +1666,10 @@ class ZfsAutobackup:
             self.error("Exception: "+str(e))
             if self.args.debug:
                 raise
+            return(255)
         except KeyboardInterrupt as e:
             self.error("Aborted")
+            return(255)
 
 
 if __name__ == "__main__":
