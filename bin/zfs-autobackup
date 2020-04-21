@@ -1027,9 +1027,7 @@ class ZfsDataset():
         return(None)
 
 
-
-
-    def thin(self, keeps=[], ignores=[]):
+    def thin_list(self, keeps=[], ignores=[]):
         """determines list of snapshots that should be kept or deleted based on the thinning schedule. cull the herd!
         keep: list of snapshots to always keep (usually the last)
         ignores: snapshots to completely ignore (usually incompatible target snapshots that are going to be destroyed anyway)
@@ -1040,6 +1038,15 @@ class ZfsDataset():
         snapshots=[snapshot for snapshot in self.our_snapshots if snapshot not in ignores]
 
         return(self.zfs_node.thinner.thin(snapshots, keep_objects=keeps))
+
+
+    def thin(self):
+        """destroys snapshots according to thin_list, except last snapshot"""
+
+        (keeps, obsoletes)=self.thin_list(keeps=self.our_snapshots[-1:])
+        for obsolete in obsoletes:
+            obsolete.destroy()
+            self.snapshots.remove(obsolete)
 
 
     def find_common_snapshot(self, target_dataset):
@@ -1140,13 +1147,13 @@ class ZfsDataset():
         #now let thinner decide what we want on both sides as final state (after all transfers are done)
         self.debug("Create thinning list")
         if self.our_snapshots:
-            (source_keeps, source_obsoletes)=self.thin(keeps=[self.our_snapshots[-1]])
+            (source_keeps, source_obsoletes)=self.thin_list(keeps=[self.our_snapshots[-1]])
         else:
             source_keeps=[]
             source_obsoletes=[]
 
         if target_dataset.our_snapshots:
-            (target_keeps, target_obsoletes)=target_dataset.thin(keeps=[target_dataset.our_snapshots[-1]], ignores=incompatible_target_snapshots)
+            (target_keeps, target_obsoletes)=target_dataset.thin_list(keeps=[target_dataset.our_snapshots[-1]], ignores=incompatible_target_snapshots)
         else:
             target_keeps=[]
             target_obsoletes=[]
@@ -1435,36 +1442,6 @@ class ZfsNode(ExecuteNode):
         return(selected_filesystems)
 
 
-    # def received_datasets(self, target_path):
-    #     """determine already received datasets for this backup
-
-    #        returns: list of ZfsDataset        
-    #     """
-
-    #     dataset=ZfsDataset(self, name)
-
-
-    #     #get all source filesystems that have the backup property
-
-    #     self.debug("Getting received datasets")
-    #     lines=self.run(tab_split=True, readonly=True, cmd=[
-    #         "zfs", "get", "-t",  "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H", "-r", "autobackup:"+self.backup_name, target_path
-    #     ])
-
-    #     #consider all datasets in target_path with the correct autobackup property, as a received dataset 
-    #     ret=[]
-    #     for line in lines:
-    #         (name,value,source)=line
-    #         dataset=ZfsDataset(self, name)
-    #         dataset.verbose("disse")
-
-    #     return(ret)
-
-
-
-
-
-
 class ZfsAutobackup:
     """main class"""
     def __init__(self):
@@ -1619,22 +1596,16 @@ class ZfsAutobackup:
             if self.args.clear_mountpoint:
                 set_properties.append("canmount=noauto")
 
-
-            #thin/destroy obsolete datasets on target
-            for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
-                if dataset not in source_datasets:
-                    dataset.verbose("Obsolete")
-    
-
-
             #sync datasets
             fail_count=0
+            target_datasets=[]
             for source_dataset in source_datasets:
 
                 try:
                     #determine corresponding target_dataset
                     target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
                     target_dataset=ZfsDataset(target_node, target_name)
+                    target_datasets.append(target_dataset)
 
                     #ensure parents exists
                     if not self.args.no_send and not target_dataset.parent.exists:
@@ -1647,6 +1618,12 @@ class ZfsAutobackup:
                     if self.args.debug:
                         raise
 
+            #also thin target_datasets that are not on the source any more
+            self.debug("Thinning obsolete datasets")
+            for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
+                if dataset not in target_datasets:
+                    dataset.verbose("Missing on source")
+                    dataset.thin()
 
 
             if not fail_count:
