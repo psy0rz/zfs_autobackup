@@ -1236,10 +1236,10 @@ class ZfsDataset():
 
                 # we may now destroy the previous source snapshot if its obsolete
                 if prev_source_snapshot in source_obsoletes:
-                    prev_source_snapshot.destroy()
+                    prev_source_snapshot.destroy()                    
 
                 # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot, the rest was already destroyed or will not be send)
-                prev_target_snapshot=target_dataset.find_snapshot(common_snapshot)
+                prev_target_snapshot=target_dataset.find_snapshot(prev_source_snapshot)
                 if prev_target_snapshot in target_obsoletes:
                     prev_target_snapshot.destroy()
 
