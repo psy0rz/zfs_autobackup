@@ -84,7 +84,7 @@ On older servers you might have to use easy_install
 
 Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/master/bin/zfs-autobackup> and run it directly.
 
-The only requirement that is sometimes missing is the `argparse` python module. Optionally you can install `colorma` for colors.
+The only requirement that is sometimes missing is the `argparse` python module. Optionally you can install `colorama` for colors.
 
 It should work with python 2.7 and higher.
 
@@ -324,7 +324,7 @@ Snapshots on the source that still have to be send to the target wont be destroy
 ## Tips
 
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.
-* You can split up the snapshotting and sending tasks by creating two cronjobs. Use ```--no-send``` for the snapshotter-cronjob and use ```--no-snapshot``` for the send-cronjob. This is usefull if you only want to send at night or if your send take too long.
+* You can split up the snapshotting and sending tasks by creating two cronjobs. Use ```--no-send``` for the snapshotter-cronjob and use ```--no-snapshot``` for the send-cronjob. This is useful if you only want to send at night or if your send take too long.
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. (Normally, if there are changes the next backup will fail and will require a zfs rollback.) Note that readonly means you cant change the CONTENTS of the dataset directly. Its still possible to receive new datasets and manipulate properties etc.
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
@@ -409,9 +409,9 @@ optional arguments:
                         10,1d1w,1w1m,1m1y
   --other-snapshots     Send over other snapshots as well, not just the ones
                         created by this tool.
-  --no-snapshot         Dont create new snapshots (usefull for finishing
+  --no-snapshot         Dont create new snapshots (useful for finishing
                         uncompleted backups, or cleanups)
-  --no-send             Dont send snapshots (usefull for cleanups, or if you
+  --no-send             Dont send snapshots (useful for cleanups, or if you
                         want a separate send-cronjob)
   --min-change MIN_CHANGE
                         Number of bytes written after which we consider a
@@ -419,9 +419,9 @@ optional arguments:
   --allow-empty         If nothing has changed, still create empty snapshots.
                         (same as --min-change=0)
   --ignore-replicated   Ignore datasets that seem to be replicated some other
-                        way. (No changes since lastest snapshot. Usefull for
+                        way. (No changes since lastest snapshot. Useful for
                         proxmox HA replication)
-  --no-holds            Dont lock snapshots on the source. (Usefull to allow
+  --no-holds            Dont lock snapshots on the source. (Useful to allow
                         proxmox HA replication to switches nodes)
   --resume              Support resuming of interrupted transfers by using the
                         zfs extensible_dataset feature (both zpools should
@@ -454,7 +454,7 @@ optional arguments:
                         care! (implies --rollback)
   --ignore-transfer-errors
                         Ignore transfer errors (still checks if received
-                        filesystem exists. usefull for acltype errors)
+                        filesystem exists. useful for acltype errors)
   --raw                 For encrypted datasets, send data exactly as it exists
                         on disk.
   --test                dont change anything, just show what would be done
