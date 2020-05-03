@@ -311,7 +311,7 @@ class ExecuteNode:
     def __init__(self, ssh_config=None, ssh_to=None, readonly=False, debug_output=False):
         """ssh_config: custom ssh config
            ssh_to: server you want to ssh to. none means local
-           readonly: only execute commands that don't make any changes (usefull for testing-runs)
+           readonly: only execute commands that don't make any changes (useful for testing-runs)
            debug_output: show output and exit codes of commands in debugging output.
         """
 
@@ -625,7 +625,7 @@ class ZfsDataset():
     @cached_property
     def exists(self):
         """check if dataset exists.
-        Use force to force a specific value to be cached, if you already know. Usefull for performance reasons"""
+        Use force to force a specific value to be cached, if you already know. Useful for performance reasons"""
 
 
         if self.force_exists!=None:
@@ -1312,7 +1312,7 @@ class ZfsNode(ExecuteNode):
                 #always output for debugging offcourse
                 self.debug(prefix+line.rstrip())
 
-                #actual usefull info
+                #actual useful info
                 if len(progress_fields)>=3:
                     if progress_fields[0]=='full' or progress_fields[0]=='size':
                         self._progress_total_bytes=int(progress_fields[2])
@@ -1380,7 +1380,7 @@ class ZfsNode(ExecuteNode):
 
             pools[pool].append(snapshot)
 
-            #add snapshot to cache (also usefull in testmode)
+            #add snapshot to cache (also useful in testmode)
             dataset.snapshots.append(snapshot) #NOTE: this will trigger zfs list
 
         if not pools:
@@ -1459,13 +1459,13 @@ class ZfsAutobackup:
         parser.add_argument('target_path',    help='Target ZFS filesystem')
 
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
-        parser.add_argument('--no-snapshot', action='store_true', help='Don\'t create new snapshots (usefull for finishing uncompleted backups, or cleanups)')
-        parser.add_argument('--no-send', action='store_true', help='Don\'t send snapshots (usefull for cleanups, or if you want a serperate send-cronjob)')
+        parser.add_argument('--no-snapshot', action='store_true', help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
+        parser.add_argument('--no-send', action='store_true', help='Don\'t send snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
         parser.add_argument('--min-change', type=int, default=1, help='Number of bytes written after which we consider a dataset changed (default %(default)s)')
         parser.add_argument('--allow-empty', action='store_true', help='If nothing has changed, still create empty snapshots. (same as --min-change=0)')
-        parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Usefull for proxmox HA replication)')
-        parser.add_argument('--no-holds', action='store_true',  help='Don\'t lock snapshots on the source. (Usefull to allow proxmox HA replication to switches nodes)')
-        #not sure if this ever was usefull:
+        parser.add_argument('--ignore-replicated', action='store_true',  help='Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Useful for proxmox HA replication)')
+        parser.add_argument('--no-holds', action='store_true',  help='Don\'t lock snapshots on the source. (Useful to allow proxmox HA replication to switches nodes)')
+        #not sure if this ever was useful:
         # parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
 
         parser.add_argument('--resume', action='store_true', help='Support resuming of interrupted transfers by using the zfs extensible_dataset feature (both zpools should have it enabled) Disadvantage is that you need to use zfs recv -A if another snapshot is created on the target during a receive. Otherwise it will keep failing.')
@@ -1480,7 +1480,7 @@ class ZfsAutobackup:
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes to the latest target snapshot before starting. (normally you can prevent changes by setting the readonly property on the target_path to on)')
         parser.add_argument('--destroy-incompatible', action='store_true', help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
-        parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. usefull for acltype errors)')
+        parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. useful for acltype errors)')
         parser.add_argument('--raw', action='store_true', help='For encrypted datasets, send data exactly as it exists on disk.')
 
 
