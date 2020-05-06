@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S python -u
 # -*- coding: utf8 -*-
 
 # (c)edwin@datux.nl  - Released under GPL
