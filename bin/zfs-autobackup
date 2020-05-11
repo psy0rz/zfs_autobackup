@@ -26,7 +26,7 @@ if sys.stdout.isatty():
     except ImportError:
         pass
 
-VERSION="3.0-rc10"
+VERSION="3.0-rc11"
 HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
 
 class Log:
@@ -299,6 +299,15 @@ class ExecuteNode:
         else:
             self.error("STDERR|> "+line.rstrip())
 
+    #simple logging stubs
+    def debug(self, txt):
+        print("DEBUG  : "+txt)
+
+    def verbose(self, txt):
+        print("VERBOSE: "+txt)
+
+    def error(self, txt):
+        print("ERROR  : "+txt)
 
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False, return_stderr=False):
         """run a command on the node
@@ -324,7 +333,9 @@ class ExecuteNode:
             #(this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
             for arg in cmd:
                 #add single quotes for remote commands to support spaces and other weird stuff (remote commands are executed in a shell)
-                encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
+                #and escape existing single quotes (bash needs ' to end the quoted string, then a \' for the actual quote and then another ' to start a new quoted string)
+                #(and then python needs the double \ to get a single \)
+                encoded_cmd.append( ("'" + arg.replace("'","'\\''") + "'").encode('utf-8'))
 
         else:
             for arg in cmd:
@@ -369,6 +380,7 @@ class ExecuteNode:
         if isinstance(input,str) or type(input)=='unicode':
             p.stdin.write(input)
 
+        #return pipe
         if pipe:
             return(p)
 
@@ -427,9 +439,10 @@ class ExecuteNode:
             if valid_exitcodes and input.returncode not in valid_exitcodes:
                 raise(subprocess.CalledProcessError(input.returncode, "(pipe)"))
 
-
         if valid_exitcodes and p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
+
+    
 
         if return_stderr:
             return ( output_lines, error_lines )
