@@ -226,53 +226,6 @@ class Thinner:
 
 
 
-# ######### Thinner testing code
-# now=int(time.time())
-#
-# t=Thinner("1d1w,1w1m,1m6m,1y2y", always_keep=1)
-#
-# import random
-#
-# class Thing:
-#     def __init__(self, timestamp):
-#         self.timestamp=timestamp
-#
-#     def __str__(self):
-#         age=now-self.timestamp
-#         struct=time.localtime(self.timestamp)
-#         return("{} ({} days old)".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
-#
-# def test():
-#     global now
-#     things=[]
-#
-#     while True:
-#         print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
-#
-#         (keeps, removes)=t.run(things, now)
-#
-#         print ("### KEEP ")
-#         for thing in keeps:
-#             print(thing)
-#
-#         print ("### REMOVE ")
-#         for thing in removes:
-#             print(thing)
-#
-#         things=keeps
-#
-#         #increase random amount of time and maybe add a thing
-#         now=now+random.randint(0,160000)
-#         if random.random()>=0:
-#             things.append(Thing(now))
-#
-#         sys.stdin.readline()
-#
-# test()
-
-
-
-
 class cached_property(object):
     """ A property that is only computed once per instance and then replaces
         itself with an ordinary attribute. Deleting the attribute resets the
