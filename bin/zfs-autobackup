@@ -378,7 +378,10 @@ class ExecuteNode:
 
         #Note: make streaming?
         if isinstance(input,str) or type(input)=='unicode':
-            p.stdin.write(input)
+            p.stdin.write(input.encode('utf-8'))
+
+        if p.stdin:
+            p.stdin.close()
 
         #return pipe
         if pipe:
