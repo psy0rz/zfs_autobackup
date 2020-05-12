@@ -6,3 +6,4 @@ build/
 zfs_autobackup.egg-info
 .eggs/
 __pycache__
+.coverage

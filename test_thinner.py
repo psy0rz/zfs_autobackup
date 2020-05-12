@@ -1,7 +1,7 @@
 
 #default test stuff
 import unittest
-from zfs_autobackup import *
+from bin.zfs_autobackup import *
 
 #test specific
 import random
