@@ -81,7 +81,7 @@ class TestThinner(unittest.TestCase):
         for thing in things:
             result.append(str(thing))
         
-        print()
+        print("Thinner result:")
         pprint.pprint(result)
 
         self.assertEqual(result, ok)
@@ -144,7 +144,7 @@ class TestThinner(unittest.TestCase):
         for thing in things:
             result.append(str(thing))
         
-        print()
+        print("Thinner result:")
         pprint.pprint(result)
 
         self.assertEqual(result, ok)

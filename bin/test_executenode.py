@@ -10,9 +10,9 @@ print("THIS TEST REQUIRES SSH TO LOCALHOST")
 
 class TestExecuteNode(unittest.TestCase):
 
-    def setUp(self):
+    # def setUp(self):
 
-        return super().setUp()
+    #     return super().setUp()
 
     def basics(self, node ):
 
@@ -40,25 +40,57 @@ class TestExecuteNode(unittest.TestCase):
 
         #slow command, make sure things dont exit too early
         start_time=time.time()
-        node.run(["sleep","1"])
+        self.assertEqual(node.run(["sleep","1"]), [])
         self.assertGreaterEqual(time.time()-start_time,1)
 
         #input a string and check it via cat
         self.assertEqual(node.run(["cat"], input="test"), ["test"])
 
 
-    def test_basicslocal(self):
+    def test_basics_local(self):
         node=ExecuteNode(debug_output=True)
         self.basics(node)
 
-    def test_basicsremote(self):
+    def test_basics_remote(self):
         node=ExecuteNode(ssh_to="localhost", debug_output=True)
         self.basics(node)
 
+    ################
+
+    def test_readonly(self):
+        node=ExecuteNode(debug_output=True, readonly=True)
+
+        self.assertEqual(node.run(["echo","test"], readonly=False), None)
+        self.assertEqual(node.run(["echo","test"], readonly=True), ["test"])
 
 
+    ################
 
+    def pipe(self, nodea, nodeb):
+        output=nodea.run(["dd", "if=/dev/zero", "count=1000"], pipe=True)
+        self.assertEqual(nodeb.run(["md5sum"], input=output), ["816df6f64deba63b029ca19d880ee10a  -"])
+    
+        #TODO: pipe stderr and exitcodes
 
+    def test_pipe_local_local(self):
+        nodea=ExecuteNode(debug_output=True)
+        nodeb=ExecuteNode(debug_output=True)
+        self.pipe(nodea, nodeb)
+
+    def test_pipe_remote_remote(self):
+        nodea=ExecuteNode(ssh_to="localhost", debug_output=True)
+        nodeb=ExecuteNode(ssh_to="localhost", debug_output=True)
+        self.pipe(nodea, nodeb)
+
+    def test_pipe_local_remote(self):
+        nodea=ExecuteNode(debug_output=True)
+        nodeb=ExecuteNode(ssh_to="localhost", debug_output=True)
+        self.pipe(nodea, nodeb)
+
+    def test_pipe_remote_local(self):
+        nodea=ExecuteNode(ssh_to="localhost", debug_output=True)
+        nodeb=ExecuteNode(debug_output=True)
+        self.pipe(nodea, nodeb)
 
 
 if __name__ == '__main__':
