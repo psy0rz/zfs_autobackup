@@ -69,8 +69,27 @@ class TestExecuteNode(unittest.TestCase):
     def pipe(self, nodea, nodeb):
         output=nodea.run(["dd", "if=/dev/zero", "count=1000"], pipe=True)
         self.assertEqual(nodeb.run(["md5sum"], input=output), ["816df6f64deba63b029ca19d880ee10a  -"])
+
+        #both ok    
+        output=nodea.run(["true"], pipe=True)
+        nodeb.run(["true"], input=output)
     
-        #TODO: pipe stderr and exitcodes
+        #remote error
+        with self.assertRaises(subprocess.CalledProcessError):
+            output=nodea.run(["false"], pipe=True)
+            nodeb.run(["true"], input=output)
+
+        #local error    
+        with self.assertRaises(subprocess.CalledProcessError):
+            output=nodea.run(["true"], pipe=True)
+            nodeb.run(["false"], input=output)
+
+        #both error    
+        with self.assertRaises(subprocess.CalledProcessError):
+            output=nodea.run(["true"], pipe=True)
+            nodeb.run(["false"], input=output)
+
+
 
     def test_pipe_local_local(self):
         nodea=ExecuteNode(debug_output=True)
