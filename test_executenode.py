@@ -78,35 +78,37 @@ class TestExecuteNode(unittest.TestCase):
             output=nodea.run(["dd", "if=/dev/zero", "count=1000"], pipe=True)
             self.assertEqual(nodeb.run(["md5sum"], input=output), ["816df6f64deba63b029ca19d880ee10a  -"])
 
-        #both ok    
-        with self.subTest("exit code both ok"):
+        with self.subTest("exit code both ends of pipe ok"):
             output=nodea.run(["true"], pipe=True)
             nodeb.run(["true"], input=output)
     
-        #remote error
-        with self.subTest("node a error"):
+        with self.subTest("error on pipe input side"):
             with self.assertRaises(subprocess.CalledProcessError):
                 output=nodea.run(["false"], pipe=True)
                 nodeb.run(["true"], input=output)
 
-        #local error    
-        with self.subTest("node b error"):
+        with self.subTest("error on pipe output side "):
             with self.assertRaises(subprocess.CalledProcessError):
                 output=nodea.run(["true"], pipe=True)
                 nodeb.run(["false"], input=output)
 
-        #both error    
-        with self.subTest("both nodes error"):
+        with self.subTest("error on both sides of pipe"):
             with self.assertRaises(subprocess.CalledProcessError):
                 output=nodea.run(["false"], pipe=True)
                 nodeb.run(["false"], input=output)
 
-        #capture local stderr
-        with self.subTest("pipe local stderr output"):
+        with self.subTest("check stderr on pipe output side"):
             output=nodea.run(["true"], pipe=True)
-            (stdout, stderr)=nodeb.run(["ls", "nonexistingfile"], input=output, return_stderr=True, valid_exitcodes=[2])
+            (stdout, stderr)=nodeb.run(["ls", "nonexistingfile"], input=output, return_stderr=True, valid_exitcodes=[0,2])
             self.assertEqual(stdout,[])
-            self.assertRegex(stderr[0],"nonexistingfile")
+            self.assertRegex(stderr[0], "nonexistingfile" )
+
+        with self.subTest("check stderr on pipe input side (should be only printed)"):
+            output=nodea.run(["ls", "nonexistingfile"], pipe=True)
+            (stdout, stderr)=nodeb.run(["true"], input=output, return_stderr=True, valid_exitcodes=[0,2])
+            self.assertEqual(stdout,[])
+            self.assertEqual(stderr,[] )
+            
 
 
 
