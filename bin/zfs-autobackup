@@ -311,11 +311,14 @@ class ExecuteNode:
 
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False, return_stderr=False):
         """run a command on the node
-
-        readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
-        pipe: Instead of executing, return a pipe-handle to be used to input to another run() command. (just like a | in linux)
+        cmd: the actual command, should be a list, where the first item is the command and the rest are parameters.
         input: Can be None, a string or a pipe-handle you got from another run()
-        return_stderr: return both stdout and stderr as a tuple
+        tab_split: split tabbed files in output into a list
+        valid_exitcodes: list of valid exit codes for this command (checks exit code of both sides of a pipe)
+        readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
+        hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
+        pipe: Instead of executing, return a pipe-handle to be used to input to another run() command. (just like a | in linux)
+        return_stderr: return both stdout and stderr as a tuple. (only returns stderr from this side of the pipe)
         """
 
         encoded_cmd=[]
