@@ -254,10 +254,21 @@ class cached_property(object):
 
         return obj._cached_properties[propname]
 
+class Logger():
+
+    #simple logging stubs
+    def debug(self, txt):
+        print("DEBUG  : "+txt)
+
+    def verbose(self, txt):
+        print("VERBOSE: "+txt)
+
+    def error(self, txt):
+        print("ERROR  : "+txt)
 
 
 
-class ExecuteNode:
+class ExecuteNode(Logger):
     """an endpoint to execute local or remote commands via ssh"""
 
 
@@ -299,15 +310,6 @@ class ExecuteNode:
         else:
             self.error("STDERR|> "+line.rstrip())
 
-    #simple logging stubs
-    def debug(self, txt):
-        print("DEBUG  : "+txt)
-
-    def verbose(self, txt):
-        print("VERBOSE: "+txt)
-
-    def error(self, txt):
-        print("ERROR  : "+txt)
 
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False, return_stderr=False):
         """run a command on the node
@@ -1233,14 +1235,14 @@ class ZfsDataset():
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, backup_name, zfs_autobackup, ssh_config=None, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
+    def __init__(self, backup_name, logger, ssh_config=None, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
         self.backup_name=backup_name
-        if not description:
+        if not description and ssh_to:
             self.description=ssh_to
         else:
             self.description=description
 
-        self.zfs_autobackup=zfs_autobackup #for logging
+        self.logger=logger
 
         if ssh_config:
             self.verbose("Using custom SSH config: {}".format(ssh_config))
@@ -1318,13 +1320,13 @@ class ZfsNode(ExecuteNode):
         self.parse_zfs_progress(line, hide_errors, "STDERR > ")
 
     def verbose(self,txt):
-        self.zfs_autobackup.verbose("{} {}".format(self.description, txt))
+        self.logger.verbose("{} {}".format(self.description, txt))
 
     def error(self,txt,titles=[]):
-        self.zfs_autobackup.error("{} {}".format(self.description, txt))
+        self.logger.error("{} {}".format(self.description, txt))
 
     def debug(self,txt, titles=[]):
-        self.zfs_autobackup.debug("{} {}".format(self.description, txt))
+        self.logger.debug("{} {}".format(self.description, txt))
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""
