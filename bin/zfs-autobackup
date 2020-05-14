@@ -26,7 +26,7 @@ if sys.stdout.isatty():
     except ImportError:
         pass
 
-VERSION="3.0-rc10"
+VERSION="3.0-rc11"
 HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
 
 class Log:
@@ -226,53 +226,6 @@ class Thinner:
 
 
 
-# ######### Thinner testing code
-# now=int(time.time())
-#
-# t=Thinner("1d1w,1w1m,1m6m,1y2y", always_keep=1)
-#
-# import random
-#
-# class Thing:
-#     def __init__(self, timestamp):
-#         self.timestamp=timestamp
-#
-#     def __str__(self):
-#         age=now-self.timestamp
-#         struct=time.localtime(self.timestamp)
-#         return("{} ({} days old)".format(time.strftime("%Y-%m-%d %H:%M:%S",struct),int(age/(3600*24))))
-#
-# def test():
-#     global now
-#     things=[]
-#
-#     while True:
-#         print("#################### {}".format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(now))))
-#
-#         (keeps, removes)=t.run(things, now)
-#
-#         print ("### KEEP ")
-#         for thing in keeps:
-#             print(thing)
-#
-#         print ("### REMOVE ")
-#         for thing in removes:
-#             print(thing)
-#
-#         things=keeps
-#
-#         #increase random amount of time and maybe add a thing
-#         now=now+random.randint(0,160000)
-#         if random.random()>=0:
-#             things.append(Thing(now))
-#
-#         sys.stdin.readline()
-#
-# test()
-
-
-
-
 class cached_property(object):
     """ A property that is only computed once per instance and then replaces
         itself with an ordinary attribute. Deleting the attribute resets the
@@ -301,10 +254,21 @@ class cached_property(object):
 
         return obj._cached_properties[propname]
 
+class Logger():
+
+    #simple logging stubs
+    def debug(self, txt):
+        print("DEBUG  : "+txt)
+
+    def verbose(self, txt):
+        print("VERBOSE: "+txt)
+
+    def error(self, txt):
+        print("ERROR  : "+txt)
 
 
 
-class ExecuteNode:
+class ExecuteNode(Logger):
     """an endpoint to execute local or remote commands via ssh"""
 
 
@@ -349,11 +313,14 @@ class ExecuteNode:
 
     def run(self, cmd, input=None, tab_split=False, valid_exitcodes=[ 0 ], readonly=False, hide_errors=False, pipe=False, return_stderr=False):
         """run a command on the node
-
-        readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
-        pipe: Instead of executing, return a pipe-handle to be used to input to another run() command. (just like a | in linux)
+        cmd: the actual command, should be a list, where the first item is the command and the rest are parameters.
         input: Can be None, a string or a pipe-handle you got from another run()
-        return_stderr: return both stdout and stderr as a tuple
+        tab_split: split tabbed files in output into a list
+        valid_exitcodes: list of valid exit codes for this command (checks exit code of both sides of a pipe)
+        readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
+        hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
+        pipe: Instead of executing, return a pipe-handle to be used to input to another run() command. (just like a | in linux)
+        return_stderr: return both stdout and stderr as a tuple. (only returns stderr from this side of the pipe)
         """
 
         encoded_cmd=[]
@@ -371,7 +338,9 @@ class ExecuteNode:
             #(this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
             for arg in cmd:
                 #add single quotes for remote commands to support spaces and other weird stuff (remote commands are executed in a shell)
-                encoded_cmd.append( ("'"+arg+"'").encode('utf-8'))
+                #and escape existing single quotes (bash needs ' to end the quoted string, then a \' for the actual quote and then another ' to start a new quoted string)
+                #(and then python needs the double \ to get a single \)
+                encoded_cmd.append( ("'" + arg.replace("'","'\\''") + "'").encode('utf-8'))
 
         else:
             for arg in cmd:
@@ -414,8 +383,12 @@ class ExecuteNode:
 
         #Note: make streaming?
         if isinstance(input,str) or type(input)=='unicode':
-            p.stdin.write(input)
+            p.stdin.write(input.encode('utf-8'))
 
+        if p.stdin:
+            p.stdin.close()
+
+        #return pipe
         if pipe:
             return(p)
 
@@ -474,9 +447,10 @@ class ExecuteNode:
             if valid_exitcodes and input.returncode not in valid_exitcodes:
                 raise(subprocess.CalledProcessError(input.returncode, "(pipe)"))
 
-
         if valid_exitcodes and p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
+
+    
 
         if return_stderr:
             return ( output_lines, error_lines )
@@ -1261,14 +1235,14 @@ class ZfsDataset():
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, backup_name, zfs_autobackup, ssh_config=None, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
+    def __init__(self, backup_name, logger, ssh_config=None, ssh_to=None, readonly=False, description="", debug_output=False, thinner=Thinner()):
         self.backup_name=backup_name
-        if not description:
+        if not description and ssh_to:
             self.description=ssh_to
         else:
             self.description=description
 
-        self.zfs_autobackup=zfs_autobackup #for logging
+        self.logger=logger
 
         if ssh_config:
             self.verbose("Using custom SSH config: {}".format(ssh_config))
@@ -1346,13 +1320,13 @@ class ZfsNode(ExecuteNode):
         self.parse_zfs_progress(line, hide_errors, "STDERR > ")
 
     def verbose(self,txt):
-        self.zfs_autobackup.verbose("{} {}".format(self.description, txt))
+        self.logger.verbose("{} {}".format(self.description, txt))
 
     def error(self,txt,titles=[]):
-        self.zfs_autobackup.error("{} {}".format(self.description, txt))
+        self.logger.error("{} {}".format(self.description, txt))
 
     def debug(self,txt, titles=[]):
-        self.zfs_autobackup.debug("{} {}".format(self.description, txt))
+        self.logger.debug("{} {}".format(self.description, txt))
 
     def new_snapshotname(self):
         """determine uniq new snapshotname"""

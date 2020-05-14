@@ -286,7 +286,7 @@ You can specify as many rules as you need. The order of the rules doesn't matter
 
 Keep in mind its up to you to actually run zfs-autobackup often enough: If you want to keep hourly snapshots, you have to make sure you at least run it every hour.
 
-However, its no problem if you run it more or less often than that: The thinner will still do its best to choose an optimal set of snapshots to choose.
+However, its no problem if you run it more or less often than that: The thinner will still keep an optimal set of snapshots to match your schedule as good as possible.
 
 If you want to keep as few snapshots as possible, just specify 0. (`--keep-source=0` for example)
 
