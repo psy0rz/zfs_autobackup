@@ -1,10 +1,5 @@
+from basetest import *
 
-#default test stuff
-import unittest
-from bin.zfs_autobackup import *
-
-import subprocess
-import time
 
 print("THIS TEST REQUIRES SSH TO LOCALHOST")
 

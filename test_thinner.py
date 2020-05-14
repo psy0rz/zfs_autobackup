@@ -1,13 +1,5 @@
+from basetest import *
 
-#default test stuff
-import unittest
-from bin.zfs_autobackup import *
-
-#test specific
-import random
-import sys
-import time
-import pprint
 
 class Thing:
     def __init__(self, timestamp):

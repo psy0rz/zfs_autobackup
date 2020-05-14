@@ -1418,7 +1418,7 @@ class ZfsNode(ExecuteNode):
 
 class ZfsAutobackup:
     """main class"""
-    def __init__(self):
+    def __init__(self,argv):
 
         parser = argparse.ArgumentParser(
             description=HEADER,
@@ -1465,7 +1465,7 @@ class ZfsAutobackup:
         parser.add_argument('--progress', action='store_true', help='show zfs progress output (to stderr). Enabled by default on ttys.')
 
         #note args is the only global variable we use, since its a global readonly setting anyway
-        args = parser.parse_args()
+        args = parser.parse_args(argv)
 
         self.args=args
 
@@ -1624,5 +1624,5 @@ class ZfsAutobackup:
 
 
 if __name__ == "__main__":
-    zfs_autobackup=ZfsAutobackup()
+    zfs_autobackup=ZfsAutobackup(sys.argv)
     sys.exit(zfs_autobackup.run())
