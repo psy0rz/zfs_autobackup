@@ -9,6 +9,15 @@ from pprint import *
 from bin.zfs_autobackup import *
 
 
+def shelltest(cmd):
+    """execute and print result as nice copypastable string for unit tests (adds extra newlines on top/bottom)"""
+    ret=(subprocess.check_output(cmd , shell=True).decode('utf-8'))
+    print("######### result of: {}".format(cmd))
+    print(ret,end='')
+    print("#########")
+    ret='\n'+ret
+    return(ret)
+
 def prepare_zpools():
     print("Preparing zfs filesystems...")
 
