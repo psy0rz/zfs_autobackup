@@ -6,6 +6,7 @@
 
 * Complete rewrite, cleaner object oriented code.
 * Python 3 and 2 support.
+* Automated regression against real ZFS environment.
 * Installable via [pip](https://pypi.org/project/zfs-autobackup/).
 * Backwards compatible with your current backups and parameters.
 * Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
@@ -20,6 +21,7 @@
 * Prepared for future enhancements.
 * Supports raw backups for encryption.
 * Custom SSH client config.
+
 
 ## Introduction
 

@@ -33,7 +33,7 @@ test_target1
 
 
         with self.subTest("second snapshot, no changes, no snapshot"):
-            node.consistent_snapshot(node.selected_datasets, "test-2",100000)
+            node.consistent_snapshot(node.selected_datasets, "test-2",1)
             r=shelltest("zfs list -H -o name -r -t all")
             self.assertEqual(r,"""
 test_source1
