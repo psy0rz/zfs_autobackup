@@ -8,4 +8,4 @@ zfs_autobackup.egg-info
 __pycache__
 .coverage
 *.pyc
-
+python2.env
