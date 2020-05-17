@@ -1,6 +1,11 @@
+language: python
+python:
+  - "3.6"
 env: NGROK_TOKEN=1c1uvy5CSMYBuO3o7Jv3xgRugYF_XGEz3Atyjb7KMaxw5GeU
-install:
-  - sudo apt-get update
-  - sudo apt-get install zfsutils-linux python3-pip -y 
-  - sudo pip3 install coverage
+# install:
+#   - sudo apt-get update
+#   - sudo apt-get install zfsutils-linux python3-pip -y 
+#   - sudo pip3 install coverage
+#   - sudo ./ngrok.sh
+before_install:
   - sudo ./ngrok.sh
