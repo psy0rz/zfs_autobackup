@@ -30,9 +30,9 @@ def prepare_zpools():
     subprocess.check_call("modprobe brd rd_size=512000", shell=True)
 
     #remove old stuff
-    subprocess.call("zpool destroy test_source1", shell=True)
-    subprocess.call("zpool destroy test_source2", shell=True)
-    subprocess.call("zpool destroy test_target1", shell=True)
+    subprocess.call("zpool destroy test_source1 2>/dev/null", shell=True)
+    subprocess.call("zpool destroy test_source2 2>/dev/null", shell=True)
+    subprocess.call("zpool destroy test_target1 2>/dev/null", shell=True)
 
     #create pools
     subprocess.check_call("zpool create test_source1 /dev/ram0", shell=True)
