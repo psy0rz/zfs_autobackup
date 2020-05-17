@@ -7,5 +7,5 @@ env: NGROK_TOKEN=1c1uvy5CSMYBuO3o7Jv3xgRugYF_XGEz3Atyjb7KMaxw5GeU
 #   - sudo apt-get install zfsutils-linux python3-pip -y 
 #   - sudo pip3 install coverage
 #   - sudo ./ngrok.sh
-before_install:
+script:
   - sudo ./ngrok.sh
