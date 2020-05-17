@@ -21,4 +21,8 @@ EXIT=$?
 echo 
 coverage report
 
+#this does automatic travis CI/https://coveralls.io/ intergration:
+echo "Submitting to coveralls.io:"
+coveralls 
+
 exit $EXIT
