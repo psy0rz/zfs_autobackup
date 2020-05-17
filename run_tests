@@ -1,4 +1,8 @@
 #!/bin/bash
+
+#reactivate python environment, if any (usefull in Travis)
+source $VIRTUAL_ENV/bin/activate 
+
 coverage run --source bin.zfs_autobackup -m unittest -v $@
 EXIT=$?
 
