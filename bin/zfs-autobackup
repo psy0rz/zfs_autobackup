@@ -500,15 +500,15 @@ class ZfsPool():
         self.debug("Getting zpool properties")
 
         cmd=[
-            "zpool", "get", "-H", "-o", "property,value", "-p", "all", self.name
+            "zpool", "get", "-H", "-p", "all", self.name
         ]
 
 
         ret={}
 
         for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[ 0 ]):
-            if len(pair)==2:
-                ret[pair[0]]=pair[1]
+            if len(pair)==4:
+                ret[pair[1]]=pair[2]
 
         return(ret)
 
