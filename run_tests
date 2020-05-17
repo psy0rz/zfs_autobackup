@@ -1,6 +1,8 @@
 #!/bin/bash
 coverage run --source bin.zfs_autobackup -m unittest -v $@
+EXIT=$?
 
 echo 
 coverage report
 
+exit $EXIT
