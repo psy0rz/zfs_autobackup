@@ -3,7 +3,7 @@ from basetest import *
 
 print("THIS TEST REQUIRES SSH TO LOCALHOST")
 
-class TestExecuteNode(unittest.TestCase):
+class TestExecuteNode(unittest2.TestCase):
 
     # def setUp(self):
 

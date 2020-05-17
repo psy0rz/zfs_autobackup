@@ -1,11 +1,11 @@
 from basetest import *
 
 
-class TestZfsNode(unittest.TestCase):
+class TestZfsNode(unittest2.TestCase):
 
     def setUp(self):
         prepare_zpools()
-        return super().setUp()
+        # return super().setUp()
 
 
     def test_consistent_snapshot(self):

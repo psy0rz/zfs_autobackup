@@ -4,7 +4,7 @@ import subprocess
 import random
 
 #default test stuff
-import unittest
+import unittest2
 import subprocess
 import time
 from pprint import *
@@ -17,7 +17,7 @@ def shelltest(cmd):
     """execute and print result as nice copypastable string for unit tests (adds extra newlines on top/bottom)"""
     ret=(subprocess.check_output(cmd , shell=True).decode('utf-8'))
     print("######### result of: {}".format(cmd))
-    print(ret,end='')
+    print(ret)
     print("#########")
     ret='\n'+ret
     return(ret)

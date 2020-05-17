@@ -1,11 +1,11 @@
 from basetest import *
 
 
-class TestZfsAutobackup(unittest.TestCase):
+class TestZfsAutobackup(unittest2.TestCase):
 
     def setUp(self):
         prepare_zpools()
-        return super().setUp()
+        # return super(TestZfsAutobackup,self).setUp()
 
     def  test_defaults(self):
         with self.subTest("defaults with full verbose and debug"):

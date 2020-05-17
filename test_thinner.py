@@ -11,11 +11,11 @@ class Thing:
         return("{}".format(time.strftime("%Y-%m-%d %H:%M:%S",struct)))
 
 
-class TestThinner(unittest.TestCase):
+class TestThinner(unittest2.TestCase):
 
-    def setUp(self):
+    # def setUp(self):
 
-        return super().setUp()
+        # return super().setUp()
 
     def test_incremental(self):
         ok=['2023-01-01 10:09:50',
