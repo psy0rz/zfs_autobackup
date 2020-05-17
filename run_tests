@@ -1,12 +1,17 @@
 #!/bin/bash
 
+if [ "$USER" != "root" ]; then
+    echo "Need root to do proper zfs testing"
+    exit 1
+fi
+
 #reactivate python environment, if any (usefull in Travis)
 source $VIRTUAL_ENV/bin/activate  || true
 
 # test needs ssh access to localhost for testing
-if ! [ -t ~/.ssh/id_rsa ]; then
-    ssh-keygen -t rsa -f ~/.ssh/id_rsa -P '' || exit 1
-    cat ~/.ssh/id_rsa.pub  >> ~/.ssh/authorized_keys || exit 1
+if ! [ -t /root/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -f /root/.ssh/id_rsa -P '' || exit 1
+    cat /root/.ssh/id_rsa.pub  >> /root/.ssh/authorized_keys || exit 1
     ssh -oStrictHostKeyChecking=no localhost true || exit 1
 fi
 
