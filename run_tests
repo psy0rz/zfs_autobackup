@@ -9,7 +9,7 @@ fi
 source $VIRTUAL_ENV/bin/activate  || true
 
 # test needs ssh access to localhost for testing
-if ! [ -t /root/.ssh/id_rsa ]; then
+if ! [ -e /root/.ssh/id_rsa ]; then
     ssh-keygen -t rsa -f /root/.ssh/id_rsa -P '' || exit 1
     cat /root/.ssh/id_rsa.pub  >> /root/.ssh/authorized_keys || exit 1
     ssh -oStrictHostKeyChecking=no localhost true || exit 1
@@ -22,7 +22,9 @@ echo
 coverage report
 
 #this does automatic travis CI/https://coveralls.io/ intergration:
-echo "Submitting to coveralls.io:"
-coveralls 
+if which coveralls > /dev/null; then
+        echo "Submitting to coveralls.io:"
+        coveralls 
+fi
 
 exit $EXIT

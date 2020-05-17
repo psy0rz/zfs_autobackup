@@ -435,12 +435,16 @@ class ExecuteNode(Logger):
             if p.poll()!=None and ((not isinstance(input, subprocess.Popen)) or input.poll()!=None) and eof_count==len(selectors):
                 break
 
+        p.stderr.close()
+        p.stdout.close()
 
         if self.debug_output:
             self.debug("EXIT   > {}".format(p.returncode))
 
         #handle piped process error output and exit codes
         if isinstance(input, subprocess.Popen):
+            input.stderr.close()
+            input.stdout.close()
 
             if self.debug_output:
                 self.debug("EXIT  |> {}".format(input.returncode))
@@ -450,7 +454,6 @@ class ExecuteNode(Logger):
         if valid_exitcodes and p.returncode not in valid_exitcodes:
             raise(subprocess.CalledProcessError(p.returncode, encoded_cmd))
 
-    
 
         if return_stderr:
             return ( output_lines, error_lines )
