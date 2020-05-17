@@ -5,7 +5,7 @@ jobs:
     - os: linux
       dist: bionic
 
-      language: python
+language: python
 
 
 python:
