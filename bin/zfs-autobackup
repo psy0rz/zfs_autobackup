@@ -990,7 +990,7 @@ class ZfsDataset():
         #verbose output
         cmd.append("-v")
 
-        if 'extensible_dataset' in features:
+        if 'extensible_dataset' in features and "-s" in self.zfs_node.supported_recv_options:
             #support resuming
             self.debug("Enabled resume support")
             cmd.append("-s")
@@ -1352,6 +1352,17 @@ class ZfsNode(ExecuteNode):
         ret=[]
         for option in ["-L", "-e", "-c" , "-D" ]:
             if self.valid_command(["zfs","send", option, "zfs_autobackup_option_test"]):
+                ret.append(option)
+        return(ret)
+
+    @cached_property
+    def supported_recv_options(self):
+        """list of supported options"""
+        #not every zfs implementation supports them all
+
+        ret=[]
+        for option in ["-s" ]:
+            if self.valid_command(["zfs","recv", option, "zfs_autobackup_option_test"]):
                 ret.append(option)
         return(ret)
 
