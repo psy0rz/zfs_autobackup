@@ -1,0 +1,3 @@
+env: NGROK_TOKEN=1c1uvy5CSMYBuO3o7Jv3xgRugYF_XGEz3Atyjb7KMaxw5GeU
+before_install:
+  - eval "$(curl -sL https://raw.github.com/fniephaus/travis-remote-shell/master/run.sh)"
