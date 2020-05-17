@@ -1,12 +1,13 @@
 #!/bin/bash
 
+
 if [ "$USER" != "root" ]; then
     echo "Need root to do proper zfs testing"
     exit 1
 fi
 
 #reactivate python environment, if any (usefull in Travis)
-source $VIRTUAL_ENV/bin/activate  || true
+[ "$VIRTUAL_ENV" ] && source $VIRTUAL_ENV/bin/activate 
 
 # test needs ssh access to localhost for testing
 if ! [ -e /root/.ssh/id_rsa ]; then
