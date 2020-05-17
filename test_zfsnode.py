@@ -91,6 +91,23 @@ test_target1
  (local): test_source2/fs2/sub]""")
 
 
+    def test_validcommand(self):
+        logger=Logger()
+        description="[Source]"
+        node=ZfsNode("test", logger, description=description)
+
+
+        with self.subTest("test invalid option"):
+            self.assertFalse(node.valid_command(["zfs", "send", "--invalid-option", "nonexisting"]))
+        with self.subTest("test valid option"):
+            self.assertTrue(node.valid_command(["zfs", "send", "-v", "nonexisting"]))
+
+    def test_supportedsendoptions(self):
+        logger=Logger()
+        description="[Source]"
+        node=ZfsNode("test", logger, description=description)
+        print(node.supported_send_options)
+    
 
 
 

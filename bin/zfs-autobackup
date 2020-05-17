@@ -855,11 +855,18 @@ class ZfsDataset():
         cmd.extend(["zfs", "send",  ])
 
         #all kind of performance options:
-        cmd.append("-L") # large block support
-        cmd.append("-e") # WRITE_EMBEDDED, more compact stream
-        cmd.append("-c") # use compressed WRITE records
+        if "-L" in self.zfs_node.supported_send_options:
+            cmd.append("-L") # large block support
+
+        if "-e" in self.zfs_node.supported_send_options:
+            cmd.append("-e") # WRITE_EMBEDDED, more compact stream
+
+        if "-c" in self.zfs_node.supported_send_options:
+            cmd.append("-c") # use compressed WRITE records
+
         if not resume:
-            cmd.append("-D") # dedupped stream, sends less duplicate data
+            if "-D" in self.zfs_node.supported_send_options:
+                cmd.append("-D") # dedupped stream, sends less duplicate data
 
         #raw? (for encryption)
         if raw:
@@ -1266,6 +1273,28 @@ class ZfsNode(ExecuteNode):
 
 
         ExecuteNode.__init__(self, ssh_config=ssh_config, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
+
+    @cached_property
+    def supported_send_options(self):
+        """list of supported options, for optimizing sends"""
+        #not every zfs implementation supports them all
+
+        ret=[]
+        for option in ["-L", "-e", "-c" , "-D" ]:
+            if self.valid_command(["zfs","send", option, "zfs_autobackup_option_test"]):
+                ret.append(option)
+        return(ret)
+
+
+    def valid_command(self, cmd):
+        """test if a specified zfs options are valid exit code. use this to determine support options"""
+
+        try:
+            self.run(cmd, hide_errors=True, valid_exitcodes=[0,1])
+        except subprocess.CalledProcessError as e:
+            return False
+
+        return True
 
 
     def reset_progress(self):
