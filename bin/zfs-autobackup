@@ -854,19 +854,19 @@ class ZfsDataset():
 
         cmd.extend(["zfs", "send",  ])
 
-        #all kind of performance options:
-        if "-L" in self.zfs_node.supported_send_options:
-            cmd.append("-L") # large block support
+        # #all kind of performance options:
+        # if "-L" in self.zfs_node.supported_send_options:
+        #     cmd.append("-L") # large block support
 
-        if "-e" in self.zfs_node.supported_send_options:
-            cmd.append("-e") # WRITE_EMBEDDED, more compact stream
+        # if "-e" in self.zfs_node.supported_send_options:
+        #     cmd.append("-e") # WRITE_EMBEDDED, more compact stream
 
-        if "-c" in self.zfs_node.supported_send_options:
-            cmd.append("-c") # use compressed WRITE records
+        # if "-c" in self.zfs_node.supported_send_options:
+        #     cmd.append("-c") # use compressed WRITE records
 
-        if not resume:
-            if "-D" in self.zfs_node.supported_send_options:
-                cmd.append("-D") # dedupped stream, sends less duplicate data
+        # if not resume:
+        #     if "-D" in self.zfs_node.supported_send_options:
+        #         cmd.append("-D") # dedupped stream, sends less duplicate data
 
         #raw? (for encryption)
         if raw:
