@@ -6,6 +6,9 @@ if [ "$USER" != "root" ]; then
     exit 1
 fi
 
+#reactivate python environment, if any (usefull in Travis)
+[ "$VIRTUAL_ENV" ] && source $VIRTUAL_ENV/bin/activate 
+
 echo "####################################################"
 echo "##### Unit testing against"
 echo "##### Python          : `python --version 2>&1 |sed 's/.* //'`"
@@ -13,8 +16,6 @@ echo "##### ZFS userspace   : `dpkg-query -W zfsutils-linux |cut -f2`"
 echo "##### ZFS kernel      : `modinfo zfs|grep ^version |sed 's/.* //'` "
 echo "####################################################"
 
-#reactivate python environment, if any (usefull in Travis)
-[ "$VIRTUAL_ENV" ] && source $VIRTUAL_ENV/bin/activate 
 
 # test needs ssh access to localhost for testing
 if ! [ -e /root/.ssh/id_rsa ]; then
