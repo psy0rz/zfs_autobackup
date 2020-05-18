@@ -364,7 +364,8 @@ class ExecuteNode(Logger):
 
         #determine stdin
         if input==None:
-            stdin=None
+            #NOTE: Not None, otherwise it reads stdin from terminal!
+            stdin=subprocess.PIPE
         elif isinstance(input,str) or type(input)=='unicode':
             self.debug("INPUT  > \n"+input.rstrip())
             stdin=subprocess.PIPE

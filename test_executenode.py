@@ -47,6 +47,9 @@ class TestExecuteNode(unittest2.TestCase):
         with self.subTest("stdin input string"):
             self.assertEqual(node.run(["cat"], input="test"), ["test"])
 
+        #command that wants input, while we dont have input, shouldnt hang forever.
+        with self.subTest("stdin process with input=None (shouldn't hang)"):
+            self.assertEqual(node.run(["cat"]), [])
 
     def test_basics_local(self):
         node=ExecuteNode(debug_output=True)

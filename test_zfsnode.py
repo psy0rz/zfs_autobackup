@@ -106,9 +106,17 @@ test_target1
         logger=Logger()
         description="[Source]"
         node=ZfsNode("test", logger, description=description)
-        print(node.supported_send_options)
+        # -D propably always supported
+        self.assertIn("-D", node.supported_send_options)
     
 
+    def test_supportedrecvoptions(self):
+        logger=Logger()
+        description="[Source]"
+        #NOTE: this couldnt hang via ssh if we dont close filehandles properly. (which was a previous bug)
+        node=ZfsNode("test", logger, description=description, ssh_to='localhost')
+        self.assertIsInstance(node.supported_recv_options, list)
+        
 
 
 if __name__ == '__main__':
