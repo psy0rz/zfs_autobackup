@@ -1753,5 +1753,5 @@ class ZfsAutobackup:
 
 
 if __name__ == "__main__":
-    zfs_autobackup=ZfsAutobackup(sys.argv)
+    zfs_autobackup=ZfsAutobackup(sys.argv[1:])
     sys.exit(zfs_autobackup.run())
