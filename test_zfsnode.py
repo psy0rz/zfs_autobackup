@@ -107,7 +107,7 @@ test_target1
         description="[Source]"
         node=ZfsNode("test", logger, description=description)
         # -D propably always supported
-        self.assertIn("-D", node.supported_send_options)
+        self.assertGreater(len(node.supported_send_options),0)
     
 
     def test_supportedrecvoptions(self):

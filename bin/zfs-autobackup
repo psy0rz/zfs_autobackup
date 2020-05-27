@@ -931,6 +931,7 @@ class ZfsDataset():
             cmd.append("-c") # use compressed WRITE records
 
         #NOTE: performance is usually worse with this option, according to manual
+        #also -D will be depricated in newer ZFS versions
         # if not resume:
         #     if "-D" in self.zfs_node.supported_send_options:
         #         cmd.append("-D") # dedupped stream, sends less duplicate data
@@ -1351,7 +1352,7 @@ class ZfsNode(ExecuteNode):
         #not every zfs implementation supports them all
 
         ret=[]
-        for option in ["-L", "-e", "-c" , "-D" ]:
+        for option in ["-L", "-e", "-c"  ]:
             if self.valid_command(["zfs","send", option, "zfs_autobackup_option_test"]):
                 ret.append(option)
         return(ret)
