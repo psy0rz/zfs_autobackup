@@ -1707,7 +1707,8 @@ class ZfsAutobackup:
                     target_datasets.append(target_dataset)
 
                     #ensure parents exists
-                    if not self.args.no_send and not target_dataset.parent.exists:
+                    #TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
+                    if not self.args.no_send and not target_dataset.parent in target_datasets and not target_dataset.parent.exists:
                         target_dataset.parent.create_filesystem(parents=True)
 
                     #determine common zpool features

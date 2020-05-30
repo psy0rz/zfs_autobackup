@@ -5,6 +5,7 @@ class TestZfsAutobackup(unittest2.TestCase):
     
     def setUp(self):
         prepare_zpools()
+        self.longMessage=True
 
     def  test_defaults(self):
 
@@ -183,3 +184,54 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
+
+    def  test_nosnapshot(self):
+        # r=shelltest("zfs snapshot test_source1/fs1@othersimple")
+        # r=shelltest("zfs snapshot test_source1/fs1@otherdate-20001111000000")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot".split(" ")).run())
+
+            r=shelltest("zfs list -H -o name -r -t all")
+            #(only parents are created )
+            #TODO: it probably shouldn't create these
+            self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1/sub
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source2
+test_target1/test_source2/fs2
+""")
+
+
+    def  test_nosend(self):
+        # r=shelltest("zfs snapshot test_source1/fs1@othersimple")
+        # r=shelltest("zfs snapshot test_source1/fs1@otherdate-20001111000000")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-send".split(" ")).run())
+
+            r=shelltest("zfs list -H -o name -r -t all")
+            #(only parents are created )
+            #TODO: it probably shouldn't create these
+            self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000000
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+""")
