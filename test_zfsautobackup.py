@@ -326,3 +326,87 @@ test_target1/fs2/sub@test-20101111000000
 """)
 
 
+    def  test_clearrefres(self):
+
+        r=shelltest("zfs set refreservation=1M test_source1/fs1")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-refreservation".split(" ")).run())
+
+            r=shelltest("zfs get refreservation -r test_source1 test_source2 test_target1")
+            self.assertMultiLineEqual(r,"""
+NAME                                                   PROPERTY        VALUE      SOURCE
+test_source1                                           refreservation  none       default
+test_source1/fs1                                       refreservation  1M         local
+test_source1/fs1@test-20101111000000                   refreservation  -          -
+test_source1/fs1/sub                                   refreservation  none       default
+test_source1/fs1/sub@test-20101111000000               refreservation  -          -
+test_source2                                           refreservation  none       default
+test_source2/fs2                                       refreservation  none       default
+test_source2/fs2/sub                                   refreservation  none       default
+test_source2/fs2/sub@test-20101111000000               refreservation  -          -
+test_source2/fs3                                       refreservation  none       default
+test_source2/fs3/sub                                   refreservation  none       default
+test_target1                                           refreservation  none       default
+test_target1/test_source1                              refreservation  none       default
+test_target1/test_source1/fs1                          refreservation  none       default
+test_target1/test_source1/fs1@test-20101111000000      refreservation  -          -
+test_target1/test_source1/fs1/sub                      refreservation  none       default
+test_target1/test_source1/fs1/sub@test-20101111000000  refreservation  -          -
+test_target1/test_source2                              refreservation  none       default
+test_target1/test_source2/fs2                          refreservation  none       default
+test_target1/test_source2/fs2/sub                      refreservation  none       default
+test_target1/test_source2/fs2/sub@test-20101111000000  refreservation  -          -
+""")
+
+
+    def  test_clearmount(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-mountpoint".split(" ")).run())
+
+            r=shelltest("zfs get canmount -r test_source1 test_source2 test_target1")
+            self.assertMultiLineEqual(r,"""
+NAME                                                   PROPERTY  VALUE     SOURCE
+test_source1                                           canmount  on        default
+test_source1/fs1                                       canmount  on        default
+test_source1/fs1@test-20101111000000                   canmount  -         -
+test_source1/fs1/sub                                   canmount  on        default
+test_source1/fs1/sub@test-20101111000000               canmount  -         -
+test_source2                                           canmount  on        default
+test_source2/fs2                                       canmount  on        default
+test_source2/fs2/sub                                   canmount  on        default
+test_source2/fs2/sub@test-20101111000000               canmount  -         -
+test_source2/fs3                                       canmount  on        default
+test_source2/fs3/sub                                   canmount  on        default
+test_target1                                           canmount  on        default
+test_target1/test_source1                              canmount  on        default
+test_target1/test_source1/fs1                          canmount  noauto    local
+test_target1/test_source1/fs1@test-20101111000000      canmount  -         -
+test_target1/test_source1/fs1/sub                      canmount  noauto    local
+test_target1/test_source1/fs1/sub@test-20101111000000  canmount  -         -
+test_target1/test_source2                              canmount  on        default
+test_target1/test_source2/fs2                          canmount  on        default
+test_target1/test_source2/fs2/sub                      canmount  noauto    local
+test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
+""")
+
+
+    def  test_rollback(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        #make change
+        r=shelltest("zfs mount test_target1/test_source1/fs1")
+        r=shelltest("touch /test_target1/test_source1/fs1/change.txt")
+
+        with patch('time.strftime', return_value="20101111000001"):
+            #should fail (busy)
+            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000002"):
+            #rollback, should succeed
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --rollback".split(" ")).run())
+
+
