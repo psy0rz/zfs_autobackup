@@ -1565,7 +1565,7 @@ class ZfsAutobackup:
         # parser.add_argument('--ignore-new', action='store_true',  help='Ignore filesystem if there are already newer snapshots for it on the target (use with caution)')
 
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--strip-path', default=0, type=int, help='Number of directory to strip from path (use 1 when cloning zones between 2 SmartOS machines)')
+        parser.add_argument('--strip-path', default=0, type=int, help='Number of directories to strip from target path (use 1 when cloning zones between 2 SmartOS machines)')
         # parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
 
 

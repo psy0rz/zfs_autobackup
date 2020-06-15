@@ -264,3 +264,65 @@ test_target1/test_source2/fs2
 test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
+
+    def  test_noholds(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds".split(" ")).run())
+
+            r=shelltest("zfs get -r userrefs test_source1 test_source2 test_target1")
+            self.assertMultiLineEqual(r,"""
+NAME                                                   PROPERTY  VALUE     SOURCE
+test_source1                                           userrefs  -         -
+test_source1/fs1                                       userrefs  -         -
+test_source1/fs1@test-20101111000000                   userrefs  0         -
+test_source1/fs1/sub                                   userrefs  -         -
+test_source1/fs1/sub@test-20101111000000               userrefs  0         -
+test_source2                                           userrefs  -         -
+test_source2/fs2                                       userrefs  -         -
+test_source2/fs2/sub                                   userrefs  -         -
+test_source2/fs2/sub@test-20101111000000               userrefs  0         -
+test_source2/fs3                                       userrefs  -         -
+test_source2/fs3/sub                                   userrefs  -         -
+test_target1                                           userrefs  -         -
+test_target1/test_source1                              userrefs  -         -
+test_target1/test_source1/fs1                          userrefs  -         -
+test_target1/test_source1/fs1@test-20101111000000      userrefs  1         -
+test_target1/test_source1/fs1/sub                      userrefs  -         -
+test_target1/test_source1/fs1/sub@test-20101111000000  userrefs  1         -
+test_target1/test_source2                              userrefs  -         -
+test_target1/test_source2/fs2                          userrefs  -         -
+test_target1/test_source2/fs2/sub                      userrefs  -         -
+test_target1/test_source2/fs2/sub@test-20101111000000  userrefs  1         -
+""")
+
+
+    def  test_strippath(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --strip-path=1".split(" ")).run())
+
+            r=shelltest("zfs list -H -o name -r -t all")
+            self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000000
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/fs1
+test_target1/fs1@test-20101111000000
+test_target1/fs1/sub
+test_target1/fs1/sub@test-20101111000000
+test_target1/fs2
+test_target1/fs2/sub
+test_target1/fs2/sub@test-20101111000000
+""")
+
+
