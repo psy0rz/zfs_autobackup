@@ -328,6 +328,11 @@ test_target1/fs2/sub@test-20101111000000
 
     def  test_clearrefres(self):
 
+        #on zfs utils 0.6.x this isnt supported, skip for now:
+        r=shelltest("zfs recv -x bla test; echo $?")
+        if r=="\n2\n":
+            pass
+
         r=shelltest("zfs set refreservation=1M test_source1/fs1")
 
         with patch('time.strftime', return_value="20101111000000"):
@@ -362,6 +367,12 @@ test_target1/test_source2/fs2/sub@test-20101111000000  refreservation  -        
 
     def  test_clearmount(self):
 
+        #on zfs utils 0.6.x this isnt supported, skip for now:
+        r=shelltest("zfs recv -o bla=1 test; echo $?")
+        if r=="\n2\n":
+            pass
+
+
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-mountpoint".split(" ")).run())
 
@@ -394,6 +405,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 
     def  test_rollback(self):
 
+        #initial backup
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
 
@@ -408,5 +420,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
         with patch('time.strftime', return_value="20101111000002"):
             #rollback, should succeed
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --rollback".split(" ")).run())
+
 
 
