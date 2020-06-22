@@ -422,4 +422,32 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --rollback".split(" ")).run())
 
 
+    def  test_destroyincompat(self):
+
+        #initial backup
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        #add multiple compatible snapshot (written is still 0)
+        r=shelltest("zfs snapshot test_target1/test_source1/fs1@compatible1")
+        r=shelltest("zfs snapshot test_target1/test_source1/fs1@compatible2")
+
+        with patch('time.strftime', return_value="20101111000001"):
+            #should be ok, is compatible
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+        #add incompatible snapshot by changing and snapshotting
+        r=shelltest("zfs mount test_target1/test_source1/fs1")
+        r=shelltest("touch /test_target1/test_source1/fs1/change.txt")
+        r=shelltest("zfs snapshot test_target1/test_source1/fs1@incompatible1")
+
+        with patch('time.strftime', return_value="20101111000002"):
+            #should fail, now incompatible
+            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+
+        with patch('time.strftime', return_value="20101111000003"):
+            #should succeed by destroying incompatibles
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --destroy-incompatible".split(" ")).run())
+
 
