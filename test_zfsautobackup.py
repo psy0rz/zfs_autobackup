@@ -329,7 +329,7 @@ test_target1/fs2/sub@test-20101111000000
     def  test_clearrefres(self):
 
         #on zfs utils 0.6.x -x isnt supported but returns 0 somehow
-        r=shelltest("zfs recv -x bla test &>/dev/null; echo $?")
+        r=shelltest("zfs recv -x bla test >/dev/null </dev/zero; echo $?")
         if r=="\n0\n":
             self.skipTest("This zfs-userspace version doesnt support -x")
 
@@ -368,9 +368,9 @@ test_target1/test_source2/fs2/sub@test-20101111000000  refreservation  -        
     def  test_clearmount(self):
 
         #on zfs utils 0.6.x -o isnt supported but returns 0 somehow
-        r=shelltest("zfs recv -o bla=1 test &>/dev/null; echo $?")
+        r=shelltest("zfs recv -o bla=1 test >/dev/null </dev/zero; echo $?")
         if r=="\n0\n":
-            self.skipTest("This zfs-userspace version doesnt support -x")
+            self.skipTest("This zfs-userspace version doesnt support -o")
 
 
         with patch('time.strftime', return_value="20101111000000"):
