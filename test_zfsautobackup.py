@@ -329,7 +329,7 @@ test_target1/fs2/sub@test-20101111000000
     def  test_clearrefres(self):
 
         #on zfs utils 0.6.x this isnt supported, skip for now:
-        r=shelltest("zfs recv -x bla test; echo $?")
+        r=shelltest("zfs recv -x bla test &>/dev/null; echo  $?")
         if r=="\n2\n":
             pass
 
