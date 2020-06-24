@@ -586,10 +586,11 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
 
-        #make small change, use compress of and sync to reflect the changes immediately
+        #make small change, use umount to reflect the changes immediately
         r=shelltest("zfs set compress=off test_source1")
         r=shelltest("touch /test_source1/fs1/change.txt")
-        r=shelltest("zpool sync")
+        r=shelltest("zfs umount test_source1/fs1; zfs mount test_source1/fs1")
+        
 
         #too small change, takes no snapshots
         with patch('time.strftime', return_value="20101111000001"):
@@ -597,7 +598,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
         #make big change
         r=shelltest("dd if=/dev/zero of=/test_source1/fs1/change.txt bs=200000 count=1")
-        r=shelltest("zpool sync")
+        r=shelltest("zfs umount test_source1/fs1; zfs mount test_source1/fs1")
 
         #bigger change, should take snapshot
         with patch('time.strftime', return_value="20101111000002"):
