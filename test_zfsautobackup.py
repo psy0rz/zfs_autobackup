@@ -531,7 +531,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
     def test_ssh(self):
 
         #test all ssh directions
-        
+
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-source localhost".split(" ")).run())
 
@@ -580,11 +580,61 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 """)
 
 
+    def  test_minchange(self):
+
+        #initial
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
+
+        #make small change, use compress of and sync to reflect the changes immediately
+        r=shelltest("zfs set compress=off test_source1")
+        r=shelltest("touch /test_source1/fs1/change.txt")
+        r=shelltest("zpool sync")
+
+        #too small change, takes no snapshots
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
+
+        #make big change
+        r=shelltest("dd if=/dev/zero of=/test_source1/fs1/change.txt bs=200000 count=1")
+        r=shelltest("zpool sync")
+
+        #bigger change, should take snapshot
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000000
+test_source1/fs1@test-20101111000002
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1@test-20101111000002
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+
 ###########################
-# TODO: --raw --ignore-transfer-errors --ssh.. --min-change --test  --verbose/etc
+# TODO: --raw --ignore-transfer-errors  --test  --verbose/etc
 #
 # more unfinished stuff below:
 
-    def  test_testraw(self):
+    def  test_raw(self):
         
         self.skipTest("todo: later when travis supports zfs 0.8")
