@@ -1,6 +1,8 @@
 from basetest import *
 import time
 
+
+
 class TestZfsAutobackup(unittest2.TestCase):
     
     def setUp(self):
@@ -451,3 +453,138 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --destroy-incompatible".split(" ")).run())
 
 
+
+
+
+    def test_keepsourcetarget(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+        #should still have all snapshots
+        r=shelltest("zfs list -H -o name -r -t all")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000000
+test_source1/fs1@test-20101111000001
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source1/fs1/sub@test-20101111000001
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs2/sub@test-20101111000001
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1@test-20101111000001
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source1/fs1/sub@test-20101111000001
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+test_target1/test_source2/fs2/sub@test-20101111000001
+""")
+
+
+        #run again with keep=0
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --keep-source=0 --keep-target=0".split(" ")).run())
+
+        #should only have last snapshots
+        r=shelltest("zfs list -H -o name -r -t all")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000002
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000002
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000002
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000002
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000002
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000002
+""")
+
+
+    def test_ssh(self):
+
+        #test all ssh directions
+        
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-source localhost".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-target localhost".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-source localhost --ssh-target localhost".split(" ")).run())
+
+
+        r=shelltest("zfs list -H -o name -r -t all")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000000
+test_source1/fs1@test-20101111000001
+test_source1/fs1@test-20101111000002
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source1/fs1/sub@test-20101111000001
+test_source1/fs1/sub@test-20101111000002
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs2/sub@test-20101111000001
+test_source2/fs2/sub@test-20101111000002
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1@test-20101111000001
+test_target1/test_source1/fs1@test-20101111000002
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source1/fs1/sub@test-20101111000001
+test_target1/test_source1/fs1/sub@test-20101111000002
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+test_target1/test_source2/fs2/sub@test-20101111000001
+test_target1/test_source2/fs2/sub@test-20101111000002
+""")
+
+
+###########################
+# TODO: --raw --ignore-transfer-errors --ssh.. --min-change --test  --verbose/etc
+#
+# more unfinished stuff below:
+
+    def  test_testraw(self):
+        
+        self.skipTest("todo: later when travis supports zfs 0.8")
