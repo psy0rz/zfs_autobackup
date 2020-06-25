@@ -15,7 +15,7 @@ class TestZfsNode(unittest2.TestCase):
 
         with self.subTest("first snapshot"):
             node.consistent_snapshot(node.selected_datasets, "test-1",100000)
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertEqual(r,"""
 test_source1
 test_source1/fs1
@@ -34,7 +34,7 @@ test_target1
 
         with self.subTest("second snapshot, no changes, no snapshot"):
             node.consistent_snapshot(node.selected_datasets, "test-2",1)
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertEqual(r,"""
 test_source1
 test_source1/fs1
@@ -52,7 +52,7 @@ test_target1
 
         with self.subTest("second snapshot, no changes, empty snapshot"):
             node.consistent_snapshot(node.selected_datasets, "test-2",0)
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertEqual(r,"""
 test_source1
 test_source1/fs1

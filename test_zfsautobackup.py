@@ -16,7 +16,7 @@ class TestZfsAutobackup(unittest2.TestCase):
             with patch('time.strftime', return_value="20101111000000"):
                 self.assertFalse(ZfsAutobackup("test test_target1 --verbose --debug".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -46,7 +46,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                 self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty".split(" ")).run())
 
         
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -122,7 +122,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001  userrefs  1         -
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -157,7 +157,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --other-snapshots".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -192,7 +192,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
             #TODO: it probably shouldn't create these
             self.assertMultiLineEqual(r,"""
@@ -216,7 +216,7 @@ test_target1/test_source2/fs2
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-send".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
             #TODO: it probably shouldn't create these
             self.assertMultiLineEqual(r,"""
@@ -241,7 +241,7 @@ test_target1
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --ignore-replicated".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
             #TODO: it probably shouldn't create these
             self.assertMultiLineEqual(r,"""
@@ -304,7 +304,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  userrefs  1         -
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --strip-path=1".split(" ")).run())
 
-            r=shelltest("zfs list -H -o name -r -t all")
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -465,7 +465,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
 
         #should still have all snapshots
-        r=shelltest("zfs list -H -o name -r -t all")
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -502,7 +502,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --keep-source=0 --keep-target=0".split(" ")).run())
 
         #should only have last snapshots
-        r=shelltest("zfs list -H -o name -r -t all")
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -542,7 +542,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-source localhost --ssh-target localhost".split(" ")).run())
 
 
-        r=shelltest("zfs list -H -o name -r -t all")
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -604,7 +604,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         with patch('time.strftime', return_value="20101111000002"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
 
-        r=shelltest("zfs list -H -o name -r -t all")
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1

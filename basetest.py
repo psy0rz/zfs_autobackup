@@ -11,7 +11,7 @@ from pprint import *
 from bin.zfs_autobackup import *
 from mock import *
 
-
+TEST_POOLS="test_source1 test_source2 test_target1"
 
 
 def shelltest(cmd):
@@ -27,7 +27,6 @@ def prepare_zpools():
     print("Preparing zfs filesystems...")
 
     #need ram blockdevice
-    # subprocess.call("rmmod brd", shell=True)
     subprocess.check_call("modprobe brd rd_size=512000", shell=True)
 
     #remove old stuff
