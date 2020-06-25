@@ -631,11 +631,32 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
+    def  test_test(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1/sub
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+""")
+
+
 ###########################
-# TODO: --raw --ignore-transfer-errors  --test  --verbose/etc
-#
-# more unfinished stuff below:
+# TODO:
 
     def  test_raw(self):
         
         self.skipTest("todo: later when travis supports zfs 0.8")
+
+    def  test_ignoretransfererrors(self):
+        
+        self.skipTest("todo: create some kind of situation where zfs recv exits with an error but transfer is still ok (happens in practice with acltype)")
