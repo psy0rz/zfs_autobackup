@@ -30,7 +30,7 @@ class TestZfsNode(unittest2.TestCase):
 
         #free up space
         r=shelltest("rm /test_target1/waste")
-        r=shelltest("zpool sync")
+        r=shelltest("zfs umount test_target1")
 
         #should resume and succeed
         with io.StringIO() as buf:

@@ -1,5 +1,7 @@
 from basetest import *
 import time
+import contextlib
+import io
 
 
 
@@ -10,6 +12,19 @@ class TestZfsAutobackup(unittest2.TestCase):
         self.longMessage=True
 
     def  test_defaults(self):
+
+        with self.subTest("no datasets selected"):
+            #should resume and succeed
+            
+            with io.StringIO() as buf:
+                with contextlib.redirect_stderr(buf):
+                    with patch('time.strftime', return_value="20101111000000"):
+                        self.assertTrue(ZfsAutobackup("nonexisting test_target1 --verbose --debug".split(" ")).run())
+
+                print(buf.getvalue())
+                #did we really resume?
+                self.assertIn("No source filesystems selected", buf.getvalue())
+
 
         with self.subTest("defaults with full verbose and debug"):
 
