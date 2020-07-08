@@ -15,6 +15,16 @@ import sys
 import io
 
 TEST_POOLS="test_source1 test_source2 test_target1"
+ZFS_USERSPACE=  subprocess.check_output("dpkg-query -W zfsutils-linux |cut -f2", shell=True).decode('utf-8').rstrip()
+ZFS_KERNEL=     subprocess.check_output("modinfo zfs|grep ^version |sed 's/.* //'", shell=True).decode('utf-8').rstrip()
+
+print("###########################################")
+print("#### Unit testing against:")
+print("#### Python                :"+sys.version.replace("\n", " "))
+print("#### ZFS userspace         :"+ZFS_USERSPACE)
+print("#### ZFS kernel            :"+ZFS_KERNEL)
+print("#############################################")
+
 
 
 # for python2 compatibility

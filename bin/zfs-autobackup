@@ -1728,7 +1728,7 @@ class ZfsAutobackup:
             self.debug("Thinning obsolete datasets")
             for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
                 if dataset not in target_datasets:
-                    dataset.verbose("Missing on source")
+                    dataset.debug("Missing on source")
                     dataset.thin()
 
 

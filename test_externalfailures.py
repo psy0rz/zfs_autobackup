@@ -11,6 +11,9 @@ class TestZfsNode(unittest2.TestCase):
 
     def test_resume(self):
 
+        if "0.6.5" in ZFS_USERSPACE:
+            self.skipTest("Resume not supported in this ZFS userspace version")
+
         r=shelltest("zfs set compress=off test_source1 test_target1")
 
         #initial backup
@@ -36,10 +39,14 @@ class TestZfsNode(unittest2.TestCase):
         with OutputIO() as buf:
             with redirect_stdout(buf):
                 with patch('time.strftime', return_value="20101111000002"):
-                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --debug".split(" ")).run())
 
             print(buf.getvalue())
+            
             #did we really resume?
-            self.assertIn("resuming", buf.getvalue())
+            self.assertIn(": resuming", buf.getvalue())
 
+
+
+    # def test_resumeabort(self):
 
