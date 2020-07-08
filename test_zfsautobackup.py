@@ -1,7 +1,5 @@
 from basetest import *
 import time
-import contextlib
-import io
 
 
 
@@ -16,13 +14,13 @@ class TestZfsAutobackup(unittest2.TestCase):
         with self.subTest("no datasets selected"):
             #should resume and succeed
             
-            with io.StringIO() as buf:
-                with contextlib.redirect_stderr(buf):
+            with OutputIO() as buf:
+                with redirect_stderr(buf):
                     with patch('time.strftime', return_value="20101111000000"):
                         self.assertTrue(ZfsAutobackup("nonexisting test_target1 --verbose --debug".split(" ")).run())
 
                 print(buf.getvalue())
-                #did we really resume?
+                #correct message?
                 self.assertIn("No source filesystems selected", buf.getvalue())
 
 

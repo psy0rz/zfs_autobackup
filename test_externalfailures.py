@@ -1,7 +1,6 @@
 
 from basetest import *
-import contextlib
-import io
+
 
 class TestZfsNode(unittest2.TestCase):
 
@@ -32,9 +31,10 @@ class TestZfsNode(unittest2.TestCase):
         r=shelltest("rm /test_target1/waste")
         r=shelltest("zfs umount test_target1")
 
+
         #should resume and succeed
-        with io.StringIO() as buf:
-            with contextlib.redirect_stdout(buf):
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
                 with patch('time.strftime', return_value="20101111000002"):
                     self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
 

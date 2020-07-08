@@ -10,8 +10,40 @@ import time
 from pprint import *
 from bin.zfs_autobackup import *
 from mock import *
+import contextlib 
+import sys
+import io
 
 TEST_POOLS="test_source1 test_source2 test_target1"
+
+
+# for python2 compatibility
+if sys.version_info.major==2:
+    OutputIO=io.BytesIO
+else:
+    OutputIO=io.StringIO
+
+
+# for python2 compatibility (python 3 has this already)
+@contextlib.contextmanager
+def redirect_stdout(target):
+    original = sys.stdout
+    try:
+        sys.stdout = target
+        yield
+    finally:
+        sys.stdout = original
+
+# for python2 compatibility (python 3 has this already)
+@contextlib.contextmanager
+def redirect_stderr(target):
+    original = sys.stderr
+    try:
+        sys.stderr = target
+        yield
+    finally:
+        sys.stderr = original
+
 
 
 def shelltest(cmd):
