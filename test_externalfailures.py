@@ -149,8 +149,8 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         #remove corresponding source snapshot, so it becomes invalid
         shelltest("zfs destroy test_source1/fs1@test-20101111000000")
 
-        #NOTE: it can only abort the initial dataset if it has no subs, so abort that one as well:
-        shelltest("zfs recv -A test_target1/test_source1/fs1/sub")
+        #NOTE: it can only abort the initial dataset if it has no subs
+        shelltest("zfs destroy test_target1/test_source1/fs1/sub; true")
 
         #--test try again, should abort old resume
         with patch('time.strftime', return_value="20101111000001"):
@@ -214,6 +214,22 @@ test_target1/test_source2/fs2
 test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
+
+
+   
+    def test_missing_common(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+        #remove common snapshot and leave nothing
+        shelltest("zfs release zfs_autobackup:test test_source1/fs1@test-20101111000000")
+        shelltest("zfs destroy test_source1/fs1@test-20101111000000")
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+
 
     ############# TODO:
     def  test_ignoretransfererrors(self):
