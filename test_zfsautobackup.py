@@ -456,10 +456,18 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
         r=shelltest("touch /test_target1/test_source1/fs1/change.txt")
         r=shelltest("zfs snapshot test_target1/test_source1/fs1@incompatible1")
 
+
+        with patch('time.strftime', return_value="20101111000002"):
+            #--test should fail, now incompatible
+            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty --test".split(" ")).run())
+
         with patch('time.strftime', return_value="20101111000002"):
             #should fail, now incompatible
             self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
 
+        with patch('time.strftime', return_value="20101111000003"):
+            #--test should succeed by destroying incompatibles
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --destroy-incompatible --test".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000003"):
             #should succeed by destroying incompatibles
@@ -646,6 +654,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
     def  test_test(self):
 
+        #initial
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
 
@@ -660,6 +669,40 @@ test_source2/fs2/sub
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
+""")
+
+        #actual make initial backup
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+
+        #test incremental
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000001
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000001
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000001
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000001
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000001
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
 

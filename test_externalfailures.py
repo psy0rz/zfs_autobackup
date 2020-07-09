@@ -36,10 +36,25 @@ class TestZfsNode(unittest2.TestCase):
         with patch('time.strftime', return_value="20101111000000"):
             self.generate_resume()
 
+        #--test should resume and succeed
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+
+            print(buf.getvalue())
+            
+            #did we really resume?
+            if "0.6.5" in ZFS_USERSPACE:
+                #abort this late, for beter coverage
+                self.skipTest("Resume not supported in this ZFS userspace version")
+            else:
+                self.assertIn(": resuming", buf.getvalue())
+
+
         #should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --debug".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
 
             print(buf.getvalue())
             
@@ -76,10 +91,24 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with patch('time.strftime', return_value="20101111000001"):
             self.generate_resume()
 
+        #--test should resume and succeed
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+
+            print(buf.getvalue())
+            
+            #did we really resume?
+            if "0.6.5" in ZFS_USERSPACE:
+                #abort this late, for beter coverage
+                self.skipTest("Resume not supported in this ZFS userspace version")
+            else:
+                self.assertIn(": resuming", buf.getvalue())
+
         #should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --debug".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
 
             print(buf.getvalue())
             
@@ -107,7 +136,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
 
     # # generate an invalid resume token, and verify if its aborted automaticly
-    #FIXME: fails due to incorrectly created parent
+    # # FIXME: fails due to incorrectly created parent
     # def test_resumeabort(self):
 
     #     if "0.6.5" in ZFS_USERSPACE:
@@ -116,6 +145,8 @@ test_target1/test_source2/fs2/sub@test-20101111000000
     #     #inital backup, leaves resume token
     #     with patch('time.strftime', return_value="20101111000000"):
     #         self.generate_resume()
+
+    #     asdf
 
     #     #remove corresponding source snapshot
     #     shelltest("zfs destroy test_source1/fs1@test-20101111000000")

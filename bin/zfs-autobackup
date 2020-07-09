@@ -547,7 +547,7 @@ class ZfsDataset():
 
     def __init__(self, zfs_node, name, force_exists=None):
         """name: full path of the zfs dataset
-        exists: specify if you already know a dataset exists or not. for performance reasons. (otherwise it will have to check with zfs list when needed)
+        exists: specify if you already know a dataset exists or not. for performance and testing reasons. (otherwise it will have to check with zfs list when needed)
         """
         self.zfs_node=zfs_node
         self.name=name #full name
