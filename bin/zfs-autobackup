@@ -26,8 +26,8 @@ if sys.stdout.isatty():
     except ImportError:
         pass
 
-VERSION="3.0-rc11"
-HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)\n".format(VERSION)
+VERSION="3.0-rc12"
+HEADER="zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
 class Log:
     def __init__(self, show_debug=False, show_verbose=False):
@@ -1093,13 +1093,16 @@ class ZfsDataset():
         return(self.zfs_node.thinner.thin(snapshots, keep_objects=keeps))
 
 
-    def thin(self):
+    def thin(self, skip_holds=False):
         """destroys snapshots according to thin_list, except last snapshot"""
 
         (keeps, obsoletes)=self.thin_list(keeps=self.our_snapshots[-1:])
         for obsolete in obsoletes:
-            obsolete.destroy()
-            self.snapshots.remove(obsolete)
+            if skip_holds and obsolete.is_hold():
+                obsolete.verbose("Keeping (common snapshot)")
+            else:
+                obsolete.destroy()
+                self.snapshots.remove(obsolete)
 
 
     def find_common_snapshot(self, target_dataset):
@@ -1552,7 +1555,7 @@ class ZfsAutobackup:
         parser.add_argument('--keep-target', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default: %(default)s')
 
         parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
-        parser.add_argument('target_path', default=None, nargs='?',  help='Target ZFS filesystem')
+        parser.add_argument('target_path', default=None, nargs='?',  help='Target ZFS filesystem (optional: if not specified, zfs-autobackup will only operate as snapshot-tool on source)')
 
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
         parser.add_argument('--no-snapshot', action='store_true', help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
@@ -1625,6 +1628,92 @@ class ZfsAutobackup:
         self.log.verbose("")
         self.log.verbose("#### "+title)
 
+    # sync datasets, or thin-only on both sides
+    # target is needed for this.
+    def sync_datasets(self, source_node, source_datasets):
+
+        description="[Target]"
+
+        self.set_title("Target settings")
+
+        target_thinner=Thinner(self.args.keep_target)
+        target_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
+        target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
+
+        if self.args.no_send:        
+            self.set_title("Thinning source and target")
+        else:
+            self.set_title("Sending and thinning")
+
+        #check if exists, to prevent vague errors
+        target_dataset=ZfsDataset(target_node, self.args.target_path)
+        if not target_dataset.exists:
+            self.error("Target path '{}' does not exist. Please create this dataset first.".format(target_dataset))
+            return(255)
+
+
+        if self.args.filter_properties:
+            filter_properties=self.args.filter_properties.split(",")
+        else:
+            filter_properties=[]
+
+        if self.args.set_properties:
+            set_properties=self.args.set_properties.split(",")
+        else:
+            set_properties=[]
+
+        if self.args.clear_refreservation:
+            filter_properties.append("refreservation")
+
+        if self.args.clear_mountpoint:
+            set_properties.append("canmount=noauto")
+
+        #sync datasets
+        fail_count=0
+        target_datasets=[]
+        for source_dataset in source_datasets:
+
+            try:
+                #determine corresponding target_dataset
+                target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
+                target_dataset=ZfsDataset(target_node, target_name)
+                target_datasets.append(target_dataset)
+
+                #ensure parents exists
+                #TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
+                if not self.args.no_send and not target_dataset.parent in target_datasets and not target_dataset.parent.exists:
+                    target_dataset.parent.create_filesystem(parents=True)
+
+                #determine common zpool features
+                source_features=source_node.get_zfs_pool(source_dataset.split_path()[0]).features
+                target_features=target_node.get_zfs_pool(target_dataset.split_path()[0]).features
+                common_features=source_features and target_features
+                # source_dataset.debug("Common features: {}".format(common_features))
+
+                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, features=common_features, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots, no_send=self.args.no_send, destroy_incompatible=self.args.destroy_incompatible)
+            except Exception as e:
+                fail_count=fail_count+1
+                source_dataset.error("FAILED: "+str(e))
+                if self.args.debug:
+                    raise
+
+        #also thin target_datasets that are not on the source any more
+        self.debug("Thinning obsolete datasets")
+        for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
+            if dataset not in target_datasets:
+                dataset.debug("Missing on source")
+                dataset.thin()
+
+            return(fail_count)
+
+
+    def thin_source(self, source_datasets):
+        self.set_title("Thinning source")
+
+        for source_dataset in source_datasets:
+            source_dataset.thin(skip_holds=True)
+
+
     def run(self):
 
         try:
@@ -1633,25 +1722,12 @@ class ZfsAutobackup:
             if self.args.test:
                 self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
-            self.set_title("Settings summary")
+            self.set_title("Source settings")
 
             description="[Source]"
             source_thinner=Thinner(self.args.keep_source)
             source_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_source, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=source_thinner)
             source_node.verbose("Send all datasets that have 'autobackup:{}=true' or 'autobackup:{}=child'".format(self.args.backup_name, self.args.backup_name))
-
-            self.verbose("")
-
-            description="[Target]"
-            target_thinner=Thinner(self.args.keep_target)
-            target_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
-            target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
-
-            #check if exists, to prevent vague errors
-            target_dataset=ZfsDataset(target_node, self.args.target_path)
-            if not target_dataset.exists:
-                self.error("Target path '{}' does not exist. Please create this dataset first.".format(target_dataset))
-                return(255)
 
             self.set_title("Selecting")
             selected_source_datasets=source_node.selected_datasets
@@ -1660,7 +1736,6 @@ class ZfsAutobackup:
                 return(255)
 
             source_datasets=[]
-
 
             #filter out already replicated stuff?
             if not self.args.ignore_replicated:
@@ -1673,80 +1748,34 @@ class ZfsAutobackup:
                     else:
                         selected_source_dataset.verbose("Ignoring, already replicated")
 
-
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
                 source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), min_changed_bytes=self.args.min_change)
 
-
-            if self.args.no_send:        
-                self.set_title("Thinning")
+            #if target is specified, we sync the datasets, otherwise we just thin the source.
+            if self.args.target_path:
+                fail_count=self.sync_datasets(source_node, source_datasets)
             else:
-                self.set_title("Sending and thinning")
-
-            if self.args.filter_properties:
-                filter_properties=self.args.filter_properties.split(",")
-            else:
-                filter_properties=[]
-
-            if self.args.set_properties:
-                set_properties=self.args.set_properties.split(",")
-            else:
-                set_properties=[]
-
-            if self.args.clear_refreservation:
-                filter_properties.append("refreservation")
-
-            if self.args.clear_mountpoint:
-                set_properties.append("canmount=noauto")
-
-            #sync datasets
-            fail_count=0
-            target_datasets=[]
-            for source_dataset in source_datasets:
-
-                try:
-                    #determine corresponding target_dataset
-                    target_name=self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
-                    target_dataset=ZfsDataset(target_node, target_name)
-                    target_datasets.append(target_dataset)
-
-                    #ensure parents exists
-                    #TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
-                    if not self.args.no_send and not target_dataset.parent in target_datasets and not target_dataset.parent.exists:
-                        target_dataset.parent.create_filesystem(parents=True)
-
-                    #determine common zpool features
-                    source_features=source_node.get_zfs_pool(source_dataset.split_path()[0]).features
-                    target_features=target_node.get_zfs_pool(target_dataset.split_path()[0]).features
-                    common_features=source_features and target_features
-                    # source_dataset.debug("Common features: {}".format(common_features))
-
-                    source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress, features=common_features, filter_properties=filter_properties, set_properties=set_properties, ignore_recv_exit_code=self.args.ignore_transfer_errors, source_holds= not self.args.no_holds, rollback=self.args.rollback, raw=self.args.raw, other_snapshots=self.args.other_snapshots, no_send=self.args.no_send, destroy_incompatible=self.args.destroy_incompatible)
-                except Exception as e:
-                    fail_count=fail_count+1
-                    source_dataset.error("FAILED: "+str(e))
-                    if self.args.debug:
-                        raise
-
-            #also thin target_datasets that are not on the source any more
-            self.debug("Thinning obsolete datasets")
-            for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
-                if dataset not in target_datasets:
-                    dataset.debug("Missing on source")
-                    dataset.thin()
+                self.thin_source(source_datasets)
+                fail_count=0
 
 
             if not fail_count:
                 if self.args.test:
                     self.set_title("All tests successfull.")
                 else:
-                    self.set_title("All backups completed successfully")
+                    self.set_title("All operations completed successfully")
+                    if not self.args.target_path:
+                        self.verbose("(No target_path specified, only operated as snapshot tool.)")
+
             else:
-                self.error("{} datasets failed!".format(fail_count))
+                if fail_count!=255:
+                    self.error("{} failures!".format(fail_count))
+
 
             if self.args.test:
-                self.verbose("TEST MODE - DID NOT MAKE ANY BACKUPS!")
+                self.verbose("")
+                self.verbose("TEST MODE - DID NOT MAKE ANY CHANGES!")
 
             return(fail_count)
 

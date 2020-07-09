@@ -13,6 +13,52 @@ class TestZfsAutobackup(unittest2.TestCase):
 
         self.assertEqual(ZfsAutobackup("test test_target1 --keep-source -1".split(" ")).run(), 255)
 
+    def  test_snapshotmode(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test --verbose --allow-empty --keep-source 0".split(" ")).run())
+
+        #on source: only has 1 and 2
+        #on target: has 0 and 1  
+
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000001
+test_source1/fs1@test-20101111000002
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000001
+test_source1/fs1/sub@test-20101111000002
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000001
+test_source2/fs2/sub@test-20101111000002
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1@test-20101111000001
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source1/fs1/sub@test-20101111000001
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+test_target1/test_source2/fs2/sub@test-20101111000001
+""")
+
+
 
     def  test_defaults(self):
 
