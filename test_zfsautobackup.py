@@ -9,6 +9,11 @@ class TestZfsAutobackup(unittest2.TestCase):
         prepare_zpools()
         self.longMessage=True
 
+    def test_invalidpars(self):
+
+        self.assertEqual(ZfsAutobackup("test test_target1 --keep-source -1".split(" ")).run(), 255)
+
+
     def  test_defaults(self):
 
         with self.subTest("no datasets selected"):

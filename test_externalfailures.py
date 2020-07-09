@@ -216,6 +216,43 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
 
+    #create a resume situation, where the other side doesnt want the snapshot anymore ( should abort resume )
+    def test_abort_unwanted_resume(self):
+        
+        if "0.6.5" in ZFS_USERSPACE:
+            self.skipTest("Resume not supported in this ZFS userspace version")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        #generate resume
+        with patch('time.strftime', return_value="20101111000001"):
+            self.generate_resume()
+
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                #incremental, doesnt want previous anymore
+                with patch('time.strftime', return_value="20101111000002"):
+                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-target=0 --debug --allow-empty".split(" ")).run())
+
+            print(buf.getvalue())
+            
+            self.assertIn(": aborting resume, since", buf.getvalue())
+
+        r=shelltest("zfs list -H -o name -r -t all test_target1")
+        self.assertMultiLineEqual(r,"""
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000002
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000002
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000002
+""")
+
    
     def test_missing_common(self):
 
@@ -228,6 +265,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         with patch('time.strftime', return_value="20101111000001"):
             self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
 
 
 
