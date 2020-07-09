@@ -1552,7 +1552,7 @@ class ZfsAutobackup:
         parser.add_argument('--keep-target', type=str, default="10,1d1w,1w1m,1m1y", help='Thinning schedule for old target snapshots. Default: %(default)s')
 
         parser.add_argument('backup_name',    help='Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup')
-        parser.add_argument('target_path',    help='Target ZFS filesystem')
+        parser.add_argument('target_path', default=None, nargs='?',  help='Target ZFS filesystem')
 
         parser.add_argument('--other-snapshots', action='store_true', help='Send over other snapshots as well, not just the ones created by this tool.')
         parser.add_argument('--no-snapshot', action='store_true', help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
@@ -1647,6 +1647,11 @@ class ZfsAutobackup:
             target_node=ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config, ssh_to=self.args.ssh_target, readonly=self.args.test, debug_output=self.args.debug_output, description=description, thinner=target_thinner)
             target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
+            #check if exists, to prevent vague errors
+            target_dataset=ZfsDataset(target_node, self.args.target_path)
+            if not target_dataset.exists:
+                self.error("Target path '{}' does not exist. Please create this dataset first.".format(target_dataset))
+                return(255)
 
             self.set_title("Selecting")
             selected_source_datasets=source_node.selected_datasets
