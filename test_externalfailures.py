@@ -9,6 +9,7 @@ class TestZfsNode(unittest2.TestCase):
         self.longMessage=True
 
     # generate a resumable state 
+    #NOTE: this generates two resumable test_target1/test_source1/fs1 and test_target1/test_source1/fs1/sub
     def generate_resume(self):
 
         r=shelltest("zfs set compress=off test_source1 test_target1")
@@ -135,22 +136,86 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
 
-    # # generate an invalid resume token, and verify if its aborted automaticly
-    # # FIXME: fails due to incorrectly created parent
-    # def test_resumeabort(self):
+    # generate an invalid resume token, and verify if its aborted automaticly
+    def test_initial_resumeabort(self):
 
-    #     if "0.6.5" in ZFS_USERSPACE:
-    #         self.skipTest("Resume not supported in this ZFS userspace version")
+        if "0.6.5" in ZFS_USERSPACE:
+            self.skipTest("Resume not supported in this ZFS userspace version")
 
-    #     #inital backup, leaves resume token
-    #     with patch('time.strftime', return_value="20101111000000"):
-    #         self.generate_resume()
+        #inital backup, leaves resume token
+        with patch('time.strftime', return_value="20101111000000"):
+            self.generate_resume()
 
-    #     asdf
+        #remove corresponding source snapshot, so it becomes invalid
+        shelltest("zfs destroy test_source1/fs1@test-20101111000000")
 
-    #     #remove corresponding source snapshot
-    #     shelltest("zfs destroy test_source1/fs1@test-20101111000000")
+        #NOTE: it can only abort the initial dataset if it has no subs, so abort that one as well:
+        shelltest("zfs recv -A test_target1/test_source1/fs1/sub")
 
-    #     #try again, should abort old resume
-    #     with patch('time.strftime', return_value="20101111000001"):
-    #         self.assertFalse(ZfsAutobackup("test test_target1 --verbose --debug".split(" ")).run())
+        #--test try again, should abort old resume
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+
+        #try again, should abort old resume
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all test_target1")
+        self.assertMultiLineEqual(r,"""
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000001
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+
+
+    # generate an invalid resume token, and verify if its aborted automaticly
+    def test_incremental_resumeabort(self):
+
+        if "0.6.5" in ZFS_USERSPACE:
+            self.skipTest("Resume not supported in this ZFS userspace version")
+
+        #initial backup
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+
+        #icremental backup, leaves resume token
+        with patch('time.strftime', return_value="20101111000001"):
+            self.generate_resume()
+
+        #remove corresponding source snapshot, so it becomes invalid
+        shelltest("zfs destroy test_source1/fs1@test-20101111000001")
+
+        #--test try again, should abort old resume
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+
+        #try again, should abort old resume
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all test_target1")
+        self.assertMultiLineEqual(r,"""
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1@test-20101111000002
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+
+    ############# TODO:
+    def  test_ignoretransfererrors(self):
+        
+        self.skipTest("todo: create some kind of situation where zfs recv exits with an error but transfer is still ok (happens in practice with acltype)")

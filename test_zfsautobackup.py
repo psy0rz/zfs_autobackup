@@ -713,6 +713,3 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         
         self.skipTest("todo: later when travis supports zfs 0.8")
 
-    def  test_ignoretransfererrors(self):
-        
-        self.skipTest("todo: create some kind of situation where zfs recv exits with an error but transfer is still ok (happens in practice with acltype)")
