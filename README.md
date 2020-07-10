@@ -25,7 +25,9 @@
 
 ## Introduction
 
-This is a tool I wrote to make replicating ZFS datasets easy and reliable. You can either use it as a backup tool or as a replication tool.
+This is a tool I wrote to make replicating ZFS datasets easy and reliable. 
+
+You can either use it as a **backup** tool, **replication** tool or **snapshot** tool.
 
 You can select what to backup by setting a custom `ZFS property`. This allows you to set and forget: Configure it so it backups your entire pool, and you never have to worry about backupping again. Even new datasets you create later will be backupped.
 
@@ -41,7 +43,7 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
 ## Features
 
-* Works across operating systems: Tested with Linux, FreeBSD/FreeNAS and SmartOS.
+* Works across operating systems: Tested with **Linux**, **FreeBSD/FreeNAS** and **SmartOS**.
 * Works in combination with existing replication systems. (Like Proxmox HA)
 * Automatically selects filesystems to backup by looking at a simple ZFS property. (recursive)
 * Creates consistent snapshots. (takes all snapshots at once, atomic.)
@@ -52,12 +54,12 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
   * Or even pull data from a server while pushing the backup to another server.
 * Can be scheduled via a simple cronjob or run directly from commandline.
 * Supports resuming of interrupted transfers. (via the zfs extensible_dataset feature)
-* Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same filesystems are no problem)
+* Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same datasets are no problem)
 * Always creates a new snapshot before starting.
 * Checks everything but tries continue on non-fatal errors when possible. (Reports error-count when done)
-* Ability to 'finish' aborted backups to see what goes wrong.
+* Ability to manually 'finish' failed backups to see whats going on.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
-* Keeps latest X snapshots remote and locally. (default 30, configurable)
+* Uses **progressive thinning** for older snapshots.
 * Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
 * Easy installation:
   * Just install zfs-autobackup via pip, or download it manually.
@@ -94,7 +96,7 @@ It should work with python 2.7 and higher.
 
 ## Example
 
-In this example we're going to backup a machine called `pve` to a machine called `backup`.
+In this example we're going to backup a machine called `server1` to a machine called `backup`.
 
 ### Setup SSH login
 
@@ -102,7 +104,7 @@ zfs-autobackup needs passwordless login via ssh. This means generating an ssh ke
 
 #### Generate SSH key on `backup`
 
-On the server that runs zfs-autobackup you need to create an SSH key. You only need to do this once.
+On the backup-server that runs zfs-autobackup you need to create an SSH key. You only need to do this once.
 
 Use the `ssh-keygen` command and leave the passphrase empty:
 
@@ -131,14 +133,14 @@ The key's randomart image is:
 root@backup:~#
 ```
 
-#### Copy SSH key to `pve`
+#### Copy SSH key to `server1`
 
-Now you need to copy the public part of the key to `pve`
+Now you need to copy the public part of the key to `server1`
 
 The `ssh-copy-id` command is a handy tool to automate this. It will just ask for your password.
 
 ```console
-root@backup:~# ssh-copy-id root@pve.server.com
+root@backup:~# ssh-copy-id root@server1.server.com
 /usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/root/.ssh/id_rsa.pub"
 /usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
 /usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
@@ -146,11 +148,12 @@ Password:
 
 Number of key(s) added: 1
 
-Now try logging into the machine, with:   "ssh 'root@pve.server.com'"
+Now try logging into the machine, with:   "ssh 'root@server1.server.com'"
 and check to make sure that only the key(s) you wanted were added.
 
 root@backup:~#
 ```
+This allows the backup-server to login to `server1` as root without password.
 
 ### Select filesystems to backup
 
@@ -159,12 +162,12 @@ Its important to choose a unique and consistent backup name. In this case we nam
 On the source zfs system set the ```autobackup:offsite1``` zfs property to true:
 
 ```console
-[root@pve ~]# zfs set autobackup:offsite1=true rpool
-[root@pve ~]# zfs get -t filesystem,volume autobackup:offsite1
+[root@server1 ~]# zfs set autobackup:offsite1=true rpool
+[root@server1 ~]# zfs get -t filesystem,volume autobackup:offsite1
 NAME                                    PROPERTY             VALUE                SOURCE
 rpool                                   autobackup:offsite1  true                 local
 rpool/ROOT                              autobackup:offsite1  true                 inherited from rpool
-rpool/ROOT/pve-1                        autobackup:offsite1  true                 inherited from rpool
+rpool/ROOT/server1-1                    autobackup:offsite1  true                 inherited from rpool
 rpool/data                              autobackup:offsite1  true                 inherited from rpool
 rpool/data/vm-100-disk-0                autobackup:offsite1  true                 inherited from rpool
 rpool/swap                              autobackup:offsite1  true                 inherited from rpool
@@ -174,12 +177,12 @@ rpool/swap                              autobackup:offsite1  true               
 Because we don't want to backup everything, we can exclude certain filesystem by setting the property to false:
 
 ```console
-[root@pve ~]# zfs set autobackup:offsite1=false rpool/swap
-[root@pve ~]# zfs get -t filesystem,volume autobackup:offsite1
+[root@server1 ~]# zfs set autobackup:offsite1=false rpool/swap
+[root@server1 ~]# zfs get -t filesystem,volume autobackup:offsite1
 NAME                                    PROPERTY             VALUE                SOURCE
 rpool                                   autobackup:offsite1  true                 local
 rpool/ROOT                              autobackup:offsite1  true                 inherited from rpool
-rpool/ROOT/pve-1                        autobackup:offsite1  true                 inherited from rpool
+rpool/ROOT/server1-1                    autobackup:offsite1  true                 inherited from rpool
 rpool/data                              autobackup:offsite1  true                 inherited from rpool
 rpool/data/vm-100-disk-0                autobackup:offsite1  true                 inherited from rpool
 rpool/swap                              autobackup:offsite1  false                local
@@ -191,10 +194,10 @@ rpool/swap                              autobackup:offsite1  false              
 Run the script on the backup server and pull the data from the server specified by --ssh-source.
 
 ```console
-[root@backup ~]# zfs-autobackup --ssh-source pve.server.com offsite1 backup/pve --progress --verbose
+[root@backup ~]# zfs-autobackup --ssh-source server1.server.com offsite1 backup/server1 --progress --verbose
 
   #### Settings summary
-  [Source] Datasets on: pve.server.com
+  [Source] Datasets on: server1.server.com
   [Source] Keep the last 10 snapshots.
   [Source] Keep every 1 day, delete after 1 week.
   [Source] Keep every 1 week, delete after 1 month.
@@ -206,12 +209,12 @@ Run the script on the backup server and pull the data from the server specified 
   [Target] Keep every 1 day, delete after 1 week.
   [Target] Keep every 1 week, delete after 1 month.
   [Target] Keep every 1 month, delete after 1 year.
-  [Target] Receive datasets under: backup/pve
+  [Target] Receive datasets under: backup/server1
 
   #### Selecting
   [Source] rpool: Selected (direct selection)
   [Source] rpool/ROOT: Selected (inherited selection)
-  [Source] rpool/ROOT/pve-1: Selected (inherited selection)
+  [Source] rpool/ROOT/server1-1: Selected (inherited selection)
   [Source] rpool/data: Selected (inherited selection)
   [Source] rpool/data/vm-100-disk-0: Selected (inherited selection)
   [Source] rpool/swap: Ignored (disabled)
@@ -223,13 +226,13 @@ Run the script on the backup server and pull the data from the server specified 
   [Source] Creating snapshot offsite1-20200218180123
 
   #### Sending and thinning
-  [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175435: receiving full
-  [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175547: receiving incremental
-  [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218175706: receiving incremental
-  [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218180049: receiving incremental
-  [Target] backup/pve/rpool/ROOT/pve-1@offsite1-20200218180123: receiving incremental
-  [Target] backup/pve/rpool/data@offsite1-20200218175435: receiving full
-  [Target] backup/pve/rpool/data/vm-100-disk-0@offsite1-20200218175435: receiving full
+  [Target] backup/server1/rpool/ROOT/server1-1@offsite1-20200218175435: receiving full
+  [Target] backup/server1/rpool/ROOT/server1-1@offsite1-20200218175547: receiving incremental
+  [Target] backup/server1/rpool/ROOT/server1-1@offsite1-20200218175706: receiving incremental
+  [Target] backup/server1/rpool/ROOT/server1-1@offsite1-20200218180049: receiving incremental
+  [Target] backup/server1/rpool/ROOT/server1-1@offsite1-20200218180123: receiving incremental
+  [Target] backup/server1/rpool/data@offsite1-20200218175435: receiving full
+  [Target] backup/server1/rpool/data/vm-100-disk-0@offsite1-20200218175435: receiving full
   ...
 ```
 
@@ -247,7 +250,45 @@ Once you've got the correct settings for your situation, you can just store the 
 
 Or just create a script and run it manually when you need it.
 
-### Thinning out obsolete snapshots
+## Use as snapshot tool
+
+You can use zfs-autobackup to only make snapshots. 
+
+Just dont specify the target-path:
+```console
+root@ws1:~# zfs-autobackup test --verbose 
+  zfs-autobackup v3.0-rc12 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
+  
+  #### Source settings
+  [Source] Datasets are local
+  [Source] Keep the last 10 snapshots.
+  [Source] Keep every 1 day, delete after 1 week.
+  [Source] Keep every 1 week, delete after 1 month.
+  [Source] Keep every 1 month, delete after 1 year.
+  [Source] Selects all datasets that have property 'autobackup:test=true' (or childs of datasets that have 'autobackup:test=child')
+  
+  #### Selecting
+  [Source] test_source1/fs1: Selected (direct selection)
+  [Source] test_source1/fs1/sub: Selected (inherited selection)
+  [Source] test_source2/fs2: Ignored (only childs)
+  [Source] test_source2/fs2/sub: Selected (inherited selection)
+  
+  #### Snapshotting
+  [Source] Creating snapshots test-20200710125958 in pool test_source1
+  [Source] Creating snapshots test-20200710125958 in pool test_source2
+  
+  #### Thinning source
+  [Source] test_source1/fs1@test-20200710125948: Destroying
+  [Source] test_source1/fs1/sub@test-20200710125948: Destroying
+  [Source] test_source2/fs2/sub@test-20200710125948: Destroying
+  
+  #### All operations completed successfully
+  (No target_path specified, only operated as snapshot tool.)
+```
+
+This also allows you to make several snapshots during the day, but only backup the data at night when the server is not busy.
+
+## Thinning out obsolete snapshots
 
 The thinner is the thing that destroys old snapshots on the source and target.
 
@@ -255,7 +296,7 @@ The thinner operates "stateless": There is nothing in the name or properties of 
 
 Note that the thinner will ONLY destroy snapshots that are matching the naming pattern of zfs-autobackup. If you use `--other-snapshots`, it wont destroy those snapshots after replicating them to the target.
 
-#### Thinning schedule
+### Thinning schedule
 
 The default thinning schedule is: `10,1d1w,1w1m,1m1y`.
 
@@ -296,7 +337,7 @@ If you want to keep as few snapshots as possible, just specify 0. (`--keep-sourc
 
 If you want to keep ALL the snapshots, just specify a very high number.
 
-#### More details about the Thinner
+### More details about the Thinner
 
 We will give a practical example of how the thinner operates.
 
@@ -328,11 +369,10 @@ Snapshots on the source that still have to be send to the target wont be destroy
 ## Tips
 
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.
-* You can split up the snapshotting and sending tasks by creating two cronjobs. Use ```--no-send``` for the snapshotter-cronjob and use ```--no-snapshot``` for the send-cronjob. This is useful if you only want to send at night or if your send take too long.
+* You can split up the snapshotting and sending tasks by creating two cronjobs. Create a separate snapshotter-cronjob by just omitting target-path.
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. (Normally, if there are changes the next backup will fail and will require a zfs rollback.) Note that readonly means you cant change the CONTENTS of the dataset directly. Its still possible to receive new datasets and manipulate properties etc.
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
-* Use ```--resume``` to be able to resume aborted backups. (not all zfs versions support this)
 
 ### Speeding up SSH
 
@@ -378,22 +418,24 @@ usage: zfs-autobackup [-h] [--ssh-config SSH_CONFIG] [--ssh-source SSH_SOURCE]
                       [--keep-target KEEP_TARGET] [--other-snapshots]
                       [--no-snapshot] [--no-send] [--min-change MIN_CHANGE]
                       [--allow-empty] [--ignore-replicated] [--no-holds]
-                      [--resume] [--strip-path STRIP_PATH]
-                      [--clear-refreservation] [--clear-mountpoint]
+                      [--strip-path STRIP_PATH] [--clear-refreservation]
+                      [--clear-mountpoint]
                       [--filter-properties FILTER_PROPERTIES]
                       [--set-properties SET_PROPERTIES] [--rollback]
                       [--destroy-incompatible] [--ignore-transfer-errors]
                       [--raw] [--test] [--verbose] [--debug] [--debug-output]
                       [--progress]
-                      backup_name target_path
+                      backup-name [target-path]
 
-zfs-autobackup v3.0-rc8 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
+zfs-autobackup v3.0-rc12 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
 
 positional arguments:
-  backup_name           Name of the backup (you should set the zfs property
+  backup-name           Name of the backup (you should set the zfs property
                         "autobackup:backup-name" to true on filesystems you
                         want to backup
-  target_path           Target ZFS filesystem
+  target-path           Target ZFS filesystem (optional: if not specified,
+                        zfs-autobackup will only operate as snapshot-tool on
+                        source)
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -413,10 +455,10 @@ optional arguments:
                         10,1d1w,1w1m,1m1y
   --other-snapshots     Send over other snapshots as well, not just the ones
                         created by this tool.
-  --no-snapshot         Dont create new snapshots (useful for finishing
+  --no-snapshot         Don't create new snapshots (useful for finishing
                         uncompleted backups, or cleanups)
-  --no-send             Dont send snapshots (useful for cleanups, or if you
-                        want a separate send-cronjob)
+  --no-send             Don't send snapshots (useful for cleanups, or if you
+                        want a serperate send-cronjob)
   --min-change MIN_CHANGE
                         Number of bytes written after which we consider a
                         dataset changed (default 1)
@@ -425,17 +467,11 @@ optional arguments:
   --ignore-replicated   Ignore datasets that seem to be replicated some other
                         way. (No changes since lastest snapshot. Useful for
                         proxmox HA replication)
-  --no-holds            Dont lock snapshots on the source. (Useful to allow
+  --no-holds            Don't lock snapshots on the source. (Useful to allow
                         proxmox HA replication to switches nodes)
-  --resume              Support resuming of interrupted transfers by using the
-                        zfs extensible_dataset feature (both zpools should
-                        have it enabled) Disadvantage is that you need to use
-                        zfs recv -A if another snapshot is created on the
-                        target during a receive. Otherwise it will keep
-                        failing.
   --strip-path STRIP_PATH
-                        Number of directory to strip from path (use 1 when
-                        cloning zones between 2 SmartOS machines)
+                        Number of directories to strip from target path (use 1
+                        when cloning zones between 2 SmartOS machines)
   --clear-refreservation
                         Filter "refreservation" property. (recommended, safes
                         space. same as --filter-properties refreservation)
@@ -447,7 +483,7 @@ optional arguments:
                         filesystems. (you can still restore them with zfs
                         inherit -S)
   --set-properties SET_PROPERTIES
-                        List of properties to override when receiving
+                        List of propererties to override when receiving
                         filesystems. (you can still restore them with zfs
                         inherit -S)
   --rollback            Rollback changes to the latest target snapshot before
@@ -467,7 +503,8 @@ optional arguments:
   --debug               Show zfs commands that are executed, stops after an
                         exception.
   --debug-output        Show zfs commands and their output/exit codes. (noisy)
-  --progress            show zfs progress output (to stderr)
+  --progress            show zfs progress output (to stderr). Enabled by
+                        default on ttys.
 
 When a filesystem fails, zfs_backup will continue and report the number of
 failures at that end. Also the exit code will indicate the number of failures.
@@ -481,10 +518,7 @@ You forgot to setup automatic login via SSH keys, look in the example how to do 
 
 ### It says 'cannot receive incremental stream: invalid backup stream'
 
-This usually means you've created a new snapshot on the target side during a backup:
-
-* Solution 1: Restart zfs-autobackup and make sure you don't use --resume. If you did use --resume, be sure to "abort" the receive on the target side with zfs recv -A.
-* Solution 2: Destroy the newly created snapshot and restart zfs-autobackup.
+This usually means you've created a new snapshot on the target side during a backup. If you restart zfs-autobackup, it will automaticly abort the invalid partially received snapshot and start over.
 
 ### It says 'internal error: Invalid argument'
 
@@ -552,12 +586,12 @@ I use the following backup script on the backup server:
 for H in h4 h5 h6; do
   echo "################################### DATA $H"
   #backup data filesystems to a common place
-  ./zfs-autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --resume --ignore-replicated --min-change 200000 --no-holds $@
+  ./zfs-autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --ignore-replicated --min-change 200000 --no-holds $@
   zabbix-job-status backup_$H""_data_smartos03 daily $? >/dev/null 2>/dev/null
 
   echo "################################### RPOOL $H"
   #backup rpool to own place
-  ./zfs-autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint  --resume --ignore-transfer-errors $@
+  ./zfs-autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint --ignore-transfer-errors $@
   zabbix-job-status backup_$H""_smartos03 daily $? >/dev/null 2>/dev/null
 done
 ```
