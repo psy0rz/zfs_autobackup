@@ -14,6 +14,7 @@ class TestZfsAutobackup(unittest2.TestCase):
         self.assertEqual(ZfsAutobackup("test test_target1 --keep-source -1".split(" ")).run(), 255)
 
     def  test_snapshotmode(self):
+        """test snapshot tool mode"""
 
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
@@ -24,9 +25,9 @@ class TestZfsAutobackup(unittest2.TestCase):
         with patch('time.strftime', return_value="20101111000002"):
             self.assertFalse(ZfsAutobackup("test --verbose --allow-empty --keep-source 0".split(" ")).run())
 
-        #on source: only has 1 and 2
+        #on source: only has 1 and 2 (1 was hold)
         #on target: has 0 and 1  
-
+        #XXX:
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
 test_source1
@@ -63,8 +64,6 @@ test_target1/test_source2/fs2/sub@test-20101111000001
     def  test_defaults(self):
 
         with self.subTest("no datasets selected"):
-            #should resume and succeed
-            
             with OutputIO() as buf:
                 with redirect_stderr(buf):
                     with patch('time.strftime', return_value="20101111000000"):
@@ -175,7 +174,49 @@ test_target1/test_source2/fs2/sub@test-20101111000000  userrefs  0         -
 test_target1/test_source2/fs2/sub@test-20101111000001  userrefs  1         -
 """)
 
+        #make sure time handling is correctly. try to make snapshots a year appart and verify that only snapshots mostly 1y old are kept
+        with self.subTest("test time checking"):
+            with patch('time.strftime', return_value="20111111000000"):
+                self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose".split(" ")).run())
 
+
+            time_str="20111112000000" #month in the "future"
+            future_timestamp=time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
+            with patch('time.time', return_value=future_timestamp):
+                with patch('time.strftime', return_value="20111111000001"):
+                    self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose --keep-source 1y1y --keep-target 1d1y".split(" ")).run())
+
+
+            r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
+            self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20111111000000
+test_source1/fs1@test-20111111000001
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20111111000000
+test_source1/fs1/sub@test-20111111000001
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20111111000000
+test_source2/fs2/sub@test-20111111000001
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20111111000000
+test_target1/test_source1/fs1@test-20111111000001
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20111111000000
+test_target1/test_source1/fs1/sub@test-20111111000001
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20111111000000
+test_target1/test_source2/fs2/sub@test-20111111000001
+""")
 
 
     def  test_ignore_othersnaphots(self):
@@ -757,10 +798,50 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
 
+    def test_migrate(self):
+        """test migration from other snapshotting systems. zfs-autobackup should be able to continue from any common snapshot, not just its own."""
+
+        shelltest("zfs snapshot test_source1/fs1@migrate1")
+        shelltest("zfs create test_target1/test_source1")
+        shelltest("zfs send  test_source1/fs1@migrate1| zfs recv test_target1/test_source1/fs1")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@migrate1
+test_source1/fs1@test-20101111000000
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@migrate1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+
+
 ###########################
 # TODO:
 
     def  test_raw(self):
         
         self.skipTest("todo: later when travis supports zfs 0.8")
+
+
 

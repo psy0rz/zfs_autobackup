@@ -37,7 +37,7 @@ Since its using ZFS commands, you can see what its actually doing by specifying 
 
 An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your zfs datasets.
 
-Another nice thing is progress reporting with `--progress`. Its very useful with HUGE datasets, when you want to know how many hours/days it will take.
+Another nice thing is progress reporting: Its very useful with HUGE datasets, when you want to know how many hours/days it will take.
 
 zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
@@ -61,6 +61,7 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
 * Uses **progressive thinning** for older snapshots.
 * Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
+* Automatic resuming of failed transfers.
 * Easy installation:
   * Just install zfs-autobackup via pip, or download it manually.
   * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
@@ -295,6 +296,24 @@ The thinner is the thing that destroys old snapshots on the source and target.
 The thinner operates "stateless": There is nothing in the name or properties of a snapshot that indicates how long it will be kept. Everytime zfs-autobackup runs, it will look at the timestamp of all the existing snapshots. From there it will determine which snapshots are obsolete according to your schedule. The advantage of this stateless system is that you can always change the schedule.
 
 Note that the thinner will ONLY destroy snapshots that are matching the naming pattern of zfs-autobackup. If you use `--other-snapshots`, it wont destroy those snapshots after replicating them to the target.
+
+### Destroying missing datasets
+
+When a dataset has been destroyed on the source, but still exists on the target we call it a missing dataset. Missing datasets will be still thinned out according to the schedule.
+
+The final snapshot will never be destroyed, unless you specify a **deadline** with the `--destroy-missing` option:
+
+In that case it will look at the last snapshot we took and determine if is older than the deadline you specified. e.g: `--destroy-missing 30d` will start destroying things 30 days after the last snapshot.
+
+#### After the deadline
+
+When the deadline is passed, all our snapshots, except the last one will be destroyed. Irregardless of the normal thinning schedule.
+
+The dataset has to have the following properties to be finally really destroyed:
+
+* The dataset has no direct child-filesystems or volumes.
+* The only snapshot left is the last one created by zfs-autobackup.
+* The remaining snapshot has no clones.
 
 ### Thinning schedule
 
