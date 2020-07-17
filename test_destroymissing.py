@@ -29,6 +29,24 @@ class TestZfsNode(unittest2.TestCase):
                 self.assertNotIn(": Destroy missing", buf.getvalue())
 
 
+        with self.subTest("missing dataset of us that still has children"):
+        
+            #just deselect it so it counts as 'missing'
+            shelltest("zfs set autobackup:test=child test_source1/fs1")
+
+            with OutputIO() as buf:
+                with redirect_stdout(buf), redirect_stderr(buf):
+                        self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+
+                print(buf.getvalue())
+                #should have done the snapshot cleanup for destoy missing:
+                self.assertIn("fs1@test-10101111000000: Destroying", buf.getvalue())
+
+                self.assertIn("fs1: Destroy missing: Still has children here.", buf.getvalue())
+
+            shelltest("zfs inherit autobackup:test test_source1/fs1")
+
+
         with self.subTest("Normal destroyed leaf"):
             shelltest("zfs destroy -r test_source1/fs1/sub")
 
@@ -60,9 +78,8 @@ class TestZfsNode(unittest2.TestCase):
                     self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
-                #should have done the snapshot cleanup for destoy missing:
-                self.assertIn("fs1@test-10101111000000: Destroying", buf.getvalue())
-                #but cant finish because still in use:
+
+                #cant finish because still in use:
                 self.assertIn("fs1: Destroy missing: Still in use", buf.getvalue())
 
             shelltest("zfs destroy test_target1/test_source1/fs1@other1")
@@ -102,6 +119,10 @@ class TestZfsNode(unittest2.TestCase):
                 #on second run it sees the dangling ex-parent but doesnt know what to do with it (since it has no own snapshot)
                 self.assertIn("test_source1: Destroy missing: has no snapshots made by us.", buf.getvalue())
 
+
+
+
+        #end result
         r=shelltest("zfs list -H -o name -r -t all test_target1")
         self.assertMultiLineEqual(r,"""
 test_target1
@@ -112,4 +133,3 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-10101111000000
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
-

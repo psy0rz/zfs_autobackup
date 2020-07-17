@@ -301,7 +301,7 @@ Note that the thinner will ONLY destroy snapshots that are matching the naming p
 
 ### Destroying missing datasets
 
-When a dataset has been destroyed on the source, but still exists on the target we call it a missing dataset. Missing datasets will be still thinned out according to the schedule.
+When a dataset has been destroyed or deselected on the source, but still exists on the target we call it a missing dataset. Missing datasets will be still thinned out according to the schedule.
 
 The final snapshot will never be destroyed, unless you specify a **deadline** with the `--destroy-missing` option:
 
