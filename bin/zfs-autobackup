@@ -700,10 +700,11 @@ class ZfsDataset():
 
         self.verbose("Destroying")
 
-        self.release()
+        if self.is_snapshot:
+            self.release()
 
         try:
-            self.zfs_node.run(["zfs", "destroy", "-d", self.name])
+            self.zfs_node.run(["zfs", "destroy", self.name])
             self.invalidate()
             self.force_exists=False
             return(True)
@@ -898,12 +899,25 @@ class ZfsDataset():
 
     @cached_property
     def recursive_datasets(self, types="filesystem,volume"):
-        """get all datasets recursively under us"""
+        """get all (non-snapshot) datasets recursively under us"""
+
+        self.debug("Getting all recursive datasets under us")
+
+        names=self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[ 0 ], cmd=[
+            "zfs", "list", "-r", "-t",  types, "-o", "name", "-H", self.name
+        ])
+
+        return(self.from_names(names[1:]))
+
+
+    @cached_property
+    def datasets(self, types="filesystem,volume"):
+        """get all (non-snapshot) datasets directly under us"""
 
         self.debug("Getting all datasets under us")
 
         names=self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[ 0 ], cmd=[
-            "zfs", "list", "-r", "-t",  types, "-o", "name", "-H", self.name
+            "zfs", "list", "-r", "-t",  types, "-o", "name", "-H", "-d", "1", self.name
         ])
 
         return(self.from_names(names[1:]))
@@ -1534,7 +1548,7 @@ class ZfsNode(ExecuteNode):
                         selected_filesystems.append(dataset)
                         dataset.verbose("Selected (inherited selection)")
                     else:
-                        dataset.verbose("Ignored (already a backup)")
+                        dataset.debug("Ignored (already a backup)")
                 else:
                     dataset.verbose("Ignored (only childs)")
 
@@ -1572,13 +1586,13 @@ class ZfsAutobackup:
         # parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer. (e.g. --buffer 1G) Will also show nice progress output.')
 
 
-        # parser.add_argument('--destroy-stale', action='store_true', help='Destroy stale backups that have no more snapshots. Be sure to verify the output before using this! ')
         parser.add_argument('--clear-refreservation', action='store_true', help='Filter "refreservation" property. (recommended, safes space. same as --filter-properties refreservation)')
         parser.add_argument('--clear-mountpoint', action='store_true', help='Set property canmount=noauto for new datasets. (recommended, prevents mount conflicts. same as --set-properties canmount=noauto)')
         parser.add_argument('--filter-properties', type=str, help='List of properties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--set-properties', type=str, help='List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true', help='Rollback changes to the latest target snapshot before starting. (normally you can prevent changes by setting the readonly property on the target_path to on)')
         parser.add_argument('--destroy-incompatible', action='store_true', help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
+        parser.add_argument('--destroy-missing', type=str, default=None, help='Destroy datasets on target that are missing on the source. Specify the time since the last snapshot, e.g: --destroy-missing 30d')
         parser.add_argument('--ignore-transfer-errors', action='store_true', help='Ignore transfer errors (still checks if received filesystem exists. useful for acltype errors)')
         parser.add_argument('--raw', action='store_true', help='For encrypted datasets, send data exactly as it exists on disk.')
 
@@ -1697,17 +1711,71 @@ class ZfsAutobackup:
                 if self.args.debug:
                     raise
 
-        #also thin target_datasets that are not on the source any more
-        self.debug("Thinning obsolete datasets")
-        for dataset in ZfsDataset(target_node, self.args.target_path).recursive_datasets:
-            if dataset not in target_datasets:
-                dataset.debug("Missing on source")
-                dataset.thin()
+        self.thin_missing_targets(ZfsDataset(target_node, self.args.target_path), target_datasets)
 
-            return(fail_count)
+
+        return(fail_count)
+
+
+    def thin_missing_targets(self, target_dataset, used_target_datasets):
+        """thin/destroy target datasets that are missing on the source."""
+
+        self.debug("Thinning obsolete datasets")
+
+        for dataset in target_dataset.recursive_datasets:
+            try:
+                if dataset not in used_target_datasets:
+                    dataset.debug("Missing on source, thinning")
+                    dataset.thin()
+
+                    #destroy_missing enabled?
+                    if self.args.destroy_missing!=None:
+
+                        #cant do anything without our own snapshots
+                        if not dataset.our_snapshots:
+                            if dataset.datasets:
+                                dataset.debug("Destroy missing: ignoring")
+                            else:
+                                dataset.verbose("Destroy missing: has no snapshots made by us. (please destroy manually)")
+                        else:
+                            #past the deadline?
+                            deadline_ttl=ThinnerRule("0s"+self.args.destroy_missing).ttl
+                            now=int(time.time())
+                            if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
+                                dataset.verbose("Destroy missing: Waiting for deadline.")
+                            else:
+                                
+                                dataset.debug("Destroy missing: Removing our snapshots.")
+
+                                #remove all our snaphots, except last, to safe space in case we fail later on
+                                for snapshot in dataset.our_snapshots[:-1]:
+                                    snapshot.destroy(fail_exception=True)
+
+                                #does it have other snapshots?
+                                has_others=False
+                                for snapshot in dataset.snapshots:
+                                    if not snapshot.is_ours():
+                                        has_others=True
+                                        break
+
+                                if has_others: 
+                                    dataset.verbose("Destroy missing: Still in use by other snapshots")
+                                else:
+                                    if dataset.datasets:
+                                        dataset.verbose("Destroy missing: Still has children here.")
+                                    else:
+                                        dataset.verbose("Destroy missing.")
+                                        dataset.our_snapshots[-1].destroy(fail_exception=True)
+                                        dataset.destroy(fail_exception=True)
+            
+            except Exception as e:
+                dataset.error("Error during destoy missing ({})".format(str(e)))
+
+
 
 
     def thin_source(self, source_datasets):
+
         self.set_title("Thinning source")
 
         for source_dataset in source_datasets:
@@ -1752,7 +1820,7 @@ class ZfsAutobackup:
                 self.set_title("Snapshotting")
                 source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(), min_changed_bytes=self.args.min_change)
 
-            #if target is specified, we sync the datasets, otherwise we just thin the source.
+            #if target is specified, we sync the datasets, otherwise we just thin the source. (e.g. snapshot mode)
             if self.args.target_path:
                 fail_count=self.sync_datasets(source_node, source_datasets)
             else:

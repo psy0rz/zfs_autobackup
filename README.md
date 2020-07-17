@@ -62,6 +62,8 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 * Uses **progressive thinning** for older snapshots.
 * Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
 * Automatic resuming of failed transfers.
+* Can continue from existing common snapshots. (e.g. easy migration)
+* Gracefully handles destroyed datasets on source.
 * Easy installation:
   * Just install zfs-autobackup via pip, or download it manually.
   * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
