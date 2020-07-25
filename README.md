@@ -616,3 +616,13 @@ for H in h4 h5 h6; do
   zabbix-job-status backup_$H""_smartos03 daily $? >/dev/null 2>/dev/null
 done
 ```
+
+# Sponsor list
+
+This project was sponsorred by:
+
+* (None so far)
+
+
+
+
