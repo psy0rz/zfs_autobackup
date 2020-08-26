@@ -91,7 +91,7 @@ On older servers you might have to use easy_install
 
 ### Direct download
 
-Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/master/bin/zfs-autobackup> and run it directly.
+Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3.0/bin/zfs-autobackup> and run it directly.
 
 The only requirement that is sometimes missing is the `argparse` python module. Optionally you can install `colorama` for colors.
 
@@ -260,7 +260,7 @@ You can use zfs-autobackup to only make snapshots.
 Just dont specify the target-path:
 ```console
 root@ws1:~# zfs-autobackup test --verbose 
-  zfs-autobackup v3.0-rc12 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
+  zfs-autobackup v3.0 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
   
   #### Source settings
   [Source] Datasets are local
