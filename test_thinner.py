@@ -1,4 +1,5 @@
 from basetest import *
+import pprint
 
 #randint is different in python 2 vs 3
 randint_compat = lambda lo, hi: lo + int(random.random() * (hi + 1 - lo))

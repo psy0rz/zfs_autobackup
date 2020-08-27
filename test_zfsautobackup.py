@@ -481,7 +481,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  refreservation  -        
 
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-mountpoint".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-mountpoint --debug".split(" ")).run())
 
             r=shelltest("zfs get canmount -r test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r,"""
