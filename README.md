@@ -409,6 +409,8 @@ Host *
     ControlPersist 3600
 ```
 
+**Warning**: This will leave your SSH connection open for an hour even after the backup exists. Make sure to run `ssh -O exit smartos04` after you run zfs-autobackup to close it.
+
 Thanks @mariusvw :)
 
 ### Specifying ssh port or options
