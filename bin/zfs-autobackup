@@ -1447,7 +1447,7 @@ class ZfsNode(ExecuteNode):
         pools = {}
 
         # collect snapshots that we want to make, per pool
-        print(datasets)
+        self.debug(datasets)
         for dataset in datasets:
             if not dataset.is_changed_ours(min_changed_bytes):
                 dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
