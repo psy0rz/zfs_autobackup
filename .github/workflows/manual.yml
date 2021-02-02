@@ -8,14 +8,14 @@ on: ["push", "pull_request"]
 jobs:
      
   ubuntu16:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-20.04
     
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
        
       - name: Prepare
-        run: sudo apt-get install zfsutils-linux && sudo -H pip3 install setuptools && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+        run: sudo apt-get install zfsutils-linux && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
        
        
       - name: Regression test
