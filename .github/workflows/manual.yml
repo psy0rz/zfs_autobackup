@@ -11,11 +11,14 @@ jobs:
   ubuntu16:
     runs-on: ubuntu-16.04
     steps:
-     - name: Prepare
-       run: sudo apt-get install zfsutils-linux
+      - name: Checkout
+        uses: actions/checkout@v2.3.4
        
-     - name: Regression test
-       run: pwd; ls ..
+      - name: Prepare
+        run: sudo apt-get install zfsutils-linux
+       
+      - name: Regression test
+        run: ls; sudo -E ./run_tests
        
        
            
