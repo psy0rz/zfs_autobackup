@@ -30,7 +30,7 @@ class TestZfsNode(unittest2.TestCase):
 
 
         with self.subTest("missing dataset of us that still has children"):
-        
+
             #just deselect it so it counts as 'missing'
             shelltest("zfs set autobackup:test=child test_source1/fs1")
 
@@ -102,7 +102,7 @@ class TestZfsNode(unittest2.TestCase):
 
 
         with self.subTest("Should leave test_source1 parent"):
-        
+
             with OutputIO() as buf:
                 with redirect_stdout(buf), redirect_stderr(buf):
                         self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())

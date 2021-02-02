@@ -8,7 +8,7 @@ class TestZfsNode(unittest2.TestCase):
         prepare_zpools()
         self.longMessage=True
 
-    # generate a resumable state 
+    # generate a resumable state
     #NOTE: this generates two resumable test_target1/test_source1/fs1 and test_target1/test_source1/fs1/sub
     def generate_resume(self):
 
@@ -43,7 +43,7 @@ class TestZfsNode(unittest2.TestCase):
                 self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
 
             print(buf.getvalue())
-            
+
             #did we really resume?
             if "0.6.5" in ZFS_USERSPACE:
                 #abort this late, for beter coverage
@@ -58,7 +58,7 @@ class TestZfsNode(unittest2.TestCase):
                 self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
 
             print(buf.getvalue())
-            
+
             #did we really resume?
             if "0.6.5" in ZFS_USERSPACE:
                 #abort this late, for beter coverage
@@ -98,7 +98,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                 self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
 
             print(buf.getvalue())
-            
+
             #did we really resume?
             if "0.6.5" in ZFS_USERSPACE:
                 #abort this late, for beter coverage
@@ -112,7 +112,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                 self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
 
             print(buf.getvalue())
-            
+
             #did we really resume?
             if "0.6.5" in ZFS_USERSPACE:
                 #abort this late, for beter coverage
@@ -218,7 +218,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
     #create a resume situation, where the other side doesnt want the snapshot anymore ( should abort resume )
     def test_abort_unwanted_resume(self):
-        
+
         if "0.6.5" in ZFS_USERSPACE:
             self.skipTest("Resume not supported in this ZFS userspace version")
 
@@ -236,7 +236,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                     self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-target=0 --debug --allow-empty".split(" ")).run())
 
             print(buf.getvalue())
-            
+
             self.assertIn(": aborting resume, since", buf.getvalue())
 
         r=shelltest("zfs list -H -o name -r -t all test_target1")
@@ -253,7 +253,7 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000002
 """)
 
-   
+
     def test_missing_common(self):
 
         with patch('time.strftime', return_value="20101111000000"):
@@ -271,5 +271,5 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
     ############# TODO:
     def  test_ignoretransfererrors(self):
-        
+
         self.skipTest("todo: create some kind of situation where zfs recv exits with an error but transfer is still ok (happens in practice with acltype)")

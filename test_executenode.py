@@ -79,7 +79,7 @@ class TestExecuteNode(unittest2.TestCase):
         with self.subTest("exit code both ends of pipe ok"):
             output=nodea.run(["true"], pipe=True)
             nodeb.run(["true"], inp=output)
-    
+
         with self.subTest("error on pipe input side"):
             with self.assertRaises(subprocess.CalledProcessError):
                 output=nodea.run(["false"], pipe=True)
@@ -106,7 +106,7 @@ class TestExecuteNode(unittest2.TestCase):
             (stdout, stderr)=nodeb.run(["true"], inp=output, return_stderr=True, valid_exitcodes=[0,2])
             self.assertEqual(stdout,[])
             self.assertEqual(stderr,[] )
-            
+
 
 
 
