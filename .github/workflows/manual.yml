@@ -15,7 +15,7 @@ jobs:
        run: sudo apt-get install zfsutils-linux
        
      - name: Regression test
-       run: pwd; ls
+       run: pwd; ls ..
        
        
            
