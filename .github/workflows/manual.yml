@@ -14,7 +14,7 @@ jobs:
       
     steps:
      - name: Prepare
-       run: apt-get install zfsutils-linux
+       run: sudo apt-get install zfsutils-linux
        
      - name: Regression test
        run: sudo zpool status 
