@@ -29,6 +29,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github
         
+  ubuntu18:
+    runs-on: ubuntu-18.04
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.3.4
+        
+        
+       
+      - name: Prepare
+        run: lsmod && sudo apt update && sudo apt install zfsutils-linux && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+        
+        
+      - name: Regression test
+        run: sudo -E ./run_tests
+       
+        
+      - name: Coveralls
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: coveralls --service=github
+        
       
        
        
