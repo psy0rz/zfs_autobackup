@@ -23,9 +23,9 @@ echo
 coverage report
 
 #this does automatic travis CI/https://coveralls.io/ intergration:
-if which coveralls > /dev/null; then
-        echo "Submitting to coveralls.io:"
-        coveralls 
-fi
+# if which coveralls > /dev/null; then
+#        echo "Submitting to coveralls.io:"
+#        coveralls 
+# fi
 
 exit $EXIT
