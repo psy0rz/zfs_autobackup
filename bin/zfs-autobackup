@@ -23,7 +23,7 @@ if sys.stdout.isatty():
         colorama = False
         pass
 
-VERSION = "3.0.1-beta1"
+VERSION = "3.0.1-beta3"
 HEADER = "zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
 
