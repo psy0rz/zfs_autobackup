@@ -20,8 +20,15 @@ jobs:
       - name: Prepare
         run: sudo apt-get install zfsutils-linux
        
+      - name: Coveralls
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          parallel: true
+          flag-name: Unit Test
+       
       - name: Regression test
         run: ls; sudo -E ./run_tests
+      
        
        
            
