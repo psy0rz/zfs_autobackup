@@ -1639,7 +1639,7 @@ class ZfsAutobackup:
         if args.resume:
             self.verbose("NOTE: The --resume option isn't needed anymore (its autodetected now)")
 
-        if args.target_path[0] == "/":
+        if args.target_path!=None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
             sys.exit(255)
 
