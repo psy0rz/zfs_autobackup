@@ -1,31 +1,32 @@
+#MOVING TO GITHUB ACTIONS
 
-jobs:
-  include:
-    - os: linux
-      dist: xenial
-      language: python
-      python: 2.7
-    - os: linux
-      dist: xenial
-      language: python
-      python: 3.6
-    - os: linux
-      dist: bionic
-      language: python
-      python: 2.7
-    - os: linux
-      dist: bionic
-      language: python
-      python: 3.6
+# jobs:
+#   include:
+#     - os: linux
+#       dist: xenial
+#       language: python
+#       python: 2.7
+#     - os: linux
+#       dist: xenial
+#       language: python
+#       python: 3.6
+#     - os: linux
+#       dist: bionic
+#       language: python
+#       python: 2.7
+#     - os: linux
+#       dist: bionic
+#       language: python
+#       python: 3.6
 
 
 
 
-before_install:
-  - sudo apt-get update
-  - sudo apt-get install zfsutils-linux
+# before_install:
+#   - sudo apt-get update
+#   - sudo apt-get install zfsutils-linux
 
-script:
-  # - sudo -E ./ngrok.sh
-  - sudo -E ./run_tests
-  # - sudo -E pip --version
+# script:
+#   # - sudo -E ./ngrok.sh
+#   - sudo -E ./run_tests
+#   # - sudo -E pip --version
