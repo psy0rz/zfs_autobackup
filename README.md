@@ -570,53 +570,87 @@ zabbix-job-status backup_smartos01_fs1 daily $?
 
 This will update the zabbix server with the exit code and will also alert you if the job didn't run for more than 2 days.
 
-## Backuping up a proxmox cluster with HA replication
+## Backup a proxmox cluster with HA replication
 
 Due to the nature of proxmox we had to make a few enhancements to zfs-autobackup. This will probably also benefit other systems that use their own replication in combination with zfs-autobackup.
 
 All data under rpool/data can be on multiple nodes of the cluster. The naming of those filesystem is unique over the whole cluster. Because of this we should backup rpool/data of all nodes to the same destination. This way we wont have duplicate backups of the filesystems that are replicated. Because of various options, you can even migrate hosts and zfs-autobackup will be fine. (and it will get the next backup from the new node automatically)
 
-In the example below we have 3 nodes, named h4, h5 and h6.
-
-The backup will go to a machine named smartos03.
+In the example below we have 3 nodes, named pve1, pve2 and pve3.
 
 ### Preparing the proxmox nodes
 
-On each node select the filesystems as following:
+No preparation is needed, the script will take care of everything. You only need to setup the ssh keys, so that the backup server can access the proxmox server.
 
-```console
-root@h4:~# zfs set autobackup:h4_smartos03=true rpool
-root@h4:~# zfs set autobackup:h4_smartos03=false rpool/data
-root@h4:~# zfs set autobackup:data_smartos03=child rpool/data
+TIP: make sure your backup server is firewalled and cannot be reached from any production machine.
+
+### SSH config on backup server
+
+I use ~/.ssh/config to specify how to reach the various hosts.
+
+In this example we are making an offsite copy and use portforwarding to reach the proxmox machines:
+```
+Host *
+    ControlPath ~/.ssh/control-master-%r@%h:%p
+    ControlMaster auto
+    ControlPersist 3600
+    Compression yes
+
+Host pve1
+    Hostname some.host.com
+    Port 10001
+
+Host pve2
+    Hostname some.host.com
+    Port 10002
+
+Host pve3
+    Hostname some.host.com
+    Port 10003
 ```
 
-* rpool will be backuped the usual way, and is named h4_smartos03. (each node will have a unique name)
-* rpool/data will be excluded from the usual backup
-* The CHILDREN of rpool/data be selected for a cluster wide backup named data_smartos03. (each node uses the same backup name)
+### Backup script 
 
-### Preparing the backup server
+I use the following backup script on the backup server.
 
-Extra options needed for proxmox with HA:
-
-* --no-holds: To allow proxmox to destroy our snapshots if a VM migrates to another node.
-* --ignore-replicated: To ignore the replicated filesystems of proxmox on the receiving proxmox nodes. (e.g: only backup from the node where the VM is active)
-* --min-change 200000: Ignore replicated works by checking if there are no changes since the last snapshot. However for some reason proxmox always has some small changes. (Probably house-keeping data are something? This always was fine and suddenly changed with an update)
-
-I use the following backup script on the backup server:
+Adjust the variables HOSTS TARGET and NAME to your needs.
 
 ```shell
-for H in h4 h5 h6; do
-  echo "################################### DATA $H"
-  #backup data filesystems to a common place
-  ./zfs-autobackup --ssh-source root@$H data_smartos03 zones/backup/zfsbackups/pxe1_data --clear-refreservation --clear-mountpoint  --ignore-transfer-errors --strip-path 2 --verbose --ignore-replicated --min-change 200000 --no-holds $@
-  zabbix-job-status backup_$H""_data_smartos03 daily $? >/dev/null 2>/dev/null
+#!/bin/bash
 
-  echo "################################### RPOOL $H"
-  #backup rpool to own place
-  ./zfs-autobackup --ssh-source root@$H $H""_smartos03 zones/backup/zfsbackups/$H --verbose --clear-refreservation --clear-mountpoint --ignore-transfer-errors $@
-  zabbix-job-status backup_$H""_smartos03 daily $? >/dev/null 2>/dev/null
+HOSTS="pve1 pve2 pve3"
+TARGET=rpool/pvebackups
+NAME=prox
+
+zfs create -p $TARGET/data &>/dev/null
+for HOST in $HOSTS; do
+
+  echo "################################### RPOOL $HOST"
+
+  # enable backup
+  ssh $HOST "zfs set autobackup:rpool_$NAME=child rpool/ROOT"
+
+  #backup rpool to specific directory per host
+  zfs create -p $TARGET/rpools/$HOST &>/dev/null
+  zfs-autobackup --keep-source=1d1w,1w1m --ssh-source $HOST rpool_$NAME $TARGET/rpools/$HOST --clear-mountpoint --clear-refreservation --ignore-transfer-errors --strip-path 2 --verbose   --no-holds   $@
+
+  zabbix-job-status backup_$HOST""_rpool_$NAME daily $? >/dev/null 2>/dev/null
+
+
+  echo "################################### DATA $HOST"
+
+  # enable backup
+  ssh $HOST "zfs set autobackup:data_$NAME=child rpool/data"
+
+  #backup data filesystems to a common directory
+  zfs-autobackup --keep-source=1d1w,1w1m --ssh-source $HOST data_$NAME $TARGET/data --clear-mountpoint --clear-refreservation --ignore-transfer-errors --strip-path 2 --verbose  --ignore-replicated --min-change 200000 --no-holds   $@
+
+  zabbix-job-status backup_$HOST""_data_$NAME daily $? >/dev/null 2>/dev/null
+
 done
 ```
+
+This script will also send the backup status to Zabbix. (if you've installed my zabbix-job-status script)
 
 # Sponsor list
 
