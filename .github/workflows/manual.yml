@@ -9,10 +9,8 @@ jobs:
     runs-on: ubuntu-16.04
     steps:
      - name: Regression test
-       run: 
-         - id
-         - dmesg
-         - uname -a
+       run: id; uname -a; dmesg
+       
            
        
       
