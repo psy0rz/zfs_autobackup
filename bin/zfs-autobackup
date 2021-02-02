@@ -23,7 +23,7 @@ if sys.stdout.isatty():
         colorama = False
         pass
 
-VERSION = "3.0.1-beta3"
+VERSION = "3.0.1-beta4"
 HEADER = "zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
 
@@ -922,7 +922,7 @@ class ZfsDataset:
 
             # incremental?
             if prev_snapshot:
-                cmd.extend(["-i", prev_snapshot.snapshot_name])
+                cmd.extend(["-i", "@"+prev_snapshot.snapshot_name])
 
             cmd.append(self.name)
 
@@ -1187,7 +1187,6 @@ class ZfsDataset:
         if self.our_snapshots:
             (source_keeps, source_obsoletes) = self.thin_list(keeps=[self.our_snapshots[-1]])
         else:
-            source_keeps = []
             source_obsoletes = []
 
         if target_dataset.our_snapshots:

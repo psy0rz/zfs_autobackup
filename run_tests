@@ -16,7 +16,7 @@ if ! [ -e /root/.ssh/id_rsa ]; then
     ssh -oStrictHostKeyChecking=no localhost true || exit 1
 fi
 
-coverage run --source bin.zfs_autobackup -m unittest discover -vv $@
+coverage run --source bin.zfs_autobackup -m unittest discover -vvvvf $@ 2>&1
 EXIT=$?
 
 echo 
