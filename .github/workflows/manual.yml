@@ -24,6 +24,12 @@ jobs:
        
       - name: Regression test
         run: sudo -E ./run_tests
+        
+        
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       
        
        
