@@ -17,46 +17,22 @@ class TestZfsAutobackup(unittest2.TestCase):
         """test snapshot tool mode"""
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test --verbose".split(" ")).run())
 
-        with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose".split(" ")).run())
-
-        with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test --verbose --allow-empty --keep-source 0".split(" ")).run())
-
-        #on source: only has 1 and 2 (1 was hold)
-        #on target: has 0 and 1
-        #XXX:
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
-test_source1/fs1@test-20101111000001
-test_source1/fs1@test-20101111000002
+test_source1/fs1@test-20101111000000
 test_source1/fs1/sub
-test_source1/fs1/sub@test-20101111000001
-test_source1/fs1/sub@test-20101111000002
+test_source1/fs1/sub@test-20101111000000
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
-test_source2/fs2/sub@test-20101111000001
-test_source2/fs2/sub@test-20101111000002
+test_source2/fs2/sub@test-20101111000000
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
-test_target1/test_source1
-test_target1/test_source1/fs1
-test_target1/test_source1/fs1@test-20101111000000
-test_target1/test_source1/fs1@test-20101111000001
-test_target1/test_source1/fs1/sub
-test_target1/test_source1/fs1/sub@test-20101111000000
-test_target1/test_source1/fs1/sub@test-20101111000001
-test_target1/test_source2
-test_target1/test_source2/fs2
-test_target1/test_source2/fs2/sub
-test_target1/test_source2/fs2/sub@test-20101111000000
-test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
 
@@ -569,76 +545,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 
 
 
-    def test_keepsourcetarget(self):
-
-        with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
-
-        with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
-
-        #should still have all snapshots
-        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
-        self.assertMultiLineEqual(r,"""
-test_source1
-test_source1/fs1
-test_source1/fs1@test-20101111000000
-test_source1/fs1@test-20101111000001
-test_source1/fs1/sub
-test_source1/fs1/sub@test-20101111000000
-test_source1/fs1/sub@test-20101111000001
-test_source2
-test_source2/fs2
-test_source2/fs2/sub
-test_source2/fs2/sub@test-20101111000000
-test_source2/fs2/sub@test-20101111000001
-test_source2/fs3
-test_source2/fs3/sub
-test_target1
-test_target1/test_source1
-test_target1/test_source1/fs1
-test_target1/test_source1/fs1@test-20101111000000
-test_target1/test_source1/fs1@test-20101111000001
-test_target1/test_source1/fs1/sub
-test_target1/test_source1/fs1/sub@test-20101111000000
-test_target1/test_source1/fs1/sub@test-20101111000001
-test_target1/test_source2
-test_target1/test_source2/fs2
-test_target1/test_source2/fs2/sub
-test_target1/test_source2/fs2/sub@test-20101111000000
-test_target1/test_source2/fs2/sub@test-20101111000001
-""")
-
-
-        #run again with keep=0
-        with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --keep-source=0 --keep-target=0".split(" ")).run())
-
-        #should only have last snapshots
-        r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
-        self.assertMultiLineEqual(r,"""
-test_source1
-test_source1/fs1
-test_source1/fs1@test-20101111000002
-test_source1/fs1/sub
-test_source1/fs1/sub@test-20101111000002
-test_source2
-test_source2/fs2
-test_source2/fs2/sub
-test_source2/fs2/sub@test-20101111000002
-test_source2/fs3
-test_source2/fs3/sub
-test_target1
-test_target1/test_source1
-test_target1/test_source1/fs1
-test_target1/test_source1/fs1@test-20101111000002
-test_target1/test_source1/fs1/sub
-test_target1/test_source1/fs1/sub@test-20101111000002
-test_target1/test_source2
-test_target1/test_source2/fs2
-test_target1/test_source2/fs2/sub
-test_target1/test_source2/fs2/sub@test-20101111000002
-""")
 
 
     def test_ssh(self):
@@ -835,8 +741,108 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
+    def test_keep0(self):
+        """test if keep-source=0 and keep-target=0 dont delete common snapshot and break backup"""
 
-###########################
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-source=0 --keep-target=0".split(" ")).run())
+
+        #make snapshot, shouldnt delete 0
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+
+        #make snapshot 2, shouldnt delete 0 since it has holds, but will delete 1 since it has no holds
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        self.assertMultiLineEqual(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000000
+test_source1/fs1@test-20101111000002
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000000
+test_source1/fs1/sub@test-20101111000002
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000000
+test_source2/fs2/sub@test-20101111000002
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+
+        #make another backup but with no-holds. we should naturally endup with only number 3
+        with patch('time.strftime', return_value="20101111000003"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        self.assertMultiLineEqual(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000003
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000003
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000003
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000003
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000003
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000003
+""")
+
+
+        # make snapshot 4, since we used no-holds, it will delete 3 on the source, breaking the backup
+        with patch('time.strftime', return_value="20101111000004"):
+            self.assertFalse(ZfsAutobackup("test --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        self.assertMultiLineEqual(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000004
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000004
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000004
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000003
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000003
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000003
+""")
+
+    ###########################
 # TODO:
 
     def  test_raw(self):
