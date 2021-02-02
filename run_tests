@@ -7,7 +7,7 @@ if [ "$USER" != "root" ]; then
 fi
 
 #reactivate python environment, if any (usefull in Travis)
-[ "$VIRTUAL_ENV" ] && source $VIRTUAL_ENV/bin/activate 
+[ "$VIRTUAL_ENV" ] && source $VIRTUAL_ENV/bin/activate
 
 # test needs ssh access to localhost for testing
 if ! [ -e /root/.ssh/id_rsa ]; then
@@ -19,13 +19,13 @@ fi
 coverage run --source bin.zfs_autobackup -m unittest discover -vvvvf $@ 2>&1
 EXIT=$?
 
-echo 
+echo
 coverage report
 
 #this does automatic travis CI/https://coveralls.io/ intergration:
 # if which coveralls > /dev/null; then
 #        echo "Submitting to coveralls.io:"
-#        coveralls 
+#        coveralls
 # fi
 
 exit $EXIT

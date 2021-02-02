@@ -73,7 +73,7 @@ class TestThinner(unittest2.TestCase):
         result=[]
         for thing in things:
             result.append(str(thing))
-        
+
         print("Thinner result incremental:")
         pprint.pprint(result)
 
@@ -129,7 +129,7 @@ class TestThinner(unittest2.TestCase):
         result=[]
         for thing in things:
             result.append(str(thing))
-        
+
         print("Thinner result full:")
         pprint.pprint(result)
 

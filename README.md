@@ -26,7 +26,7 @@
 
 ## Introduction
 
-This is a tool I wrote to make replicating ZFS datasets easy and reliable. 
+This is a tool I wrote to make replicating ZFS datasets easy and reliable.
 
 You can either use it as a **backup** tool, **replication** tool or **snapshot** tool.
 
@@ -256,13 +256,13 @@ Or just create a script and run it manually when you need it.
 
 ## Use as snapshot tool
 
-You can use zfs-autobackup to only make snapshots. 
+You can use zfs-autobackup to only make snapshots.
 
 Just dont specify the target-path:
 ```console
-root@ws1:~# zfs-autobackup test --verbose 
+root@ws1:~# zfs-autobackup test --verbose
   zfs-autobackup v3.0 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
-  
+
   #### Source settings
   [Source] Datasets are local
   [Source] Keep the last 10 snapshots.
@@ -270,22 +270,22 @@ root@ws1:~# zfs-autobackup test --verbose
   [Source] Keep every 1 week, delete after 1 month.
   [Source] Keep every 1 month, delete after 1 year.
   [Source] Selects all datasets that have property 'autobackup:test=true' (or childs of datasets that have 'autobackup:test=child')
-  
+
   #### Selecting
   [Source] test_source1/fs1: Selected (direct selection)
   [Source] test_source1/fs1/sub: Selected (inherited selection)
   [Source] test_source2/fs2: Ignored (only childs)
   [Source] test_source2/fs2/sub: Selected (inherited selection)
-  
+
   #### Snapshotting
   [Source] Creating snapshots test-20200710125958 in pool test_source1
   [Source] Creating snapshots test-20200710125958 in pool test_source2
-  
+
   #### Thinning source
   [Source] test_source1/fs1@test-20200710125948: Destroying
   [Source] test_source1/fs1/sub@test-20200710125948: Destroying
   [Source] test_source2/fs2/sub@test-20200710125948: Destroying
-  
+
   #### All operations completed successfully
   (No target_path specified, only operated as snapshot tool.)
 ```
@@ -363,7 +363,7 @@ If you want to keep ALL the snapshots, just specify a very high number.
 
 We will give a practical example of how the thinner operates.
 
-Say we want have 3 thinner rules: 
+Say we want have 3 thinner rules:
 
 * We want to keep daily snapshots for 7 days.
 * We want to keep weekly snapshots for 4 weeks.
@@ -379,7 +379,7 @@ A block can only be assigned one snapshot: If multiple snapshots fall into the s
 
 The colors show to which block a snapshot belongs:
 
-* Snapshot 1: This snapshot belongs to daily block 1, weekly block 0 and monthly block 0. However the daily block is too old. 
+* Snapshot 1: This snapshot belongs to daily block 1, weekly block 0 and monthly block 0. However the daily block is too old.
 * Snapshot 2: Since weekly block 0 and monthly block 0 already have a snapshot, it only belongs to daily block 4.
 * Snapshot 3: This snapshot belongs to daily block 8 and weekly block 1.
 * Snapshot 4: Since daily block 8 already has a snapshot, this one doesn't belong to anything and can be deleted right away. (it will be keeped for now since its the last snapshot)
@@ -609,7 +609,7 @@ Host pve3
     Port 10003
 ```
 
-### Backup script 
+### Backup script
 
 I use the following backup script on the backup server.
 
@@ -657,7 +657,3 @@ This script will also send the backup status to Zabbix. (if you've installed my 
 This project was sponsorred by:
 
 * (None so far)
-
-
-
-

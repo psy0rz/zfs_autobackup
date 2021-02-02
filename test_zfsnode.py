@@ -108,7 +108,7 @@ test_target1
         node=ZfsNode("test", logger, description=description)
         # -D propably always supported
         self.assertGreater(len(node.supported_send_options),0)
-    
+
 
     def test_supportedrecvoptions(self):
         logger=Logger()
@@ -116,7 +116,7 @@ test_target1
         #NOTE: this couldnt hang via ssh if we dont close filehandles properly. (which was a previous bug)
         node=ZfsNode("test", logger, description=description, ssh_to='localhost')
         self.assertIsInstance(node.supported_recv_options, list)
-        
+
 
 
 if __name__ == '__main__':
