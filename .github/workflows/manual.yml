@@ -22,9 +22,12 @@ jobs:
         
       - name: Regression test
         run: sudo -E ./run_tests
-        env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       
         
+      - name: Coveralls
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: coveralls --service=github
         
       
        
