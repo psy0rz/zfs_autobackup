@@ -13,19 +13,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
+        
+        
        
       - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
-       
-       
+        run: lsmod && sudo apt update && sudo apt install zfsutils-linux && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+        
+        
       - name: Regression test
         run: sudo -E ./run_tests
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
         
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       
        
        
