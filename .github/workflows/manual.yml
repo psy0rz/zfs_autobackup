@@ -18,16 +18,11 @@ jobs:
         uses: actions/checkout@v2.3.4
        
       - name: Prepare
-        run: sudo apt-get install zfsutils-linux
+        run: sudo apt-get install zfsutils-linux; sudo pip3 install coverage
        
-      - name: Coveralls
-        uses: AndreMiras/coveralls-python-action@develop
-        with:
-          parallel: true
-          flag-name: Unit Test
        
       - name: Regression test
-        run: ls; sudo -E ./run_tests
+        run: sudo -E ./run_tests
       
        
        
