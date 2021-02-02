@@ -1,7 +1,7 @@
 
 # ZFS autobackup
 
-[![Coverage Status](https://coveralls.io/repos/github/psy0rz/zfs_autobackup/badge.svg)](https://coveralls.io/github/psy0rz/zfs_autobackup) [![Build Status](https://travis-ci.org/psy0rz/zfs_autobackup.svg?branch=master)](https://travis-ci.org/psy0rz/zfs_autobackup)
+[![Coverage Status](https://coveralls.io/repos/github/psy0rz/zfs_autobackup/badge.svg)](https://coveralls.io/github/psy0rz/zfs_autobackup) ![Regression tests](https://github.com/psy0rz/zfs_autobackup/workflows/Regression%20tests/badge.svg)
 
 ## New in v3
 
