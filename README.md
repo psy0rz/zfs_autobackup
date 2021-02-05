@@ -542,6 +542,14 @@ You forgot to setup automatic login via SSH keys, look in the example how to do 
 
 This usually means you've created a new snapshot on the target side during a backup. If you restart zfs-autobackup, it will automaticly abort the invalid partially received snapshot and start over.
 
+### It says 'cannot receive incremental stream: destination has been modified since most recent snapshot'
+
+This means files have been modified on the target side somehow. 
+
+You can use --rollback to automaticly rollback such changes.
+
+Note: This usually happens if the source-side has a non-standard mountpoint for a dataset, and you're using --clear-mountpoint. In this case the target side creates a mountpoint in the parent dataset, causing the change. 
+
 ### It says 'internal error: Invalid argument'
 
 In some cases (Linux -> FreeBSD) this means certain properties are not fully supported on the target system.
