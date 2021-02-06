@@ -33,7 +33,8 @@ class Log:
         self.show_debug = show_debug
         self.show_verbose = show_verbose
 
-    def error(self, txt):
+    @staticmethod
+    def error(txt):
         if colorama:
             print(colorama.Fore.RED + colorama.Style.BRIGHT + "! " + txt + colorama.Style.RESET_ALL, file=sys.stderr)
         else:
@@ -227,7 +228,6 @@ class CachedProperty(object):
         self.__doc__ = getattr(func, '__doc__')
         self.func = func
 
-
     def __get__(self, obj, cls):
         if obj is None:
             return self
@@ -245,7 +245,8 @@ class CachedProperty(object):
 
 
 def invalidate_cache(obj):
-    obj._cached_properties = {}
+    if hasattr(obj, '_cached_properties'):
+        obj._cached_properties = {}
 
 
 class Logger:
@@ -540,7 +541,6 @@ class ZfsDataset:
         self.name = name  # full name
         self.force_exists = force_exists
 
-
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
 
@@ -564,7 +564,6 @@ class ZfsDataset:
 
     def invalidate(self):
         """clear cache"""
-        # TODO: nicer?
         invalidate_cache(self)
         self.force_exists = None
 
@@ -777,7 +776,6 @@ class ZfsDataset:
         """add to self.snapshots as soon as it is created"""
         pass
 
-
     @CachedProperty
     def snapshots(self):
         """get all snapshots of this dataset"""
@@ -931,7 +929,7 @@ class ZfsDataset:
 
             # incremental?
             if prev_snapshot:
-                cmd.extend(["-i", "@"+prev_snapshot.snapshot_name])
+                cmd.extend(["-i", "@" + prev_snapshot.snapshot_name])
 
             cmd.append(self.name)
 
@@ -1461,7 +1459,7 @@ class ZfsNode(ExecuteNode):
                 dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
                 continue
 
-            #force_exist, since we're making it
+            # force_exist, since we're making it
             snapshot = ZfsDataset(dataset.zfs_node, dataset.name + "@" + snapshot_name, force_exists=True)
 
             pool = dataset.split_path()[0]
@@ -1649,7 +1647,7 @@ class ZfsAutobackup:
         if args.resume:
             self.verbose("NOTE: The --resume option isn't needed anymore (its autodetected now)")
 
-        if args.target_path!=None and args.target_path[0] == "/":
+        if args.target_path is not None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
             sys.exit(255)
 
