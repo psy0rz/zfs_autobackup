@@ -783,16 +783,18 @@ class ZfsDataset:
 
         return ret
 
-    def add_virtual_snapshot(self, snapshot):
-        """pretend a snapshot exists (usefull in test mode)"""
-
-        # NOTE: we could just call self.snapshots.append() but this would trigger a zfs list which is not always needed.
-        if CachedProperty.is_cached(self, 'snapshots'):
-            # already cached so add it
-            self.snapshots.append(snapshot)
-        else:
-            # self.snapshots will add it when requested
-            self._virtual_snapshots.append(snapshot)
+    # def add_virtual_snapshot(self, snapshot):
+    #     """pretend a snapshot exists (usefull in test mode)"""
+    #
+    #     # NOTE: we could just call self.snapshots.append() but this would trigger a zfs list which is not always needed.
+    #     if CachedProperty.is_cached(self, 'snapshots'):
+    #         # already cached so add it
+    #         print ("ADDED")
+    #         self.snapshots.append(snapshot)
+    #     else:
+    #         # self.snapshots will add it when requested
+    #         print ("ADDED VIRT")
+    #         self._virtual_snapshots.append(snapshot)
 
     @CachedProperty
     def snapshots(self):
@@ -807,10 +809,7 @@ class ZfsDataset:
             "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
         ]
 
-        return (
-                self.from_names(self.zfs_node.run(cmd=cmd, readonly=True)) +
-                self._virtual_snapshots
-        )
+        return self.from_names(self.zfs_node.run(cmd=cmd, readonly=True))
 
     @property
     def our_snapshots(self):
@@ -1468,7 +1467,6 @@ class ZfsNode(ExecuteNode):
 
     def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
-
         """
 
         pools = {}
@@ -1489,8 +1487,9 @@ class ZfsNode(ExecuteNode):
 
             pools[pool].append(snapshot)
 
-            # add snapshot to cache (also useful in testmode)
-            dataset.snapshots.append(snapshot)  # NOTE: this will trigger zfs list
+            # update cache, but try to prevent an unneeded zfs list
+            if self.readonly or CachedProperty.is_cached(dataset, 'snapshots'):
+                dataset.snapshots.append(snapshot)  # NOTE: this will trigger zfs list if its not cached
 
         if not pools:
             self.verbose("No changes anywhere: not creating snapshots.")
