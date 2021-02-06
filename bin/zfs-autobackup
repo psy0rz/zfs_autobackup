@@ -1182,7 +1182,7 @@ class ZfsDataset:
         return allowed_filter_properties, allowed_set_properties
 
     def sync_snapshots(self, target_dataset, features, show_progress=False, filter_properties=None, set_properties=None,
-                       ignore_recv_exit_code=False, source_holds=True, rollback=False, raw=False, other_snapshots=False,
+                       ignore_recv_exit_code=False, holds=True, rollback=False, raw=False, other_snapshots=False,
                        no_send=False, destroy_incompatible=False):
         """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
@@ -1293,13 +1293,14 @@ class ZfsDataset:
                 resume_token = None
 
                 # hold the new common snapshots and release the previous ones
-                target_snapshot.hold()
-                if source_holds:
+                if holds:
+                    target_snapshot.hold()
                     source_snapshot.hold()
+
                 if prev_source_snapshot:
-                    if source_holds:
+                    if holds:
                         prev_source_snapshot.release()
-                    target_dataset.find_snapshot(prev_source_snapshot).release()
+                        target_dataset.find_snapshot(prev_source_snapshot).release()
 
                 # we may now destroy the previous source snapshot if its obsolete
                 if prev_source_snapshot in source_obsoletes:
@@ -1595,8 +1596,7 @@ class ZfsAutobackup:
                             help='Ignore datasets that seem to be replicated some other way. (No changes since '
                                  'lastest snapshot. Useful for proxmox HA replication)')
         parser.add_argument('--no-holds', action='store_true',
-                            help='Don\'t lock snapshots on the source. (Useful to allow proxmox HA replication to '
-                                 'switches nodes)')
+                            help='Don\'t hold snapshots. (Faster)')
 
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--strip-path', default=0, type=int,
@@ -1753,7 +1753,7 @@ class ZfsAutobackup:
                                               features=common_features, filter_properties=filter_properties,
                                               set_properties=set_properties,
                                               ignore_recv_exit_code=self.args.ignore_transfer_errors,
-                                              source_holds=not self.args.no_holds, rollback=self.args.rollback,
+                                              holds=not self.args.no_holds, rollback=self.args.rollback,
                                               raw=self.args.raw, other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible)

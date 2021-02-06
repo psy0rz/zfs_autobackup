@@ -3,27 +3,6 @@
 
 [![Tests](https://github.com/psy0rz/zfs_autobackup/workflows/Regression%20tests/badge.svg)](https://github.com/psy0rz/zfs_autobackup/actions?query=workflow%3A%22Regression+tests%22) [![Coverage Status](https://coveralls.io/repos/github/psy0rz/zfs_autobackup/badge.svg)](https://coveralls.io/github/psy0rz/zfs_autobackup)  [![Python Package](https://github.com/psy0rz/zfs_autobackup/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/zfs-autobackup/)
 
-## New in v3
-
-* Complete rewrite, cleaner object oriented code.
-* Python 3 and 2 support.
-* Automated regression test against real ZFS environment.
-* Installable via [pip](https://pypi.org/project/zfs-autobackup/).
-* Backwards compatible with your current backups and parameters.
-* Progressive thinning (via a destroy schedule. default schedule should be fine for most people)
-* Cleaner output, with optional color support (pip install colorama).
-* Clear distinction between local and remote output.
-* Summary at the beginning, displaying what will happen and the current thinning-schedule.
-* More efficient destroying/skipping snapshots on the fly. (no more space issues if your backup is way behind)
-* Progress indicator (--progress)
-* Better property management (--set-properties and --filter-properties)
-* Better resume handling, automatically abort invalid resumes.
-* More robust error handling.
-* Prepared for future enhancements.
-* Supports raw backups for encryption.
-* Custom SSH client config.
-
-
 ## Introduction
 
 This is a tool I wrote to make replicating ZFS datasets easy and reliable.
@@ -395,6 +374,10 @@ Snapshots on the source that still have to be send to the target wont be destroy
 * Set the ```readonly``` property of the target filesystem to ```on```. This prevents changes on the target side. (Normally, if there are changes the next backup will fail and will require a zfs rollback.) Note that readonly means you cant change the CONTENTS of the dataset directly. Its still possible to receive new datasets and manipulate properties etc.
 * Use ```--clear-refreservation``` to save space on your backup server.
 * Use ```--clear-mountpoint``` to prevent the target server from mounting the backupped filesystem in the wrong place during a reboot.
+
+### Performance tips
+
+* --no-holds and --allow-empty improve performance a lot if you deal with large amounts of datasets or snapshots.
 
 ### Speeding up SSH
 

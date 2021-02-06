@@ -370,13 +370,13 @@ test_source2/fs3/sub                                   userrefs  -         -
 test_target1                                           userrefs  -         -
 test_target1/test_source1                              userrefs  -         -
 test_target1/test_source1/fs1                          userrefs  -         -
-test_target1/test_source1/fs1@test-20101111000000      userrefs  1         -
+test_target1/test_source1/fs1@test-20101111000000      userrefs  0         -
 test_target1/test_source1/fs1/sub                      userrefs  -         -
-test_target1/test_source1/fs1/sub@test-20101111000000  userrefs  1         -
+test_target1/test_source1/fs1/sub@test-20101111000000  userrefs  0         -
 test_target1/test_source2                              userrefs  -         -
 test_target1/test_source2/fs2                          userrefs  -         -
 test_target1/test_source2/fs2/sub                      userrefs  -         -
-test_target1/test_source2/fs2/sub@test-20101111000000  userrefs  1         -
+test_target1/test_source2/fs2/sub@test-20101111000000  userrefs  0         -
 """)
 
 
