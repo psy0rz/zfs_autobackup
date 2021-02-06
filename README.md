@@ -9,33 +9,31 @@ This is a tool I wrote to make replicating ZFS datasets easy and reliable.
 
 You can either use it as a **backup** tool, **replication** tool or **snapshot** tool.
 
-You can select what to backup by setting a custom `ZFS property`. This allows you to set and forget: Configure it so it backups your entire pool, and you never have to worry about backupping again. Even new datasets you create later will be backupped.
+You can select what to backup by setting a custom `ZFS property`. This makes it easy to add/remove specific datasets, or just backup your whole pool.
 
-Other settings are just specified on the commandline. This also makes it easier to setup and test zfs-autobackup and helps you fix all the issues you might encounter. When you're done you can just copy/paste your command to a cron or script.
+Other settings are just specified on the commandline: Simply setup and test your zfs-autobackup command and  fix all the issues you might encounter. When you're done you can just copy/paste your command to a cron or script.
 
-Since its using ZFS commands, you can see what its actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (also something I missed in other tools)
+Since its using ZFS commands, you can see what its actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (something I missed in other tools)
 
-An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your zfs datasets.
-
-Another nice thing is progress reporting: Its very useful with HUGE datasets, when you want to know how many hours/days it will take.
+An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your system.
 
 zfs-autobackup tries to be the easiest to use backup tool for zfs.
 
 ## Features
 
 * Works across operating systems: Tested with **Linux**, **FreeBSD/FreeNAS** and **SmartOS**.
-* Works in combination with existing replication systems. (Like Proxmox HA)
+* Plays nicely with existing replication systems. (Like Proxmox HA)
 * Automatically selects filesystems to backup by looking at a simple ZFS property. (recursive)
-* Creates consistent snapshots. (takes all snapshots at once, atomic.)
+* Creates consistent snapshots. (takes all snapshots at once, atomicly.)
 * Multiple backups modes:
   * Backup local data on the same server.
   * "push" local data to a backup-server via SSH.
   * "pull" remote data from a server via SSH and backup it locally.
-  * Or even pull data from a server while pushing the backup to another server.
+  * Or even pull data from a server while pushing the backup to another server. (Zero trust between source and target server)
 * Can be scheduled via a simple cronjob or run directly from commandline.
-* Supports resuming of interrupted transfers. (via the zfs extensible_dataset feature)
-* Backups and snapshots can be named to prevent conflicts. (multiple backups from and to the same datasets are no problem)
-* Always creates a new snapshot before starting.
+* Supports resuming of interrupted transfers. 
+* Multiple backups from and to the same datasets are no problem.
+* Creates the snapshot before doing anything else. (assuring you at least have a snapshot if all else fails)
 * Checks everything but tries continue on non-fatal errors when possible. (Reports error-count when done)
 * Ability to manually 'finish' failed backups to see whats going on.
 * Easy to debug and has a test-mode. Actual unix commands are printed.
@@ -46,7 +44,7 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 * Gracefully handles destroyed datasets on source.
 * Easy installation:
   * Just install zfs-autobackup via pip, or download it manually.
-  * Written in python and uses zfs-commands, no 3rd party dependency's or libraries.
+  * Written in python and uses zfs-commands, no 3rd party dependency's or libraries needed.
   * No separate config files or properties. Just one zfs-autobackup command you can copy/paste in your backup script.
 
 ## Installation
@@ -393,7 +391,7 @@ To be bold I created 2500 datasets, but that also was no problem. So it seems it
 
 If you need more performance let me know.
 
-NOTE: The is actually a performance regression in ZFS versions 2: https://github.com/openzfs/zfs/issues/11560 (I commented out line 1652: '# args.progress = True' as temporary workaround)
+NOTE: The is actually a performance regression in ZFS version 2: https://github.com/openzfs/zfs/issues/11560 (I commented out line 1652: '# args.progress = True' as temporary workaround)
 
 #### Less work
 
