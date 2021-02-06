@@ -217,9 +217,8 @@ class Thinner:
 
 # NOTE: this should inherit from (object) to function correctly with python 2.7
 class CachedProperty(object):
-    """ A property that is only computed once per instance and then replaces
-        itself with an ordinary attribute. Deleting the attribute resets the
-        property.
+    """ A property that is only computed once per instance and
+    then stores the result in _cached_properties of the object.
 
         Source: https://github.com/bottlepy/bottle/commit/fa7733e075da0d790d809aa3d2f53071897e6f76
         """
@@ -227,6 +226,7 @@ class CachedProperty(object):
     def __init__(self, func):
         self.__doc__ = getattr(func, '__doc__')
         self.func = func
+
 
     def __get__(self, obj, cls):
         if obj is None:
@@ -242,6 +242,10 @@ class CachedProperty(object):
             # value = obj.__dict__[propname] = self.func(obj)
 
         return obj._cached_properties[propname]
+
+
+def invalidate_cache(obj):
+    obj._cached_properties = {}
 
 
 class Logger:
@@ -535,7 +539,7 @@ class ZfsDataset:
         self.zfs_node = zfs_node
         self.name = name  # full name
         self.force_exists = force_exists
-        self._cached_properties = {}
+
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -561,7 +565,7 @@ class ZfsDataset:
     def invalidate(self):
         """clear cache"""
         # TODO: nicer?
-        self._cached_properties = {}
+        invalidate_cache(self)
         self.force_exists = None
 
     def split_path(self):
@@ -768,6 +772,11 @@ class ZfsDataset:
             ret.append(ZfsDataset(self.zfs_node, name))
 
         return ret
+
+    def add_virtual_snapshot(self, snapshot):
+        """add to self.snapshots as soon as it is created"""
+        pass
+
 
     @CachedProperty
     def snapshots(self):
@@ -1452,7 +1461,8 @@ class ZfsNode(ExecuteNode):
                 dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
                 continue
 
-            snapshot = ZfsDataset(dataset.zfs_node, dataset.name + "@" + snapshot_name)
+            #force_exist, since we're making it
+            snapshot = ZfsDataset(dataset.zfs_node, dataset.name + "@" + snapshot_name, force_exists=True)
 
             pool = dataset.split_path()[0]
             if pool not in pools:
