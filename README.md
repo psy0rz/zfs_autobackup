@@ -377,9 +377,29 @@ Snapshots on the source that still have to be send to the target wont be destroy
 
 ### Performance tips
 
-* --no-holds and --allow-empty improve performance a lot if you deal with large amounts of datasets or snapshots.
+If you have a large number of datasets its important to keep the following tips in mind.
 
-### Speeding up SSH
+#### Some statistics
+
+To get some idea of how fast zfs-autobackup is, I did some test on my laptop, with a SKHynix_HFS512GD9TNI-L2B0B disk. I'm using zfs 2.0.2.  
+
+I created 100 empty datasets and measured the total runtime of zfs-autobackup. I used all the performance tips below. (--no-holds, --allow-empty, ssh ControlMaster)
+
+* without ssh: 15 seconds. (>6 datasets/s)
+* either ssh-target or ssh-source=localhost: 20 seconds (5 datasets/s)
+* both ssh-target and ssh-source=localhost: 24 seconds (4 datasets/s)
+
+To be bold I created 2500 datasets, but that also was no problem. So it seems it should be possible to use zfs-autobackup with thousands of datasets.
+
+If you need more performance let me know.
+
+#### Less work
+
+You can make zfs-autobackup generate less work by using --no-holds and --allow-empty.
+
+This saves a lot of extra zfs-commands per dataset.
+
+#### Speeding up SSH
 
 You can make your ssh connections persistent and greatly speed up zfs-autobackup:
 
