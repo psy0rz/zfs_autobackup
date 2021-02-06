@@ -393,6 +393,8 @@ To be bold I created 2500 datasets, but that also was no problem. So it seems it
 
 If you need more performance let me know.
 
+NOTE: The is actually a performance regression in ZFS versions 2: https://github.com/openzfs/zfs/issues/11560 (I commented out line 1652: '# args.progress = True' as temporary workaround)
+
 #### Less work
 
 You can make zfs-autobackup generate less work by using --no-holds and --allow-empty.

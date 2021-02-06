@@ -660,7 +660,7 @@ class ZfsDataset:
         Use force to force a specific value to be cached, if you already know. Useful for performance reasons"""
 
         if self.force_exists is not None:
-            self.debug("Checking if filesystem exists: forced to {}".format(self.force_exists))
+            self.debug("Checking if filesystem exists: was forced to {}".format(self.force_exists))
             return self.force_exists
         else:
             self.debug("Checking if filesystem exists")
@@ -701,7 +701,6 @@ class ZfsDataset:
     @CachedProperty
     def properties(self):
         """all zfs properties"""
-        self.debug("Getting zfs properties")
 
         cmd = [
             "zfs", "get", "-H", "-o", "property,value", "-p", "all", self.name
@@ -710,8 +709,9 @@ class ZfsDataset:
         if not self.exists:
             return {}
 
-        ret = {}
+        self.debug("Getting zfs properties")
 
+        ret = {}
         for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
             if len(pair) == 2:
                 ret[pair[0]] = pair[1]
@@ -800,10 +800,11 @@ class ZfsDataset:
     def snapshots(self):
         """get all snapshots of this dataset"""
 
-        self.debug("Getting snapshots")
 
         if not self.exists:
             return []
+
+        self.debug("Getting snapshots")
 
         cmd = [
             "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
@@ -854,10 +855,10 @@ class ZfsDataset:
     @CachedProperty
     def written_since_ours(self):
         """get number of bytes written since our last snapshot"""
-        self.debug("Getting bytes written since our last snapshot")
 
         latest_snapshot = self.our_snapshots[-1]
 
+        self.debug("Getting bytes written since our last snapshot")
         cmd = ["zfs", "get", "-H", "-ovalue", "-p", "written@" + str(latest_snapshot), self.name]
 
         output = self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0])
@@ -936,7 +937,7 @@ class ZfsDataset:
 
         # progress output
         if show_progress:
-            # cmd.append("-v")
+            cmd.append("-v")
             cmd.append("-P")
 
         # resume a previous send? (don't need more parameters in that case)
@@ -1057,10 +1058,10 @@ class ZfsDataset:
 
     def rollback(self):
         """rollback to latest existing snapshot on this dataset"""
-        self.debug("Rolling back")
 
         for snapshot in reversed(self.snapshots):
             if snapshot.exists:
+                self.debug("Rolling back")
                 self.zfs_node.run(["zfs", "rollback", snapshot.name])
                 return
 
@@ -1210,8 +1211,8 @@ class ZfsDataset:
             source_snapshot = self.find_next_snapshot(source_snapshot, other_snapshots)
 
         # now let thinner decide what we want on both sides as final state (after all transfers are done)
-        self.debug("Create thinning list")
         if self.our_snapshots:
+            self.debug("Create thinning list")
             (source_keeps, source_obsoletes) = self.thin_list(keeps=[self.our_snapshots[-1]])
         else:
             source_obsoletes = []
@@ -1473,7 +1474,7 @@ class ZfsNode(ExecuteNode):
         pools = {}
 
         # collect snapshots that we want to make, per pool
-        self.debug(datasets)
+        # self.debug(datasets)
         for dataset in datasets:
             if not dataset.is_changed_ours(min_changed_bytes):
                 dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
