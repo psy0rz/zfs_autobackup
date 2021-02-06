@@ -243,10 +243,18 @@ class CachedProperty(object):
 
         return obj._cached_properties[propname]
 
+    @staticmethod
+    def clear(obj):
+        """clears cache of obj"""
+        if hasattr(obj, '_cached_properties'):
+            obj._cached_properties = {}
 
-def invalidate_cache(obj):
-    if hasattr(obj, '_cached_properties'):
-        obj._cached_properties = {}
+    @staticmethod
+    def is_cached(obj, propname):
+        if hasattr(obj, '_cached_properties') and propname in obj._cached_properties:
+            return True
+        else:
+            return False
 
 
 class Logger:
@@ -539,6 +547,8 @@ class ZfsDataset:
         """
         self.zfs_node = zfs_node
         self.name = name  # full name
+        self._virtual_snapshots = []
+        self.invalidate()
         self.force_exists = force_exists
 
     def __repr__(self):
@@ -563,9 +573,10 @@ class ZfsDataset:
         self.zfs_node.debug("{}: {}".format(self.name, txt))
 
     def invalidate(self):
-        """clear cache"""
-        invalidate_cache(self)
+        """clear caches"""
+        CachedProperty.clear(self)
         self.force_exists = None
+        self._virtual_snapshots = []
 
     def split_path(self):
         """return the path elements as an array"""
@@ -773,12 +784,20 @@ class ZfsDataset:
         return ret
 
     def add_virtual_snapshot(self, snapshot):
-        """add to self.snapshots as soon as it is created"""
-        pass
+        """pretend a snapshot exists (usefull in test mode)"""
+
+        # NOTE: we could just call self.snapshots.append() but this would trigger a zfs list which is not always needed.
+        if CachedProperty.is_cached(self, 'snapshots'):
+            # already cached so add it
+            self.snapshots.append(snapshot)
+        else:
+            # self.snapshots will add it when requested
+            self._virtual_snapshots.append(snapshot)
 
     @CachedProperty
     def snapshots(self):
         """get all snapshots of this dataset"""
+
         self.debug("Getting snapshots")
 
         if not self.exists:
@@ -788,8 +807,10 @@ class ZfsDataset:
             "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
         ]
 
-        names = self.zfs_node.run(cmd=cmd, readonly=True)
-        return self.from_names(names)
+        return (
+                self.from_names(self.zfs_node.run(cmd=cmd, readonly=True)) +
+                self._virtual_snapshots
+        )
 
     @property
     def our_snapshots(self):
@@ -916,7 +937,7 @@ class ZfsDataset:
 
         # progress output
         if show_progress:
-            cmd.append("-v")
+            # cmd.append("-v")
             cmd.append("-P")
 
         # resume a previous send? (don't need more parameters in that case)
