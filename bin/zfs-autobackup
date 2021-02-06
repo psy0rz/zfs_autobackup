@@ -1563,7 +1563,7 @@ class ZfsAutobackup:
         parser = argparse.ArgumentParser(
             description=HEADER,
             epilog='When a filesystem fails, zfs_backup will continue and report the number of failures at that end. '
-                   'Also the exit code will indicate the number of failures.')
+                   'Also the exit code will indicate the number of failures. Full manual at: https://github.com/psy0rz/zfs_autobackup')
         parser.add_argument('--ssh-config', default=None, help='Custom ssh client config')
         parser.add_argument('--ssh-source', default=None,
                             help='Source host to get backup from. (user@hostname) Default %(default)s.')
