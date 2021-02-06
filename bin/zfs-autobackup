@@ -1641,14 +1641,16 @@ class ZfsAutobackup:
         parser.add_argument('--debug-output', action='store_true',
                             help='Show zfs commands and their output/exit codes. (noisy)')
         parser.add_argument('--progress', action='store_true',
-                            help='show zfs progress output (to stderr). Enabled by default on ttys.')
+                            help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
+        parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS) #needed to workaround a zfs recv -v bug
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
 
         self.args = args
 
-        if sys.stderr.isatty():
+        #auto enable progress?
+        if sys.stderr.isatty() and not args.no_progress:
             args.progress = True
 
         if args.debug_output:

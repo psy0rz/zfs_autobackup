@@ -22,6 +22,7 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 ## Features
 
 * Works across operating systems: Tested with **Linux**, **FreeBSD/FreeNAS** and **SmartOS**.
+* Low learning curve: no complex daemons or services, no additional software or networking needed. (Only read this page)   
 * Plays nicely with existing replication systems. (Like Proxmox HA)
 * Automatically selects filesystems to backup by looking at a simple ZFS property. (recursive)
 * Creates consistent snapshots. (takes all snapshots at once, atomicly.)
@@ -391,7 +392,7 @@ To be bold I created 2500 datasets, but that also was no problem. So it seems it
 
 If you need more performance let me know.
 
-NOTE: The is actually a performance regression in ZFS version 2: https://github.com/openzfs/zfs/issues/11560 (I commented out line 1652: '# args.progress = True' as temporary workaround)
+NOTE: There is actually a performance regression in ZFS version 2: https://github.com/openzfs/zfs/issues/11560 Use --no-progress as workaround.
 
 #### Less work
 
