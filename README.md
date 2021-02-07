@@ -148,6 +148,8 @@ rpool/swap                              autobackup:offsite1  true               
 ...
 ```
 
+ZFS properties are ```inherited``` by child datasets. Since we've set the property on the highest dataset, we're essentially backupping the whole pool.
+
 Because we don't want to backup everything, we can exclude certain filesystem by setting the property to false:
 
 ```console
