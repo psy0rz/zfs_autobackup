@@ -4,6 +4,7 @@ import subprocess
 
 from zfs_autobackup.LogStub import LogStub
 
+
 class ExecuteNode(LogStub):
     """an endpoint to execute local or remote commands via ssh"""
 
@@ -46,17 +47,23 @@ class ExecuteNode(LogStub):
 
     def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False, pipe=False,
             return_stderr=False):
-        """run a command on the node cmd: the actual command, should be a list, where the first item is the command
-        and the rest are parameters. input: Can be None, a string or a pipe-handle you got from another run()
-        tab_split: split tabbed files in output into a list valid_exitcodes: list of valid exit codes for this
-        command (checks exit code of both sides of a pipe) readonly: make this True if the command doesn't make any
-        changes and is safe to execute in testmode hide_errors: don't show stderr output as error, instead show it as
-        debugging output (use to hide expected errors) pipe: Instead of executing, return a pipe-handle to be used to
-        input to another run() command. (just like a | in linux) return_stderr: return both stdout and stderr as a
-        tuple. (only returns stderr from this side of the pipe)
+        """run a command on the node.
+
+        :param cmd: the actual command, should be a list, where the first item is the command
+                    and the rest are parameters.
+        :param inp: Can be None, a string or a pipe-handle you got from another run()
+        :param tab_split: split tabbed files in output into a list
+        :param valid_exitcodes: list of valid exit codes for this command (checks exit code of both sides of a pipe)
+                                Use [] to accept all exit codes.
+        :param readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
+        :param hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
+        :param pipe: Instead of executing, return a pipe-handle to be used to
+                     input to another run() command. (just like a | in linux)
+        :param return_stderr: return both stdout and stderr as a tuple. (normally only returns stdout)
+
         """
 
-        if not valid_exitcodes:
+        if valid_exitcodes is None:
             valid_exitcodes = [0]
 
         encoded_cmd = []
