@@ -1,4 +1,8 @@
 
+#python 2 compatibility
+from __future__ import print_function
+
+
 def cli():
     import sys
     from zfs_autobackup.ZfsAutobackup import ZfsAutobackup
