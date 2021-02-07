@@ -28,12 +28,12 @@ jobs:
     - name: Install dependencies 3.x
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine
+        pip3 install setuptools wheel twine
 
     - name: Install dependencies 2.x
       run: |
         python2 -m pip install --upgrade pip
-        pip2 install setuptools
+        pip2 install setuptools wheel twine
 
     - name: Build and publish
       env:
