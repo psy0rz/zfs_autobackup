@@ -1,4 +1,6 @@
 from basetest import *
+from zfs_autobackup.LogStub import LogStub
+
 
 
 class TestZfsNode(unittest2.TestCase):
@@ -9,7 +11,7 @@ class TestZfsNode(unittest2.TestCase):
 
 
     def test_consistent_snapshot(self):
-        logger=Logger()
+        logger=LogStub()
         description="[Source]"
         node=ZfsNode("test", logger, description=description)
 
@@ -73,7 +75,7 @@ test_target1
 
 
     def test_getselected(self):
-        logger=Logger()
+        logger=LogStub()
         description="[Source]"
         node=ZfsNode("test", logger, description=description)
         s=pformat(node.selected_datasets)
@@ -92,7 +94,7 @@ test_target1
 
 
     def test_validcommand(self):
-        logger=Logger()
+        logger=LogStub()
         description="[Source]"
         node=ZfsNode("test", logger, description=description)
 
@@ -103,7 +105,7 @@ test_target1
             self.assertTrue(node.valid_command(["zfs", "send", "-v", "nonexisting"]))
 
     def test_supportedsendoptions(self):
-        logger=Logger()
+        logger=LogStub()
         description="[Source]"
         node=ZfsNode("test", logger, description=description)
         # -D propably always supported
@@ -111,7 +113,7 @@ test_target1
 
 
     def test_supportedrecvoptions(self):
-        logger=Logger()
+        logger=LogStub()
         description="[Source]"
         #NOTE: this couldnt hang via ssh if we dont close filehandles properly. (which was a previous bug)
         node=ZfsNode("test", logger, description=description, ssh_to='localhost')
