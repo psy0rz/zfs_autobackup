@@ -1,5 +1,5 @@
 import setuptools
-import zfs_autobackup
+from zfs_autobackup.ZfsAutobackup import ZfsAutobackup
 import os
 
 with open("README.md", "r") as fh:
@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="zfs_autobackup",
-    version=zfs_autobackup.VERSION,
+    version=ZfsAutobackup.VERSION,
     author="Edwin Eefting",
     author_email="edwin@datux.nl",
     description="ZFS autobackup is used to periodicly backup ZFS filesystems to other locations. It tries to be the most friendly to use and easy to debug ZFS backup tool.",

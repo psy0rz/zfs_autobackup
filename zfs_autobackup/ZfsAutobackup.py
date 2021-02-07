@@ -111,8 +111,8 @@ class ZfsAutobackup:
         self.args = args
 
         #auto enable progress?
-        # if sys.stderr.isatty() and not args.no_progress:
-        #     args.progress = True
+        if sys.stderr.isatty() and not args.no_progress:
+            args.progress = True
 
         if args.debug_output:
             args.debug = True
