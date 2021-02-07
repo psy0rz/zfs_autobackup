@@ -1,4 +1,4 @@
-from .basetest import *
+from basetest import *
 
 
 class TestExternalFailures(unittest2.TestCase):
