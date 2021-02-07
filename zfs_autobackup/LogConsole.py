@@ -1,4 +1,8 @@
+# python 2 compatibility
+from __future__ import print_function
+
 import sys
+
 
 colorama = False
 if sys.stdout.isatty():

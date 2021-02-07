@@ -1,6 +1,4 @@
 
-#python 2 compatibility
-from __future__ import print_function
 
 
 def cli():
