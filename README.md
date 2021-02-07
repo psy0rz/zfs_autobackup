@@ -167,8 +167,8 @@ rpool/swap                              autobackup:offsite1  false              
 
 The autobackup-property can have 3 values:
  * ```true```: Backup the dataset and all its children 
- * ```false```: Dont backup the dataset and all its children. (used to exlude certain dataset)
- * ```child```: Only backup the childeren off the dataset, not the dataset itself.
+ * ```false```: Dont backup the dataset and all its children. (used to exclude certain datasets)
+ * ```child```: Only backup the children off the dataset, not the dataset itself.
 
 Only use the zfs-command to set these properties, not the zpool command. 
 
@@ -663,7 +663,7 @@ for HOST in $HOSTS; do
 done
 ```
 
-This script will also send the backup status to Zabbix. (if you've installed my zabbix-job-status script)
+This script will also send the backup status to Zabbix. (if you've installed my zabbix-job-status script https://github.com/psy0rz/stuff/tree/master/zabbix-jobs)
 
 # Sponsor list
 
