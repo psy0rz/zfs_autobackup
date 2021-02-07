@@ -489,8 +489,8 @@ class ZfsDataset:
         if self.zfs_node.readonly:
             self.force_exists = True
 
-        # check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and can be
-        # ignored by some parameters)
+        # check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and some
+        # errors should be ignored, thats where the ignore_exitcodes is for.)
         if not self.exists:
             self.error("error during transfer")
             raise (Exception("Target doesn't exist after transfer, something went wrong."))

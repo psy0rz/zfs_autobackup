@@ -1,7 +1,7 @@
-from basetest import *
+from .basetest import *
 
 
-class TestZfsNode(unittest2.TestCase):
+class TestExternalFailures(unittest2.TestCase):
 
     def setUp(self):
         prepare_zpools()
@@ -259,8 +259,28 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         with patch('time.strftime', return_value="20101111000001"):
             self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
 
-    ############# TODO:
+    #UPDATE: offcourse the one thing that wasn't tested had a bug :(  (in ExecuteNode.run()).
     def test_ignoretransfererrors(self):
 
-        self.skipTest(
-            "todo: create some kind of situation where zfs recv exits with an error but transfer is still ok (happens in practice with acltype)")
+            self.skipTest("Not sure how to implement a test for this without some serious hacking and patching.")
+
+#         #recreate target pool without any features
+#         # shelltest("zfs set compress=on test_source1; zpool destroy test_target1; zpool create test_target1 -o feature@project_quota=disabled /dev/ram2")
+#
+#         with patch('time.strftime', return_value="20101111000000"):
+#             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --no-progress".split(" ")).run())
+#
+#         r = shelltest("zfs list -H -o name -r -t all test_target1")
+#
+#         self.assertMultiLineEqual(r, """
+# test_target1
+# test_target1/test_source1
+# test_target1/test_source1/fs1
+# test_target1/test_source1/fs1@test-20101111000002
+# test_target1/test_source1/fs1/sub
+# test_target1/test_source1/fs1/sub@test-20101111000002
+# test_target1/test_source2
+# test_target1/test_source2/fs2
+# test_target1/test_source2/fs2/sub
+# test_target1/test_source2/fs2/sub@test-20101111000002
+#         """)
