@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/bin/bash 
+
+SCRIPTDIR=`dirname $0`
+
+#cd $SCRIPTDIR || exit 1
 
 
 if [ "$USER" != "root" ]; then
@@ -6,8 +10,6 @@ if [ "$USER" != "root" ]; then
     exit 1
 fi
 
-#reactivate python environment, if any (usefull in Travis)
-[ "$VIRTUAL_ENV" ] && source $VIRTUAL_ENV/bin/activate
 
 # test needs ssh access to localhost for testing
 if ! [ -e /root/.ssh/id_rsa ]; then
@@ -16,16 +18,11 @@ if ! [ -e /root/.ssh/id_rsa ]; then
     ssh -oStrictHostKeyChecking=no localhost true || exit 1
 fi
 
-coverage run --source bin.zfs_autobackup -m unittest discover -vvvvf $@ 2>&1
+
+coverage run --source zfs_autobackup -m unittest discover -vvvvf $SCRIPTDIR $@ 2>&1
 EXIT=$?
 
 echo
 coverage report
-
-#this does automatic travis CI/https://coveralls.io/ intergration:
-# if which coveralls > /dev/null; then
-#        echo "Submitting to coveralls.io:"
-#        coveralls
-# fi
 
 exit $EXIT

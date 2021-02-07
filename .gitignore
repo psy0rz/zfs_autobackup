@@ -9,3 +9,6 @@ __pycache__
 .coverage
 *.pyc
 python2.env
+venv
+.idea
+OQ

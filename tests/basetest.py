@@ -8,7 +8,7 @@ import unittest2
 import subprocess
 import time
 from pprint import *
-from bin.zfs_autobackup import *
+from zfs_autobackup import *
 from mock import *
 import contextlib
 import sys

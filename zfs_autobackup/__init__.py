@@ -1915,6 +1915,6 @@ class ZfsAutobackup:
             return 255
 
 
-if __name__ == "__main__":
+def cli():
     zfs_autobackup = ZfsAutobackup(sys.argv[1:], False)
     sys.exit(zfs_autobackup.run())

@@ -21,7 +21,7 @@ jobs:
 
 
       - name: Regression test
-        run: sudo -E ./run_tests
+        run: sudo -E ./tests/run_tests
 
 
       - name: Coveralls
@@ -43,7 +43,7 @@ jobs:
 
 
       - name: Regression test
-        run: sudo -E ./run_tests
+        run: sudo -E ./tests/run_tests
 
 
       - name: Coveralls

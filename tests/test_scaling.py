@@ -1,6 +1,5 @@
 from basetest import *
 import time
-from bin.zfs_autobackup import *
 
 run_orig=ExecuteNode.run
 run_counter=0
