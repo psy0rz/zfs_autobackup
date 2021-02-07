@@ -72,4 +72,5 @@ jobs:
       - name: Coveralls
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github
