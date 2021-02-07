@@ -12,7 +12,7 @@ from zfs_autobackup.ThinnerRule import ThinnerRule
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.0.1-beta4"
+    VERSION = "3.0.1-beta7"
     HEADER = "zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
