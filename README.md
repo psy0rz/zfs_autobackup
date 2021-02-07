@@ -68,14 +68,6 @@ On older servers you might have to use easy_install
 [root@server ~]# easy_install zfs-autobackup
 ```
 
-### Direct download
-
-Its also possible to just download <https://raw.githubusercontent.com/psy0rz/zfs_autobackup/v3.0/bin/zfs-autobackup> and run it directly.
-
-The only requirement that is sometimes missing is the `argparse` python module. Optionally you can install `colorama` for colors.
-
-It should work with python 2.7 and higher.
-
 ## Example
 
 In this example we're going to backup a machine called `server1` to a machine called `backup`.
