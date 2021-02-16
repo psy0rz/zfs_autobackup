@@ -669,4 +669,4 @@ This script will also send the backup status to Zabbix. (if you've installed my 
 
 This project was sponsorred by:
 
-* (None so far)
+* JetBrains (Provided me with a license for their whole professional product line, https://www.jetbrains.com/pycharm/ )
