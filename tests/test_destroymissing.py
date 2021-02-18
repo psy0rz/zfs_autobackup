@@ -96,7 +96,7 @@ class TestZfsNode(unittest2.TestCase):
                 #now tries to destroy our own last snapshot (before the final destroy of the dataset)
                 self.assertIn("fs1@test-20101111000000: Destroying", buf.getvalue())
                 #but cant finish because still in use:
-                self.assertIn("fs1: Error during destoy missing", buf.getvalue())
+                self.assertIn("fs1: Error during --destroy-missing", buf.getvalue())
 
             shelltest("zfs destroy test_target1/clone1")
 

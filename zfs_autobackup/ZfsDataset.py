@@ -277,7 +277,6 @@ class ZfsDataset:
     def snapshots(self):
         """get all snapshots of this dataset"""
 
-
         if not self.exists:
             return []
 
@@ -414,7 +413,7 @@ class ZfsDataset:
 
         # progress output
         if show_progress:
-            cmd.append("-v")
+            # cmd.append("-v")
             cmd.append("-P")
 
         # resume a previous send? (don't need more parameters in that case)
@@ -430,9 +429,6 @@ class ZfsDataset:
                 cmd.extend(["-i", "@" + prev_snapshot.snapshot_name])
 
             cmd.append(self.name)
-
-        # if args.buffer and args.ssh_source!="local":
-        #     cmd.append("|mbuffer -m {}".format(args.buffer))
 
         # NOTE: this doesn't start the send yet, it only returns a subprocess.Pipe
         return self.zfs_node.run(cmd, pipe=True)
@@ -494,9 +490,6 @@ class ZfsDataset:
         if not self.exists:
             self.error("error during transfer")
             raise (Exception("Target doesn't exist after transfer, something went wrong."))
-
-        # if args.buffer and  args.ssh_target!="local":
-        #     cmd.append("|mbuffer -m {}".format(args.buffer))
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot=None, show_progress=False,
                           filter_properties=None, set_properties=None, ignore_recv_exit_code=False, resume_token=None,
