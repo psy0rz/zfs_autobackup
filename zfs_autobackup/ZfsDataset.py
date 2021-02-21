@@ -102,10 +102,10 @@ class ZfsDataset:
         else:
             return ZfsDataset(self.zfs_node, self.rstrip_path(1))
 
-    def find_prev_snapshot(self, snapshot, other_snapshots=False):
+    def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
         """find previous snapshot in this dataset. None if it doesn't exist.
 
-        other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
+        also_other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
         """
 
         if self.is_snapshot:
@@ -114,11 +114,11 @@ class ZfsDataset:
         index = self.find_snapshot_index(snapshot)
         while index:
             index = index - 1
-            if other_snapshots or self.snapshots[index].is_ours():
+            if also_other_snapshots or self.snapshots[index].is_ours():
                 return self.snapshots[index]
         return None
 
-    def find_next_snapshot(self, snapshot, other_snapshots=False):
+    def find_next_snapshot(self, snapshot, also_other_snapshots=False):
         """find next snapshot in this dataset. None if it doesn't exist"""
 
         if self.is_snapshot:
@@ -127,7 +127,7 @@ class ZfsDataset:
         index = self.find_snapshot_index(snapshot)
         while index is not None and index < len(self.snapshots) - 1:
             index = index + 1
-            if other_snapshots or self.snapshots[index].is_ours():
+            if also_other_snapshots or self.snapshots[index].is_ours():
                 return self.snapshots[index]
         return None
 
@@ -602,7 +602,7 @@ class ZfsDataset:
             target_dataset.error("Cant find common snapshot with source.")
             raise (Exception("You probably need to delete the target dataset to fix this."))
 
-    def find_start_snapshot(self, common_snapshot, other_snapshots):
+    def find_start_snapshot(self, common_snapshot, also_other_snapshots):
         """finds first snapshot to send
         :rtype: ZfsDataset or None if we cant find it.
         """
@@ -614,12 +614,12 @@ class ZfsDataset:
                 # no common snapshot, start from beginning
                 start_snapshot = self.snapshots[0]
 
-                if not start_snapshot.is_ours() and not other_snapshots:
+                if not start_snapshot.is_ours() and not also_other_snapshots:
                     # try to start at a snapshot thats ours
-                    start_snapshot = self.find_next_snapshot(start_snapshot, other_snapshots)
+                    start_snapshot = self.find_next_snapshot(start_snapshot, also_other_snapshots)
         else:
             # normal situation: start_snapshot is the one after the common snapshot
-            start_snapshot = self.find_next_snapshot(common_snapshot, other_snapshots)
+            start_snapshot = self.find_next_snapshot(common_snapshot, also_other_snapshots)
 
         return start_snapshot
 
@@ -655,7 +655,7 @@ class ZfsDataset:
 
         return allowed_filter_properties, allowed_set_properties
 
-    def add_virtual_snapshots(self, source_dataset, source_start_snapshot, other_snapshots):
+    def add_virtual_snapshots(self, source_dataset, source_start_snapshot, also_other_snapshots):
         """add snapshots from source to our snapshot list. (just the in memory list, no disk operations)"""
 
         self.debug("Creating virtual target snapshots")
@@ -667,20 +667,20 @@ class ZfsDataset:
                                           self.filesystem_name + "@" + snapshot.snapshot_name,
                                           force_exists=False)
             self.snapshots.append(virtual_snapshot)
-            snapshot = source_dataset.find_next_snapshot(snapshot, other_snapshots)
+            snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
-                       ignore_recv_exit_code, holds, rollback, raw, other_snapshots,
+                       ignore_recv_exit_code, holds, rollback, raw, also_other_snapshots,
                        no_send, destroy_incompatible):
         """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
         common_snapshot = self.find_common_snapshot(target_dataset)
-        start_snapshot = self.find_start_snapshot(common_snapshot, other_snapshots)
+        start_snapshot = self.find_start_snapshot(common_snapshot, also_other_snapshots)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot)
 
-        target_dataset.add_virtual_snapshots(self, start_snapshot, other_snapshots)
+        target_dataset.add_virtual_snapshots(self, start_snapshot, also_other_snapshots)
 
         # now let thinner decide what we want on both sides as final state (after all transfers are done)
         if self.our_snapshots:
@@ -794,4 +794,4 @@ class ZfsDataset:
                     target_dataset.abort_resume()
                     resume_token = None
 
-            source_snapshot = self.find_next_snapshot(source_snapshot, other_snapshots)
+            source_snapshot = self.find_next_snapshot(source_snapshot, also_other_snapshots)

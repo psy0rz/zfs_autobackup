@@ -248,7 +248,7 @@ class ZfsAutobackup:
                                               set_properties=set_properties,
                                               ignore_recv_exit_code=self.args.ignore_transfer_errors,
                                               holds=not self.args.no_holds, rollback=self.args.rollback,
-                                              raw=self.args.raw, other_snapshots=self.args.other_snapshots,
+                                              raw=self.args.raw, also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible)
             except Exception as e:
