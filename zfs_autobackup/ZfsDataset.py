@@ -603,19 +603,22 @@ class ZfsDataset:
             raise (Exception("You probably need to delete the target dataset to fix this."))
 
     def find_start_snapshot(self, common_snapshot, other_snapshots):
-        """finds first snapshot to send"""
+        """finds first snapshot to send
+        :rtype: ZfsDataset or None if we cant find it.
+        """
 
         if not common_snapshot:
             if not self.snapshots:
                 start_snapshot = None
             else:
-                # start from beginning
+                # no common snapshot, start from beginning
                 start_snapshot = self.snapshots[0]
 
                 if not start_snapshot.is_ours() and not other_snapshots:
                     # try to start at a snapshot thats ours
                     start_snapshot = self.find_next_snapshot(start_snapshot, other_snapshots)
         else:
+            # normal situation: start_snapshot is the one after the common snapshot
             start_snapshot = self.find_next_snapshot(common_snapshot, other_snapshots)
 
         return start_snapshot
@@ -652,33 +655,32 @@ class ZfsDataset:
 
         return allowed_filter_properties, allowed_set_properties
 
-    def sync_snapshots(self, target_dataset, features, show_progress=False, filter_properties=None, set_properties=None,
-                       ignore_recv_exit_code=False, holds=True, rollback=False, raw=False, other_snapshots=False,
-                       no_send=False, destroy_incompatible=False):
-        """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
+    def add_virtual_snapshots(self, source_dataset, source_start_snapshot, other_snapshots):
+        """add snapshots from source to our snapshot list. (just the in memory list, no disk operations)"""
 
-        if set_properties is None:
-            set_properties = []
-        if filter_properties is None:
-            filter_properties = []
+        self.debug("Creating virtual target snapshots")
+        snapshot=source_start_snapshot
+        while snapshot:
+            # create virtual target snapsho
+            # NOTE: with force_exist we're telling the dataset it doesnt exist yet. (e.g. its virtual)
+            virtual_snapshot = ZfsDataset(self.zfs_node,
+                                          self.filesystem_name + "@" + snapshot.snapshot_name,
+                                          force_exists=False)
+            self.snapshots.append(virtual_snapshot)
+            snapshot = source_dataset.find_next_snapshot(snapshot, other_snapshots)
+
+    def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
+                       ignore_recv_exit_code, holds, rollback, raw, other_snapshots,
+                       no_send, destroy_incompatible):
+        """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
         common_snapshot = self.find_common_snapshot(target_dataset)
         start_snapshot = self.find_start_snapshot(common_snapshot, other_snapshots)
-        # should be destroyed before attempting zfs recv:
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot)
 
-        # make target snapshot list the same as source, by adding virtual non-existing ones to the list.
-        target_dataset.debug("Creating virtual target snapshots")
-        source_snapshot = start_snapshot
-        while source_snapshot:
-            # create virtual target snapshot
-            virtual_snapshot = ZfsDataset(target_dataset.zfs_node,
-                                          target_dataset.filesystem_name + "@" + source_snapshot.snapshot_name,
-                                          force_exists=False)
-            target_dataset.snapshots.append(virtual_snapshot)
-            source_snapshot = self.find_next_snapshot(source_snapshot, other_snapshots)
+        target_dataset.add_virtual_snapshots(self, start_snapshot, other_snapshots)
 
         # now let thinner decide what we want on both sides as final state (after all transfers are done)
         if self.our_snapshots:
