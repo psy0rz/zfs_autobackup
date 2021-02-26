@@ -241,7 +241,6 @@ class ZfsAutobackup:
                 source_features = source_node.get_zfs_pool(source_dataset.split_path()[0]).features
                 target_features = target_node.get_zfs_pool(target_dataset.split_path()[0]).features
                 common_features = source_features and target_features
-                # source_dataset.debug("Common features: {}".format(common_features))
 
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
                                               features=common_features, filter_properties=filter_properties,
@@ -257,11 +256,12 @@ class ZfsAutobackup:
                 if self.args.debug:
                     raise
 
+        target_path_dataset=ZfsDataset(target_node, self.args.target_path)
         if not self.args.no_thinning:
-            self.thin_missing_targets(target_dataset=ZfsDataset(target_node, self.args.target_path), used_target_datasets=target_datasets)
+            self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
         if self.args.destroy_missing is not None:
-            self.destroy_missing_targets(target_dataset=ZfsDataset(target_node, self.args.target_path), used_target_datasets=target_datasets)
+            self.destroy_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
         return fail_count
 
