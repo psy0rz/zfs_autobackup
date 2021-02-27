@@ -655,11 +655,11 @@ class ZfsDataset:
 
         return allowed_filter_properties, allowed_set_properties
 
-    def add_virtual_snapshots(self, source_dataset, source_start_snapshot, also_other_snapshots):
+    def _add_virtual_snapshots(self, source_dataset, source_start_snapshot, also_other_snapshots):
         """add snapshots from source to our snapshot list. (just the in memory list, no disk operations)"""
 
         self.debug("Creating virtual target snapshots")
-        snapshot=source_start_snapshot
+        snapshot = source_start_snapshot
         while snapshot:
             # create virtual target snapsho
             # NOTE: with force_exist we're telling the dataset it doesnt exist yet. (e.g. its virtual)
@@ -669,10 +669,8 @@ class ZfsDataset:
             self.snapshots.append(virtual_snapshot)
             snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
-    def pre_clean(self, common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_keeps):
+    def _pre_clean(self, common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_keeps):
         """cleanup old stuff before starting snapshot syncing"""
-
-        # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
 
         # on source: destroy all obsoletes before common.
         # But after common, only delete snapshots that target also doesn't want
@@ -693,7 +691,7 @@ class ZfsDataset:
                 if target_snapshot.exists:
                     target_snapshot.destroy()
 
-    def validate_resume_token(self, target_dataset, start_snapshot):
+    def _validate_resume_token(self, target_dataset, start_snapshot):
         """validate and get (or destory) resume token"""
 
         if 'receive_resume_token' in target_dataset.properties:
@@ -706,10 +704,8 @@ class ZfsDataset:
             else:
                 return resume_token
 
-    def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
-                       ignore_recv_exit_code, holds, rollback, raw, also_other_snapshots,
-                       no_send, destroy_incompatible):
-        """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
+    def _plan_sync(self, target_dataset, also_other_snapshots):
+        """plan where to start syncing and what to sync and what to keep"""
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
@@ -723,25 +719,18 @@ class ZfsDataset:
             source_obsoletes = self.thin_list(keeps=[self.our_snapshots[-1]])[1]
 
         # let thinner decide keeps/obsoletes on target, AFTER the transfer would be done (by using virtual snapshots)
-        target_dataset.add_virtual_snapshots(self, start_snapshot, also_other_snapshots)
+        target_dataset._add_virtual_snapshots(self, start_snapshot, also_other_snapshots)
         target_keeps = []
         target_obsoletes = []
         if target_dataset.our_snapshots:
             (target_keeps, target_obsoletes) = target_dataset.thin_list(keeps=[target_dataset.our_snapshots[-1]],
                                                                         ignores=incompatible_target_snapshots)
 
-        self.pre_clean(
-                common_snapshot=common_snapshot, target_dataset=target_dataset,
-                target_keeps=target_keeps, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
+        return common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps, incompatible_target_snapshots
 
-        # now actually transfer the snapshots, if we want
-        if no_send:
-            return
+    def handle_incompatible_snapshots(self, incompatible_target_snapshots, destroy_incompatible):
+        """destroy incompatbile snapshots on target before sync, or inform user what to do"""
 
-        # check if we can resume
-        resume_token = self.validate_resume_token(target_dataset, start_snapshot)
-
-        # incompatible target snapshots?
         if incompatible_target_snapshots:
             if not destroy_incompatible:
                 for snapshot in incompatible_target_snapshots:
@@ -751,7 +740,32 @@ class ZfsDataset:
                 for snapshot in incompatible_target_snapshots:
                     snapshot.verbose("Incompatible snapshot")
                     snapshot.destroy()
-                    target_dataset.snapshots.remove(snapshot)
+                    self.snapshots.remove(snapshot)
+
+    def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
+                       ignore_recv_exit_code, holds, rollback, raw, also_other_snapshots,
+                       no_send, destroy_incompatible):
+        """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
+
+        (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
+         incompatible_target_snapshots) = \
+            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots)
+
+        # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
+        # Also usefull with no_send to still cleanup stuff.
+        self._pre_clean(
+            common_snapshot=common_snapshot, target_dataset=target_dataset,
+            target_keeps=target_keeps, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
+
+        # now actually transfer the snapshots, if we want
+        if no_send:
+            return
+
+        # check if we can resume
+        resume_token = self._validate_resume_token(target_dataset, start_snapshot)
+
+        # handle incompatible stuff on target
+        target_dataset.handle_incompatible_snapshots(incompatible_target_snapshots, destroy_incompatible)
 
         # rollback target to latest?
         if rollback:

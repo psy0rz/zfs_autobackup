@@ -242,6 +242,8 @@ class ZfsAutobackup:
                 target_features = target_node.get_zfs_pool(target_dataset.split_path()[0]).features
                 common_features = source_features and target_features
 
+                #determine start
+
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
                                               features=common_features, filter_properties=filter_properties,
                                               set_properties=set_properties,
