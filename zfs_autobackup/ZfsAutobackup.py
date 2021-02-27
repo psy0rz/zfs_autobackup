@@ -47,7 +47,6 @@ class ZfsAutobackup:
                             help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
         parser.add_argument('--no-send', action='store_true',
                             help='Don\'t send snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
-        #        parser.add_argument('--no-thinning', action='store_true', help='Don\'t run the thinner.')
         parser.add_argument('--min-change', type=int, default=1,
                             help='Number of bytes written after which we consider a dataset changed (default %('
                                  'default)s)')
@@ -217,7 +216,7 @@ class ZfsAutobackup:
                 dataset.error("Error during --destroy-missing: {}".format(str(e)))
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
-    def sync_datasets(self, source_node, source_datasets, target_node, filter_properties, set_properties):
+    def sync_datasets(self, source_node, source_datasets, target_node):
         """Sync datasets, or thin-only on both sides"""
 
         fail_count = 0
@@ -242,11 +241,10 @@ class ZfsAutobackup:
                 target_features = target_node.get_zfs_pool(target_dataset.split_path()[0]).features
                 common_features = source_features and target_features
 
-                #determine start
-
+                # sync the snapshots of this dataset
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
-                                              features=common_features, filter_properties=filter_properties,
-                                              set_properties=set_properties,
+                                              features=common_features, filter_properties=self.filter_properties_list(),
+                                              set_properties=self.set_properties_list(),
                                               ignore_recv_exit_code=self.args.ignore_transfer_errors,
                                               holds=not self.args.no_holds, rollback=self.args.rollback,
                                               raw=self.args.raw, also_other_snapshots=self.args.other_snapshots,
@@ -273,6 +271,44 @@ class ZfsAutobackup:
 
         for source_dataset in source_datasets:
             source_dataset.thin(skip_holds=True)
+
+    def filter_replicated(self, datasets):
+        if not self.args.ignore_replicated:
+            return datasets
+        else:
+            self.set_title("Filtering already replicated filesystems")
+            ret = []
+            for dataset in datasets:
+                if dataset.is_changed(self.args.min_change):
+                    ret.append(dataset)
+                else:
+                    dataset.verbose("Ignoring, already replicated")
+
+            return(ret)
+
+    def filter_properties_list(self):
+
+        if self.args.filter_properties:
+            filter_properties = self.args.filter_properties.split(",")
+        else:
+            filter_properties = []
+
+        if self.args.clear_refreservation:
+            filter_properties.append("refreservation")
+
+        return filter_properties
+
+    def set_properties_list(self):
+
+        if self.args.set_properties:
+            set_properties = self.args.set_properties.split(",")
+        else:
+            set_properties = []
+
+        if self.args.clear_mountpoint:
+            set_properties.append("canmount=noauto")
+
+        return set_properties
 
     def run(self):
 
@@ -303,18 +339,8 @@ class ZfsAutobackup:
                         self.args.backup_name))
                 return 255
 
-            source_datasets = []
-
             # filter out already replicated stuff?
-            if not self.args.ignore_replicated:
-                source_datasets = selected_source_datasets
-            else:
-                self.set_title("Filtering already replicated filesystems")
-                for selected_source_dataset in selected_source_datasets:
-                    if selected_source_dataset.is_changed(self.args.min_change):
-                        source_datasets.append(selected_source_dataset)
-                    else:
-                        selected_source_dataset.verbose("Ignoring, already replicated")
+            source_datasets = self.filter_replicated(selected_source_datasets)
 
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
@@ -334,23 +360,6 @@ class ZfsAutobackup:
                                       thinner=target_thinner)
                 target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
-                # determine filter- and set properties lists
-                if self.args.filter_properties:
-                    filter_properties = self.args.filter_properties.split(",")
-                else:
-                    filter_properties = []
-
-                if self.args.set_properties:
-                    set_properties = self.args.set_properties.split(",")
-                else:
-                    set_properties = []
-
-                if self.args.clear_refreservation:
-                    filter_properties.append("refreservation")
-
-                if self.args.clear_mountpoint:
-                    set_properties.append("canmount=noauto")
-
                 if self.args.no_send:
                     self.set_title("Thinning source and target")
                 else:
@@ -366,8 +375,7 @@ class ZfsAutobackup:
                 fail_count = self.sync_datasets(
                     source_node=source_node,
                     source_datasets=source_datasets,
-                    target_node=target_node,
-                    filter_properties=filter_properties, set_properties=set_properties)
+                    target_node=target_node)
 
             else:
                 if not self.args.no_thinning:
