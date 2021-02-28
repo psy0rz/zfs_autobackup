@@ -47,6 +47,9 @@ class ZfsAutobackup:
                             help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
         parser.add_argument('--no-send', action='store_true',
                             help='Don\'t send snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
+        parser.add_argument('--no-thinning', action='store_true', help="Do not destroy any snapshots.")
+        parser.add_argument('--no-holds', action='store_true',
+                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
         parser.add_argument('--min-change', type=int, default=1,
                             help='Number of bytes written after which we consider a dataset changed (default %('
                                  'default)s)')
@@ -55,8 +58,6 @@ class ZfsAutobackup:
         parser.add_argument('--ignore-replicated', action='store_true',
                             help='Ignore datasets that seem to be replicated some other way. (No changes since '
                                  'lastest snapshot. Useful for proxmox HA replication)')
-        parser.add_argument('--no-holds', action='store_true',
-                            help='Don\'t hold snapshots. (Faster)')
 
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--strip-path', default=0, type=int,
@@ -103,7 +104,6 @@ class ZfsAutobackup:
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
         parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS) # needed to workaround a zfs recv -v bug
 
-        parser.add_argument('--no-thinning', action='store_true', help="Do not destroy any snapshots.")
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
@@ -249,7 +249,8 @@ class ZfsAutobackup:
                                               holds=not self.args.no_holds, rollback=self.args.rollback,
                                               raw=self.args.raw, also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
-                                              destroy_incompatible=self.args.destroy_incompatible)
+                                              destroy_incompatible=self.args.destroy_incompatible,
+                                              no_thinning=self.args.no_thinning)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))

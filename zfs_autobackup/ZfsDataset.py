@@ -744,7 +744,7 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, raw, also_other_snapshots,
-                       no_send, destroy_incompatible):
+                       no_send, destroy_incompatible, no_thinning):
         """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
@@ -753,9 +753,10 @@ class ZfsDataset:
 
         # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
-        self._pre_clean(
-            common_snapshot=common_snapshot, target_dataset=target_dataset,
-            target_keeps=target_keeps, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
+        if not no_thinning:
+            self._pre_clean(
+                common_snapshot=common_snapshot, target_dataset=target_dataset,
+                target_keeps=target_keeps, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
 
         # now actually transfer the snapshots, if we want
         if no_send:
@@ -800,15 +801,16 @@ class ZfsDataset:
                         prev_source_snapshot.release()
                         target_dataset.find_snapshot(prev_source_snapshot).release()
 
-                # we may now destroy the previous source snapshot if its obsolete
-                if prev_source_snapshot in source_obsoletes:
-                    prev_source_snapshot.destroy()
+                if not no_thinning:
+                    # we may now destroy the previous source snapshot if its obsolete
+                    if prev_source_snapshot in source_obsoletes:
+                        prev_source_snapshot.destroy()
 
                     # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
                     # the rest was already destroyed or will not be send)
-                prev_target_snapshot = target_dataset.find_snapshot(prev_source_snapshot)
-                if prev_target_snapshot in target_obsoletes:
-                    prev_target_snapshot.destroy()
+                    prev_target_snapshot = target_dataset.find_snapshot(prev_source_snapshot)
+                    if prev_target_snapshot in target_obsoletes:
+                        prev_target_snapshot.destroy()
 
                 prev_source_snapshot = source_snapshot
             else:

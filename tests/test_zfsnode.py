@@ -115,7 +115,7 @@ test_target1
     def test_supportedrecvoptions(self):
         logger=LogStub()
         description="[Source]"
-        #NOTE: this couldnt hang via ssh if we dont close filehandles properly. (which was a previous bug)
+        #NOTE: this could hang via ssh if we dont close filehandles properly. (which was a previous bug)
         node=ZfsNode("test", logger, description=description, ssh_to='localhost')
         self.assertIsInstance(node.supported_recv_options, list)
 
