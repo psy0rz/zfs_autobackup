@@ -24,14 +24,14 @@ class ZfsAutobackup:
         parser = argparse.ArgumentParser(
             description=self.HEADER,
             epilog='Full manual at: https://github.com/psy0rz/zfs_autobackup')
-        parser.add_argument('--ssh-config', default=None, help='Custom ssh client config')
-        parser.add_argument('--ssh-source', default=None,
-                            help='Source host to get backup from. (user@hostname) Default %(default)s.')
-        parser.add_argument('--ssh-target', default=None,
-                            help='Target host to push backup to. (user@hostname) Default  %(default)s.')
-        parser.add_argument('--keep-source', type=str, default="10,1d1w,1w1m,1m1y",
+        parser.add_argument('--ssh-config', metavar='CONFIG-FILE', default=None, help='Custom ssh client config')
+        parser.add_argument('--ssh-source', metavar='USER@HOST', default=None,
+                            help='Source host to get backup from.')
+        parser.add_argument('--ssh-target', metavar='USER@HOST', default=None,
+                            help='Target host to push backup to.')
+        parser.add_argument('--keep-source', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
                             help='Thinning schedule for old source snapshots. Default: %(default)s')
-        parser.add_argument('--keep-target', type=str, default="10,1d1w,1w1m,1m1y",
+        parser.add_argument('--keep-target', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
                             help='Thinning schedule for old target snapshots. Default: %(default)s')
 
         parser.add_argument('backup_name', metavar='backup-name',
@@ -50,7 +50,7 @@ class ZfsAutobackup:
         parser.add_argument('--no-thinning', action='store_true', help="Do not destroy any snapshots.")
         parser.add_argument('--no-holds', action='store_true',
                             help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
-        parser.add_argument('--min-change', type=int, default=1,
+        parser.add_argument('--min-change', metavar='BYTES', type=int, default=1,
                             help='Number of bytes written after which we consider a dataset changed (default %('
                                  'default)s)')
         parser.add_argument('--allow-empty', action='store_true',
@@ -60,7 +60,7 @@ class ZfsAutobackup:
                                  'lastest snapshot. Useful for proxmox HA replication)')
 
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--strip-path', default=0, type=int,
+        parser.add_argument('--strip-path', metavar='N', default=0, type=int,
                             help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
                                  'SmartOS machines)')
         # parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer.
@@ -72,10 +72,10 @@ class ZfsAutobackup:
         parser.add_argument('--clear-mountpoint', action='store_true',
                             help='Set property canmount=noauto for new datasets. (recommended, prevents mount '
                                  'conflicts. same as --set-properties canmount=noauto)')
-        parser.add_argument('--filter-properties', type=str,
+        parser.add_argument('--filter-properties', metavar='PROPERY,...', type=str,
                             help='List of properties to "filter" when receiving filesystems. (you can still restore '
                                  'them with zfs inherit -S)')
-        parser.add_argument('--set-properties', type=str,
+        parser.add_argument('--set-properties', metavar='PROPERTY=VALUE,...', type=str,
                             help='List of propererties to override when receiving filesystems. (you can still restore '
                                  'them with zfs inherit -S)')
         parser.add_argument('--rollback', action='store_true',
@@ -83,7 +83,7 @@ class ZfsAutobackup:
                                  'prevent changes by setting the readonly property on the target_path to on)')
         parser.add_argument('--destroy-incompatible', action='store_true',
                             help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
-        parser.add_argument('--destroy-missing', type=str, default=None,
+        parser.add_argument('--destroy-missing', metavar="SCHEDULE", type=str, default=None,
                             help='Destroy datasets on target that are missing on the source. Specify the time since '
                                  'the last snapshot, e.g: --destroy-missing 30d')
         parser.add_argument('--ignore-transfer-errors', action='store_true',
@@ -103,6 +103,12 @@ class ZfsAutobackup:
         parser.add_argument('--progress', action='store_true',
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
         parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS) # needed to workaround a zfs recv -v bug
+
+        # parser.add_argument('--output-pipe', metavar="COMMAND", default=[], action='append',
+        #                     help='add zfs send output pipe command')
+        #
+        # parser.add_argument('--input-pipe', metavar="COMMAND", default=[], action='append',
+        #                     help='add zfs recv input pipe command')
 
 
         # note args is the only global variable we use, since its a global readonly setting anyway
