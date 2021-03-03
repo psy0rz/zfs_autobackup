@@ -45,6 +45,36 @@ class ExecuteNode(LogStub):
         else:
             self.error("STDERR|> " + line.rstrip())
 
+    def _encode_cmd(self, cmd):
+        """returns cmd in encoded and escaped form that can be used with popen."""
+
+        encoded_cmd=[]
+
+        # make sure the command gets all the data in utf8 format:
+        # (this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
+
+        # use ssh?
+        if self.ssh_to is not None:
+            encoded_cmd.append("ssh".encode('utf-8'))
+
+            if self.ssh_config is not None:
+                encoded_cmd.extend(["-F".encode('utf-8'), self.ssh_config.encode('utf-8')])
+
+            encoded_cmd.append(self.ssh_to.encode('utf-8'))
+
+            for arg in cmd:
+                # add single quotes for remote commands to support spaces and other weird stuff (remote commands are
+                # executed in a shell) and escape existing single quotes (bash needs ' to end the quoted string,
+                # then a \' for the actual quote and then another ' to start a new quoted string) (and then python
+                # needs the double \ to get a single \)
+                encoded_cmd.append(("'" + arg.replace("'", "'\\''") + "'").encode('utf-8'))
+
+        else:
+            for arg in cmd:
+                encoded_cmd.append(arg.encode('utf-8'))
+
+        return encoded_cmd
+
     def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False, pipe=False,
             return_stderr=False):
         """run a command on the node.
@@ -66,29 +96,7 @@ class ExecuteNode(LogStub):
         if valid_exitcodes is None:
             valid_exitcodes = [0]
 
-        encoded_cmd = []
-
-        # use ssh?
-        if self.ssh_to is not None:
-            encoded_cmd.append("ssh".encode('utf-8'))
-
-            if self.ssh_config is not None:
-                encoded_cmd.extend(["-F".encode('utf-8'), self.ssh_config.encode('utf-8')])
-
-            encoded_cmd.append(self.ssh_to.encode('utf-8'))
-
-            # make sure the command gets all the data in utf8 format:
-            # (this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
-            for arg in cmd:
-                # add single quotes for remote commands to support spaces and other weird stuff (remote commands are
-                # executed in a shell) and escape existing single quotes (bash needs ' to end the quoted string,
-                # then a \' for the actual quote and then another ' to start a new quoted string) (and then python
-                # needs the double \ to get a single \)
-                encoded_cmd.append(("'" + arg.replace("'", "'\\''") + "'").encode('utf-8'))
-
-        else:
-            for arg in cmd:
-                encoded_cmd.append(arg.encode('utf-8'))
+        encoded_cmd = self._encode_cmd(cmd)
 
         # debug and test stuff
         debug_txt = ""
