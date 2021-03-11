@@ -541,6 +541,30 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             #should succeed by destroying incompatibles
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --destroy-incompatible".split(" ")).run())
 
+        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        self.assertMultiLineEqual(r, """
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1@compatible1
+test_target1/test_source1/fs1@compatible2
+test_target1/test_source1/fs1@test-20101111000001
+test_target1/test_source1/fs1@test-20101111000002
+test_target1/test_source1/fs1@test-20101111000003
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source1/fs1/sub@test-20101111000001
+test_target1/test_source1/fs1/sub@test-20101111000002
+test_target1/test_source1/fs1/sub@test-20101111000003
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+test_target1/test_source2/fs2/sub@test-20101111000001
+test_target1/test_source2/fs2/sub@test-20101111000002
+test_target1/test_source2/fs2/sub@test-20101111000003
+""")
 
 
 

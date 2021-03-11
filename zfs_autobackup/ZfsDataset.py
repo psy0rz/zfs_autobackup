@@ -413,7 +413,7 @@ class ZfsDataset:
 
         # progress output
         if show_progress:
-            # cmd.append("-v")
+            cmd.append("-v")
             cmd.append("-P")
 
         # resume a previous send? (don't need more parameters in that case)
