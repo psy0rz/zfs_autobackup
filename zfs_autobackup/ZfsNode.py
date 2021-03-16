@@ -194,7 +194,7 @@ class ZfsNode(ExecuteNode):
             self.run(cmd, readonly=False)
 
     @CachedProperty
-    def selected_datasets(self):
+    def selected_datasets(self, ignore_received=True):
         """determine filesystems that should be backupped by looking at the special autobackup-property, systemwide
 
            returns: list of ZfsDataset
@@ -204,35 +204,32 @@ class ZfsNode(ExecuteNode):
 
         # get all source filesystems that have the backup property
         lines = self.run(tab_split=True, readonly=True, cmd=[
-            "zfs", "get", "-t", "volume,filesystem", "-o", "name,value,source", "-s", "local,inherited", "-H",
+            "zfs", "get", "-t", "volume,filesystem", "-o", "name,value,source", "-H",
             "autobackup:" + self.backup_name
         ])
 
-        # determine filesystems that should be actually backupped
+        # The returnlist of selected ZfsDataset's:
         selected_filesystems = []
-        direct_filesystems = []
+
+        # list of sources, used to resolve inherited sources
+        sources = {}
+
         for line in lines:
-            (name, value, source) = line
+            (name, value, raw_source) = line
             dataset = ZfsDataset(self, name)
 
-            if value == "false":
-                dataset.verbose("Ignored (disabled)")
-
+            # "resolve" inherited sources
+            sources[name] = raw_source
+            if raw_source.find("inherited from ") == 0:
+                inherited = True
+                inherited_from = re.sub("^inherited from ", "", raw_source)
+                source = sources[inherited_from]
             else:
-                if source == "local" and (value == "true" or value == "child"):
-                    direct_filesystems.append(name)
+                inherited = False
+                source = raw_source
 
-                if source == "local" and value == "true":
-                    dataset.verbose("Selected (direct selection)")
-                    selected_filesystems.append(dataset)
-                elif source.find("inherited from ") == 0 and (value == "true" or value == "child"):
-                    inherited_from = re.sub("^inherited from ", "", source)
-                    if inherited_from in direct_filesystems:
-                        selected_filesystems.append(dataset)
-                        dataset.verbose("Selected (inherited selection)")
-                    else:
-                        dataset.debug("Ignored (already a backup)")
-                else:
-                    dataset.verbose("Ignored (only childs)")
+            # determine it
+            if dataset.is_selected(value=value, source=source, inherited=inherited, ignore_received=ignore_received):
+                selected_filesystems.append(dataset)
 
         return selected_filesystems

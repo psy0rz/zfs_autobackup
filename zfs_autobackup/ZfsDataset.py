@@ -90,6 +90,35 @@ class ZfsDataset:
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
 
+    def is_selected(self, value, source, inherited, ignore_received):
+        """determine if dataset should be selected for backup (called from ZfsNode)"""
+
+        # sanity checks
+        if source not in ["local", "received", "-"]:
+            # probably a program error in zfs-autobackup or new feature in zfs
+            raise (Exception(
+                "{} autobackup-property has illegal source: '{}' (possible BUG)".format(self.name, source)))
+        if value not in ["false", "true", "child", "-"]:
+            # user error
+            raise (Exception(
+                "{} autobackup-property has illegal value: '{}'".format(self.name, value)))
+
+        # now determine if its actually selected
+        if value == "false":
+            self.verbose("Ignored (disabled)")
+            return False
+        elif value == "true" or (value == "child" and inherited):
+            if source == "local":
+                self.verbose("Selected")
+                return True
+            elif source == "received":
+                if ignore_received:
+                    self.verbose("Ignored (local backup)")
+                    return False
+                else:
+                    self.verbose("Selected")
+                    return True
+
     @CachedProperty
     def parent(self):
         """get zfs-parent of this dataset. for snapshots this means it will get the filesystem/volume that it belongs
