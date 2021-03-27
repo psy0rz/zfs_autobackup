@@ -34,7 +34,7 @@ class TestZfsScaling(unittest2.TestCase):
         with patch.object(ExecuteNode,'run', run_count) as p:
 
             with patch('time.strftime', return_value="20101112000000"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-source=10000 --keep-target=10000 --no-holds --allow-empty".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=10000 --keep-target=10000 --no-holds --allow-empty".split(" ")).run())
 
 
             #this triggers if you make a change with an impact of more than O(snapshot_count/2)
@@ -47,7 +47,7 @@ class TestZfsScaling(unittest2.TestCase):
         with patch.object(ExecuteNode,'run', run_count) as p:
 
             with patch('time.strftime', return_value="20101112000001"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-source=10000 --keep-target=10000 --no-holds --allow-empty".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=10000 --keep-target=10000 --no-holds --allow-empty".split(" ")).run())
 
 
             #this triggers if you make a change with a performance impact of more than O(snapshot_count/2)
@@ -73,7 +73,7 @@ class TestZfsScaling(unittest2.TestCase):
         with patch.object(ExecuteNode,'run', run_count) as p:
 
             with patch('time.strftime', return_value="20101112000000"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds --allow-empty".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 
             #this triggers if you make a change with an impact of more than O(snapshot_count/2)
@@ -86,7 +86,7 @@ class TestZfsScaling(unittest2.TestCase):
         with patch.object(ExecuteNode,'run', run_count) as p:
 
             with patch('time.strftime', return_value="20101112000001"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds --allow-empty".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 
             #this triggers if you make a change with a performance impact of more than O(snapshot_count/2)

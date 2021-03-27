@@ -20,7 +20,7 @@ class TestExternalFailures(unittest2.TestCase):
         r = shelltest("dd if=/dev/zero of=/test_target1/waste bs=250M count=1")
 
         # should fail and leave resume token (if supported)
-        self.assertTrue(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+        self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         # free up space
         r = shelltest("rm /test_target1/waste")
@@ -38,7 +38,7 @@ class TestExternalFailures(unittest2.TestCase):
         # --test should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
             print(buf.getvalue())
 
@@ -52,7 +52,7 @@ class TestExternalFailures(unittest2.TestCase):
         # should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
             print(buf.getvalue())
 
@@ -82,7 +82,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         # initial backup
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         # incremental backup leaves resume token
         with patch('time.strftime', return_value="20101111000001"):
@@ -91,7 +91,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         # --test should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
             print(buf.getvalue())
 
@@ -105,7 +105,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         # should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
             print(buf.getvalue())
 
@@ -149,11 +149,11 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         # --test try again, should abort old resume
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         # try again, should abort old resume
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
         self.assertMultiLineEqual(r, """
@@ -177,7 +177,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         # initial backup
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         # icremental backup, leaves resume token
         with patch('time.strftime', return_value="20101111000001"):
@@ -188,11 +188,11 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         # --test try again, should abort old resume
         with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         # try again, should abort old resume
         with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
         self.assertMultiLineEqual(r, """
@@ -216,7 +216,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
             self.skipTest("Resume not supported in this ZFS userspace version")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         # generate resume
         with patch('time.strftime', return_value="20101111000001"):
@@ -227,7 +227,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                 # incremental, doesnt want previous anymore
                 with patch('time.strftime', return_value="20101111000002"):
                     self.assertFalse(ZfsAutobackup(
-                        "test test_target1 --verbose --keep-target=0 --debug --allow-empty".split(" ")).run())
+                        "test test_target1 --no-progress --verbose --keep-target=0 --debug --allow-empty".split(" ")).run())
 
             print(buf.getvalue())
 
@@ -250,14 +250,14 @@ test_target1/test_source2/fs2/sub@test-20101111000002
     def test_missing_common(self):
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         # remove common snapshot and leave nothing
         shelltest("zfs release zfs_autobackup:test test_source1/fs1@test-20101111000000")
         shelltest("zfs destroy test_source1/fs1@test-20101111000000")
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
     #UPDATE: offcourse the one thing that wasn't tested had a bug :(  (in ExecuteNode.run()).
     def test_ignoretransfererrors(self):

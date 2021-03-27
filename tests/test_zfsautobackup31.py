@@ -10,10 +10,10 @@ class TestZfsAutobackup31(unittest2.TestCase):
     def test_no_thinning(self):
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --keep-target=0 --keep-source=0 --no-thinning".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --keep-target=0 --keep-source=0 --no-thinning".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""

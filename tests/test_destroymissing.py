@@ -14,16 +14,16 @@ class TestZfsNode(unittest2.TestCase):
 
         #initial backup
         with patch('time.strftime', return_value="10101111000000"): #1000 years in past
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000000"): #far in past
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 
         with self.subTest("Should do nothing yet"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+                    self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
                 self.assertNotIn(": Destroy missing", buf.getvalue())
@@ -36,7 +36,7 @@ class TestZfsNode(unittest2.TestCase):
 
             with OutputIO() as buf:
                 with redirect_stdout(buf), redirect_stderr(buf):
-                        self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+                        self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
                 #should have done the snapshot cleanup for destoy missing:
@@ -54,7 +54,7 @@ class TestZfsNode(unittest2.TestCase):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
                     #100y: lastest should not be old enough, while second to latest snapshot IS old enough:
-                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 100y".split(" ")).run())
+                    self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 100y".split(" ")).run())
 
                 print(buf.getvalue())
                 self.assertIn(": Waiting for deadline", buf.getvalue())
@@ -62,7 +62,7 @@ class TestZfsNode(unittest2.TestCase):
             #past deadline, destroy
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 1y".split(" ")).run())
+                    self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 1y".split(" ")).run())
 
                 print(buf.getvalue())
                 self.assertIn("sub: Destroying", buf.getvalue())
@@ -75,7 +75,7 @@ class TestZfsNode(unittest2.TestCase):
 
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+                    self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
 
@@ -90,7 +90,7 @@ class TestZfsNode(unittest2.TestCase):
 
             with OutputIO() as buf:
                 with redirect_stdout(buf), redirect_stderr(buf):
-                        self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+                        self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
                 #now tries to destroy our own last snapshot (before the final destroy of the dataset)
@@ -105,7 +105,7 @@ class TestZfsNode(unittest2.TestCase):
 
             with OutputIO() as buf:
                 with redirect_stdout(buf), redirect_stderr(buf):
-                        self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+                        self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
                 #should have done the snapshot cleanup for destoy missing:
@@ -113,7 +113,7 @@ class TestZfsNode(unittest2.TestCase):
 
             with OutputIO() as buf:
                 with redirect_stdout(buf), redirect_stderr(buf):
-                        self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
+                        self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-missing 0s".split(" ")).run())
 
                 print(buf.getvalue())
                 #on second run it sees the dangling ex-parent but doesnt know what to do with it (since it has no own snapshot)

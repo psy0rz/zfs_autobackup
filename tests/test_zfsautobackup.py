@@ -11,13 +11,13 @@ class TestZfsAutobackup(unittest2.TestCase):
 
     def test_invalidpars(self):
 
-        self.assertEqual(ZfsAutobackup("test test_target1 --keep-source -1".split(" ")).run(), 255)
+        self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --keep-source -1".split(" ")).run(), 255)
 
     def  test_snapshotmode(self):
         """test snapshot tool mode"""
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test --no-progress --verbose".split(" ")).run())
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
@@ -198,7 +198,7 @@ test_target1/test_source2/fs2/sub@test-20111111000001
         r=shelltest("zfs snapshot test_source1/fs1@otherdate-20001111000000")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
@@ -233,7 +233,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         r=shelltest("zfs snapshot test_source1/fs1@otherdate-20001111000000")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --other-snapshots".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --other-snapshots".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
@@ -317,7 +317,7 @@ test_target1
         r=shelltest("zfs snapshot test_source1/fs1@otherreplication")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1  --no-progress --verbose --ignore-replicated".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --ignore-replicated".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
@@ -416,7 +416,7 @@ test_target1/fs2/sub@test-20101111000000
         r=shelltest("zfs set refreservation=1M test_source1/fs1")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-refreservation".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --clear-refreservation".split(" ")).run())
 
             r=shelltest("zfs get refreservation -r test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r,"""
@@ -454,7 +454,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  refreservation  -        
 
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --clear-mountpoint --debug".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --clear-mountpoint --debug".split(" ")).run())
 
             r=shelltest("zfs get canmount -r test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r,"""
@@ -487,7 +487,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 
         #initial backup
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         #make change
         r=shelltest("zfs mount test_target1/test_source1/fs1")
@@ -495,18 +495,18 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 
         with patch('time.strftime', return_value="20101111000001"):
             #should fail (busy)
-            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000002"):
             #rollback, should succeed
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --rollback".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --rollback".split(" ")).run())
 
 
     def  test_destroyincompat(self):
 
         #initial backup
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         #add multiple compatible snapshot (written is still 0)
         r=shelltest("zfs snapshot test_target1/test_source1/fs1@compatible1")
@@ -514,7 +514,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 
         with patch('time.strftime', return_value="20101111000001"):
             #should be ok, is compatible
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         #add incompatible snapshot by changing and snapshotting
         r=shelltest("zfs mount test_target1/test_source1/fs1")
@@ -524,19 +524,19 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 
         with patch('time.strftime', return_value="20101111000002"):
             #--test should fail, now incompatible
-            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty --test".split(" ")).run())
+            self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --test".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000002"):
             #should fail, now incompatible
-            self.assertTrue(ZfsAutobackup("test test_target1 --verbose --allow-empty".split(" ")).run())
+            self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000003"):
             #--test should succeed by destroying incompatibles
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --destroy-incompatible --test".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible --test".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000003"):
             #should succeed by destroying incompatibles
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --destroy-incompatible".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
         self.assertMultiLineEqual(r, """
@@ -573,13 +573,13 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         #test all ssh directions
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-source localhost".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-target localhost".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-target localhost".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --ssh-source localhost --ssh-target localhost".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost --ssh-target localhost".split(" ")).run())
 
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
@@ -624,7 +624,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
         #initial
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --min-change 100000".split(" ")).run())
 
         #make small change, use umount to reflect the changes immediately
         r=shelltest("zfs set compress=off test_source1")
@@ -634,7 +634,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
         #too small change, takes no snapshots
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --min-change 100000".split(" ")).run())
 
         #make big change
         r=shelltest("dd if=/dev/zero of=/test_source1/fs1/change.txt bs=200000 count=1")
@@ -642,7 +642,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
         #bigger change, should take snapshot
         with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --min-change 100000".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --min-change 100000".split(" ")).run())
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
@@ -675,7 +675,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         #initial
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
@@ -692,12 +692,12 @@ test_target1
 
         #actual make initial backup
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
 
         #test incremental
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --test".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
@@ -733,7 +733,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         shelltest("zfs send  test_source1/fs1@migrate1| zfs recv test_target1/test_source1/fs1")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""
@@ -766,15 +766,15 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         """test if keep-source=0 and keep-target=0 dont delete common snapshot and break backup"""
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-source=0 --keep-target=0".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0".split(" ")).run())
 
         #make snapshot, shouldnt delete 0
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
 
         #make snapshot 2, shouldnt delete 0 since it has holds, but will delete 1 since it has no holds
         with patch('time.strftime', return_value="20101111000002"):
-            self.assertFalse(ZfsAutobackup("test --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
@@ -806,7 +806,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         #make another backup but with no-holds. we should naturally endup with only number 3
         with patch('time.strftime', return_value="20101111000003"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
@@ -836,7 +836,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
 
         # make snapshot 4, since we used no-holds, it will delete 3 on the source, breaking the backup
         with patch('time.strftime', return_value="20101111000004"):
-            self.assertFalse(ZfsAutobackup("test --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
