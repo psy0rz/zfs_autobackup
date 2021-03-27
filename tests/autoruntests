@@ -1,0 +1,6 @@
+#!/bin/bash
+
+#NOTE: run from top directory
+
+find tests/*.py zfs_autobackup/*.py| entr -r ./tests/run_tests
+

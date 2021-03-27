@@ -35,15 +35,13 @@ test_source2/fs3/sub
 test_target1
 """)
 
-
-
     def  test_defaults(self):
 
         with self.subTest("no datasets selected"):
             with OutputIO() as buf:
                 with redirect_stderr(buf):
                     with patch('time.strftime', return_value="20101111000000"):
-                        self.assertTrue(ZfsAutobackup("nonexisting test_target1 --verbose --debug".split(" ")).run())
+                        self.assertTrue(ZfsAutobackup("nonexisting test_target1 --verbose --debug --no-progress".split(" ")).run())
 
                 print(buf.getvalue())
                 #correct message?
@@ -53,7 +51,7 @@ test_target1
         with self.subTest("defaults with full verbose and debug"):
 
             with patch('time.strftime', return_value="20101111000000"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --debug".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --verbose --debug --no-progress".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
@@ -82,7 +80,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         with self.subTest("bare defaults, allow empty"):
             with patch('time.strftime', return_value="20101111000001"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --no-progress".split(" ")).run())
 
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
@@ -153,14 +151,14 @@ test_target1/test_source2/fs2/sub@test-20101111000001  userrefs  1         -
         #make sure time handling is correctly. try to make snapshots a year appart and verify that only snapshots mostly 1y old are kept
         with self.subTest("test time checking"):
             with patch('time.strftime', return_value="20111111000000"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose".split(" ")).run())
+                self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose --no-progress".split(" ")).run())
 
 
             time_str="20111112000000" #month in the "future"
             future_timestamp=time_secs=time.mktime(time.strptime(time_str,"%Y%m%d%H%M%S"))
             with patch('time.time', return_value=future_timestamp):
                 with patch('time.strftime', return_value="20111111000001"):
-                    self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose --keep-source 1y1y --keep-target 1d1y".split(" ")).run())
+                    self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose --keep-source 1y1y --keep-target 1d1y --no-progress".split(" ")).run())
 
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
@@ -193,7 +191,6 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20111111000000
 test_target1/test_source2/fs2/sub@test-20111111000001
 """)
-
 
     def  test_ignore_othersnaphots(self):
 
@@ -271,7 +268,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
     def  test_nosnapshot(self):
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-snapshot --no-progress".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
@@ -295,7 +292,7 @@ test_target1/test_source2/fs2
     def  test_nosend(self):
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-send".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-send --no-progress".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
@@ -320,7 +317,7 @@ test_target1
         r=shelltest("zfs snapshot test_source1/fs1@otherreplication")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --ignore-replicated".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1  --no-progress --verbose --ignore-replicated".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             #(only parents are created )
@@ -351,7 +348,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
     def  test_noholds(self):
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds --no-progress".split(" ")).run())
 
             r=shelltest("zfs get -r userrefs test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r,"""
@@ -383,7 +380,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  userrefs  0         -
     def  test_strippath(self):
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --strip-path=1".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --strip-path=1 --no-progress".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
