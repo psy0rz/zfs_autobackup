@@ -519,7 +519,13 @@ Note: This usually happens if the source-side has a non-standard mountpoint for 
 
 In some cases (Linux -> FreeBSD) this means certain properties are not fully supported on the target system.
 
-Try using something like: --filter-properties xattr
+Try using something like: --filter-properties xattr or --ignore-transfer-errors. 
+
+### zfs receive fails, but snapshot seems to be received successful.
+
+This happens if you transfer between different Operating systems/zfs versions or feature sets.
+
+Try using the --ignore-transfer-errors option. This will ignore the error. It will still check if the snapshot is actually received correctly.
 
 ## Restore example
 
