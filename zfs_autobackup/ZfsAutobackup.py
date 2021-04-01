@@ -12,7 +12,7 @@ from zfs_autobackup.ThinnerRule import ThinnerRule
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.1-beta2"
+    VERSION = "3.1-beta3"
     HEADER = "zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
@@ -102,14 +102,13 @@ class ZfsAutobackup:
                             help='Show zfs commands and their output/exit codes. (noisy)')
         parser.add_argument('--progress', action='store_true',
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
-        parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS) # needed to workaround a zfs recv -v bug
+        parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
 
-        # parser.add_argument('--output-pipe', metavar="COMMAND", default=[], action='append',
-        #                     help='add zfs send output pipe command')
-        #
-        # parser.add_argument('--input-pipe', metavar="COMMAND", default=[], action='append',
-        #                     help='add zfs recv input pipe command')
+        parser.add_argument('--output-pipe', metavar="COMMAND", default=[], action='append',
+                            help='add zfs send output pipe command')
 
+        parser.add_argument('--input-pipe', metavar="COMMAND", default=[], action='append',
+                            help='add zfs recv input pipe command')
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
@@ -263,7 +262,7 @@ class ZfsAutobackup:
                 if self.args.debug:
                     raise
 
-        target_path_dataset=ZfsDataset(target_node, self.args.target_path)
+        target_path_dataset = ZfsDataset(target_node, self.args.target_path)
         if not self.args.no_thinning:
             self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
@@ -291,7 +290,7 @@ class ZfsAutobackup:
                 else:
                     dataset.verbose("Ignoring, already replicated")
 
-            return(ret)
+            return ret
 
     def filter_properties_list(self):
 

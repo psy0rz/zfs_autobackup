@@ -6,10 +6,9 @@ from zfs_autobackup.CachedProperty import CachedProperty
 
 
 class ZfsDataset:
-    """a zfs dataset (filesystem/volume/snapshot/clone)
-    Note that a dataset doesn't have to actually exist (yet/anymore)
-    Also most properties are cached for performance-reasons, but also to allow --test to function correctly.
-
+    """a zfs dataset (filesystem/volume/snapshot/clone) Note that a dataset
+    doesn't have to actually exist (yet/anymore) Also most properties are cached
+    for performance-reasons, but also to allow --test to function correctly.
     """
 
     # illegal properties per dataset type. these will be removed from --set-properties and --filter-properties
@@ -19,8 +18,11 @@ class ZfsDataset:
     }
 
     def __init__(self, zfs_node, name, force_exists=None):
-        """name: full path of the zfs dataset exists: specify if you already know a dataset exists or not. for
-        performance and testing reasons. (otherwise it will have to check with zfs list when needed)
+        """
+        Args:
+            :type zfs_node: ZfsNode.ZfsNode
+            :type name: str
+            :type force_exists: bool
         """
         self.zfs_node = zfs_node
         self.name = name  # full name
@@ -41,12 +43,24 @@ class ZfsDataset:
         return self.name == obj.name
 
     def verbose(self, txt):
+        """
+        Args:
+            :type txt: str
+        """
         self.zfs_node.verbose("{}: {}".format(self.name, txt))
 
     def error(self, txt):
+        """
+        Args:
+            :type txt: str
+        """
         self.zfs_node.error("{}: {}".format(self.name, txt))
 
     def debug(self, txt):
+        """
+        Args:
+            :type txt: str
+        """
         self.zfs_node.debug("{}: {}".format(self.name, txt))
 
     def invalidate(self):
@@ -60,11 +74,19 @@ class ZfsDataset:
         return self.name.split("/")
 
     def lstrip_path(self, count):
-        """return name with first count components stripped"""
+        """return name with first count components stripped
+
+        Args:
+            :type count: int
+        """
         return "/".join(self.split_path()[count:])
 
     def rstrip_path(self, count):
-        """return name with last count components stripped"""
+        """return name with last count components stripped
+
+        Args:
+            :type count: int
+        """
         return "/".join(self.split_path()[:-count])
 
     @property
@@ -91,7 +113,15 @@ class ZfsDataset:
         return self.name.find("@") != -1
 
     def is_selected(self, value, source, inherited, ignore_received):
-        """determine if dataset should be selected for backup (called from ZfsNode)"""
+        """determine if dataset should be selected for backup (called from
+        ZfsNode)
+
+        Args:
+            :type value: str
+            :type source: str
+            :type inherited: bool
+            :type ignore_received: bool
+        """
 
         # sanity checks
         if source not in ["local", "received", "-"]:
@@ -121,8 +151,9 @@ class ZfsDataset:
 
     @CachedProperty
     def parent(self):
-        """get zfs-parent of this dataset. for snapshots this means it will get the filesystem/volume that it belongs
-        to. otherwise it will return the parent according to path
+        """get zfs-parent of this dataset. for snapshots this means it will get
+        the filesystem/volume that it belongs to. otherwise it will return the
+        parent according to path
 
         we cache this so everything in the parent that is cached also stays.
         """
@@ -134,7 +165,12 @@ class ZfsDataset:
     def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
         """find previous snapshot in this dataset. None if it doesn't exist.
 
-        also_other_snapshots: set to true to also return snapshots that where not created by us. (is_ours)
+        also_other_snapshots: set to true to also return snapshots that where
+        not created by us. (is_ours)
+
+        Args:
+            :type snapshot: str or ZfsDataset.ZfsDataset
+            :type also_other_snapshots: bool
         """
 
         if self.is_snapshot:
@@ -148,7 +184,12 @@ class ZfsDataset:
         return None
 
     def find_next_snapshot(self, snapshot, also_other_snapshots=False):
-        """find next snapshot in this dataset. None if it doesn't exist"""
+        """find next snapshot in this dataset. None if it doesn't exist
+
+        Args:
+            :type snapshot: ZfsDataset
+            :type also_other_snapshots: bool
+        """
 
         if self.is_snapshot:
             raise (Exception("Please call this on a dataset."))
@@ -162,8 +203,9 @@ class ZfsDataset:
 
     @CachedProperty
     def exists(self):
-        """check if dataset exists.
-        Use force to force a specific value to be cached, if you already know. Useful for performance reasons"""
+        """check if dataset exists. Use force to force a specific value to be
+        cached, if you already know. Useful for performance reasons
+        """
 
         if self.force_exists is not None:
             self.debug("Checking if filesystem exists: was forced to {}".format(self.force_exists))
@@ -175,7 +217,11 @@ class ZfsDataset:
                                   hide_errors=True) and True)
 
     def create_filesystem(self, parents=False):
-        """create a filesystem"""
+        """create a filesystem
+
+        Args:
+            :type parents: bool
+        """
         if parents:
             self.verbose("Creating filesystem and parents")
             self.zfs_node.run(["zfs", "create", "-p", self.name])
@@ -186,7 +232,12 @@ class ZfsDataset:
         self.force_exists = True
 
     def destroy(self, fail_exception=False):
-        """destroy the dataset. by default failures are not an exception, so we can continue making backups"""
+        """destroy the dataset. by default failures are not an exception, so we
+        can continue making backups
+
+        Args:
+            :type fail_exception: bool
+        """
 
         self.verbose("Destroying")
 
@@ -225,7 +276,11 @@ class ZfsDataset:
         return ret
 
     def is_changed(self, min_changed_bytes=1):
-        """dataset is changed since ANY latest snapshot ?"""
+        """dataset is changed since ANY latest snapshot ?
+
+        Args:
+            :type min_changed_bytes: int
+        """
         self.debug("Checking if dataset is changed")
 
         if min_changed_bytes == 0:
@@ -272,7 +327,9 @@ class ZfsDataset:
 
     @property
     def timestamp(self):
-        """get timestamp from snapshot name. Only works for our own snapshots with the correct format."""
+        """get timestamp from snapshot name. Only works for our own snapshots
+        with the correct format.
+        """
         time_str = re.findall("^.*-([0-9]*)$", self.snapshot_name)[0]
         if len(time_str) != 14:
             raise (Exception("Snapshot has invalid timestamp in name: {}".format(self.snapshot_name)))
@@ -282,7 +339,11 @@ class ZfsDataset:
         return time_secs
 
     def from_names(self, names):
-        """convert a list of names to a list ZfsDatasets for this zfs_node"""
+        """convert a list of names to a list ZfsDatasets for this zfs_node
+
+        Args:
+            :type names: list of str
+        """
         ret = []
         for name in names:
             ret.append(ZfsDataset(self.zfs_node, name))
@@ -328,7 +389,12 @@ class ZfsDataset:
         return ret
 
     def find_snapshot(self, snapshot):
-        """find snapshot by snapshot (can be a snapshot_name or a different ZfsDataset )"""
+        """find snapshot by snapshot (can be a snapshot_name or a different
+        ZfsDataset )
+
+        Args:
+            :type snapshot: str or ZfsDataset
+        """
 
         if not isinstance(snapshot, ZfsDataset):
             snapshot_name = snapshot
@@ -342,7 +408,12 @@ class ZfsDataset:
         return None
 
     def find_snapshot_index(self, snapshot):
-        """find snapshot index by snapshot (can be a snapshot_name or ZfsDataset)"""
+        """find snapshot index by snapshot (can be a snapshot_name or
+        ZfsDataset)
+
+        Args:
+            :type snapshot: str or ZfsDataset
+        """
 
         if not isinstance(snapshot, ZfsDataset):
             snapshot_name = snapshot
@@ -371,7 +442,11 @@ class ZfsDataset:
         return int(output[0])
 
     def is_changed_ours(self, min_changed_bytes=1):
-        """dataset is changed since OUR latest snapshot?"""
+        """dataset is changed since OUR latest snapshot?
+
+        Args:
+            :type min_changed_bytes: int
+        """
 
         if min_changed_bytes == 0:
             return True
@@ -387,7 +462,11 @@ class ZfsDataset:
 
     @CachedProperty
     def recursive_datasets(self, types="filesystem,volume"):
-        """get all (non-snapshot) datasets recursively under us"""
+        """get all (non-snapshot) datasets recursively under us
+
+        Args:
+            :type types: str
+        """
 
         self.debug("Getting all recursive datasets under us")
 
@@ -399,7 +478,11 @@ class ZfsDataset:
 
     @CachedProperty
     def datasets(self, types="filesystem,volume"):
-        """get all (non-snapshot) datasets directly under us"""
+        """get all (non-snapshot) datasets directly under us
+
+        Args:
+            :type types: str
+        """
 
         self.debug("Getting all datasets under us")
 
@@ -412,8 +495,15 @@ class ZfsDataset:
     def send_pipe(self, features, prev_snapshot=None, resume_token=None, show_progress=False, raw=False):
         """returns a pipe with zfs send output for this snapshot
 
-        resume_token: resume sending from this token. (in that case we don't need to know snapshot names)
+        resume_token: resume sending from this token. (in that case we don't
+        need to know snapshot names)
 
+        Args:
+            :type features: list of str
+            :type prev_snapshot: ZfsDataset
+            :type resume_token: str
+            :type show_progress: bool
+            :type raw: bool
         """
         # build source command
         cmd = []
@@ -465,8 +555,16 @@ class ZfsDataset:
     def recv_pipe(self, pipe, features, filter_properties=None, set_properties=None, ignore_exit_code=False):
         """starts a zfs recv for this snapshot and uses pipe as input
 
-        note: you can it both on a snapshot or filesystem object.
-        The resulting zfs command is the same, only our object cache is invalidated differently.
+        note: you can it both on a snapshot or filesystem object. The
+        resulting zfs command is the same, only our object cache is invalidated
+        differently.
+
+        Args:
+            :type pipe: subprocess.pOpen
+            :type features: list of str
+            :type filter_properties: list of str
+            :type set_properties: list of str
+            :type ignore_exit_code: bool
         """
 
         if set_properties is None:
@@ -523,9 +621,21 @@ class ZfsDataset:
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot=None, show_progress=False,
                           filter_properties=None, set_properties=None, ignore_recv_exit_code=False, resume_token=None,
                           raw=False):
-        """transfer this snapshot to target_snapshot. specify prev_snapshot for incremental transfer
+        """transfer this snapshot to target_snapshot. specify prev_snapshot for
+        incremental transfer
 
         connects a send_pipe() to recv_pipe()
+
+        Args:
+            :type target_snapshot: ZfsDataset
+            :type features: list of str
+            :type prev_snapshot: ZfsDataset
+            :type show_progress: bool
+            :type filter_properties: list of str
+            :type set_properties: list of str
+            :type ignore_recv_exit_code: bool
+            :type resume_token: str
+            :type raw: bool
         """
 
         if set_properties is None:
@@ -565,7 +675,12 @@ class ZfsDataset:
                 return
 
     def get_resume_snapshot(self, resume_token):
-        """returns snapshot that will be resumed by this resume token (run this on source with target-token)"""
+        """returns snapshot that will be resumed by this resume token (run this
+        on source with target-token)
+
+        Args:
+            :type resume_token: str
+        """
         # use zfs send -n option to determine this
         # NOTE: on smartos stderr, on linux stdout
         (stdout, stderr) = self.zfs_node.run(["zfs", "send", "-t", resume_token, "-n", "-v"], valid_exitcodes=[0, 255],
@@ -585,11 +700,16 @@ class ZfsDataset:
         return None
 
     def thin_list(self, keeps=None, ignores=None):
-        """determines list of snapshots that should be kept or deleted based on the thinning schedule. cull the herd!
-        keep: list of snapshots to always keep (usually the last) ignores: snapshots to completely ignore (usually
+        """determines list of snapshots that should be kept or deleted based on
+        the thinning schedule. cull the herd! keep: list of snapshots to always
+        keep (usually the last) ignores: snapshots to completely ignore (usually
         incompatible target snapshots that are going to be destroyed anyway)
 
         returns: ( keeps, obsoletes )
+
+        Args:
+            :type keeps: list of ZfsDataset
+            :type ignores: list of ZfsDataset
         """
 
         if ignores is None:
@@ -602,7 +722,11 @@ class ZfsDataset:
         return self.zfs_node.thinner.thin(snapshots, keep_objects=keeps)
 
     def thin(self, skip_holds=False):
-        """destroys snapshots according to thin_list, except last snapshot"""
+        """destroys snapshots according to thin_list, except last snapshot
+
+        Args:
+            :type skip_holds: bool
+        """
 
         (keeps, obsoletes) = self.thin_list(keeps=self.our_snapshots[-1:])
         for obsolete in obsoletes:
@@ -613,8 +737,11 @@ class ZfsDataset:
                 self.snapshots.remove(obsolete)
 
     def find_common_snapshot(self, target_dataset):
-        """find latest common snapshot between us and target
-        returns None if its an initial transfer
+        """find latest common snapshot between us and target returns None if its
+        an initial transfer
+
+        Args:
+            :type target_dataset: ZfsDataset
         """
         if not target_dataset.snapshots:
             # target has nothing yet
@@ -632,8 +759,12 @@ class ZfsDataset:
             raise (Exception("You probably need to delete the target dataset to fix this."))
 
     def find_start_snapshot(self, common_snapshot, also_other_snapshots):
-        """finds first snapshot to send
-        :rtype: ZfsDataset or None if we cant find it.
+        """finds first snapshot to send :rtype: ZfsDataset or None if we cant
+        find it.
+
+        Args:
+            :type common_snapshot: ZfsDataset
+            :type also_other_snapshots: bool
         """
 
         if not common_snapshot:
@@ -653,8 +784,13 @@ class ZfsDataset:
         return start_snapshot
 
     def find_incompatible_snapshots(self, common_snapshot):
-        """returns a list of snapshots that is incompatible for a zfs recv onto the common_snapshot.
-        all direct followup snapshots with written=0 are compatible."""
+        """returns a list of snapshots that is incompatible for a zfs recv onto
+        the common_snapshot. all direct followup snapshots with written=0 are
+        compatible.
+
+        Args:
+            :type common_snapshot: ZfsDataset
+        """
 
         ret = []
 
@@ -668,7 +804,12 @@ class ZfsDataset:
         return ret
 
     def get_allowed_properties(self, filter_properties, set_properties):
-        """only returns lists of allowed properties for this dataset type"""
+        """only returns lists of allowed properties for this dataset type
+
+        Args:
+            :type filter_properties: list of str
+            :type set_properties: list of str
+        """
 
         allowed_filter_properties = []
         allowed_set_properties = []
@@ -685,7 +826,14 @@ class ZfsDataset:
         return allowed_filter_properties, allowed_set_properties
 
     def _add_virtual_snapshots(self, source_dataset, source_start_snapshot, also_other_snapshots):
-        """add snapshots from source to our snapshot list. (just the in memory list, no disk operations)"""
+        """add snapshots from source to our snapshot list. (just the in memory
+        list, no disk operations)
+
+        Args:
+            :type source_dataset: ZfsDataset
+            :type source_start_snapshot: ZfsDataset
+            :type also_other_snapshots: bool
+        """
 
         self.debug("Creating virtual target snapshots")
         snapshot = source_start_snapshot
@@ -699,7 +847,15 @@ class ZfsDataset:
             snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
     def _pre_clean(self, common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_keeps):
-        """cleanup old stuff before starting snapshot syncing"""
+        """cleanup old stuff before starting snapshot syncing
+
+        Args:
+            :type common_snapshot: ZfsDataset
+            :type target_dataset: ZfsDataset
+            :type source_obsoletes: list of ZfsDataset
+            :type target_obsoletes: list of ZfsDataset
+            :type target_keeps: list of ZfsDataset
+        """
 
         # on source: destroy all obsoletes before common.
         # But after common, only delete snapshots that target also doesn't want
@@ -721,7 +877,12 @@ class ZfsDataset:
                     target_snapshot.destroy()
 
     def _validate_resume_token(self, target_dataset, start_snapshot):
-        """validate and get (or destory) resume token"""
+        """validate and get (or destory) resume token
+
+        Args:
+            :type target_dataset: ZfsDataset
+            :type start_snapshot: ZfsDataset
+        """
 
         if 'receive_resume_token' in target_dataset.properties:
             resume_token = target_dataset.properties['receive_resume_token']
@@ -734,7 +895,12 @@ class ZfsDataset:
                 return resume_token
 
     def _plan_sync(self, target_dataset, also_other_snapshots):
-        """plan where to start syncing and what to sync and what to keep"""
+        """plan where to start syncing and what to sync and what to keep
+
+        Args:
+            :type target_dataset: ZfsDataset
+            :type also_other_snapshots: bool
+        """
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
@@ -758,7 +924,13 @@ class ZfsDataset:
         return common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps, incompatible_target_snapshots
 
     def handle_incompatible_snapshots(self, incompatible_target_snapshots, destroy_incompatible):
-        """destroy incompatbile snapshots on target before sync, or inform user what to do"""
+        """destroy incompatbile snapshots on target before sync, or inform user
+        what to do
+
+        Args:
+            :type incompatible_target_snapshots: list of ZfsDataset
+            :type destroy_incompatible: bool
+        """
 
         if incompatible_target_snapshots:
             if not destroy_incompatible:
@@ -774,7 +946,24 @@ class ZfsDataset:
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, raw, also_other_snapshots,
                        no_send, destroy_incompatible, no_thinning):
-        """sync this dataset's snapshots to target_dataset, while also thinning out old snapshots along the way."""
+        """sync this dataset's snapshots to target_dataset, while also thinning
+        out old snapshots along the way.
+
+        Args:
+            :type target_dataset: ZfsDataset
+            :type features: list of str
+            :type show_progress: bool
+            :type filter_properties: list of str
+            :type set_properties: list of str
+            :type ignore_recv_exit_code: bool
+            :type holds: bool
+            :type rollback: bool
+            :type raw: bool
+            :type also_other_snapshots: bool
+            :type no_send: bool
+            :type destroy_incompatible: bool
+            :type no_thinning: bool
+        """
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
