@@ -48,7 +48,7 @@ class ExecuteNode(LogStub):
     def _encode_cmd(self, cmd):
         """returns cmd in encoded and escaped form that can be used with popen."""
 
-        encoded_cmd=[]
+        encoded_cmd = []
 
         # make sure the command gets all the data in utf8 format:
         # (this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
@@ -75,26 +75,16 @@ class ExecuteNode(LogStub):
 
         return encoded_cmd
 
-    def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False, pipe=False,
-            return_stderr=False):
-        """run a command on the node.
+    def is_local(self):
+        return self.ssh_to is None
 
-        :param cmd: the actual command, should be a list, where the first item is the command
-                    and the rest are parameters.
-        :param inp: Can be None, a string or a pipe-handle you got from another run()
-        :param tab_split: split tabbed files in output into a list
-        :param valid_exitcodes: list of valid exit codes for this command (checks exit code of both sides of a pipe)
-                                Use [] to accept all exit codes.
-        :param readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
-        :param hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
-        :param pipe: Instead of executing, return a pipe-handle to be used to
-                     input to another run() command. (just like a | in linux)
-        :param return_stderr: return both stdout and stderr as a tuple. (normally only returns stdout)
+    def get_pipe(self, cmd, inp=None, readonly=False):
+        """return a pipehandle to a process.
 
+        The caller should pass this handle as inp= to run() via inp= at some point to actually execute it.
+
+        Returns None if we're in test-mode. (but still prints important debug output)
         """
-
-        if valid_exitcodes is None:
-            valid_exitcodes = [0]
 
         encoded_cmd = self._encode_cmd(cmd)
 
@@ -103,35 +93,29 @@ class ExecuteNode(LogStub):
         for c in encoded_cmd:
             debug_txt = debug_txt + " " + c.decode()
 
-        if pipe:
-            debug_txt = debug_txt + " |"
-
-        if self.readonly and not readonly:
-            self.debug("SKIP   > " + debug_txt)
-        else:
-            if pipe:
-                self.debug("PIPE   > " + debug_txt)
-            else:
-                self.debug("RUN    > " + debug_txt)
-
         # determine stdin
         if inp is None:
             # NOTE: Not None, otherwise it reads stdin from terminal!
             stdin = subprocess.PIPE
         elif isinstance(inp, str) or type(inp) == 'unicode':
-            self.debug("INPUT  > \n" + inp.rstrip())
+            self.debug("STDIN: \n" + inp.rstrip())
             stdin = subprocess.PIPE
         elif isinstance(inp, subprocess.Popen):
-            self.debug("Piping input")
+            self.debug("PIPE to:")
             stdin = inp.stdout
         else:
             raise (Exception("Program error: Incompatible input"))
 
         if self.readonly and not readonly:
-            # todo: what happens if input is piped?
-            return
+            self.debug("CMDSKIP> " + debug_txt)
+            return None
+        else:
+            self.debug("CMD    > " + debug_txt)
 
-        # execute and parse/return results
+        if self.readonly and not readonly:
+            return None
+
+        # create pipe
         p = subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin, stderr=subprocess.PIPE)
 
         # Note: make streaming?
@@ -141,9 +125,80 @@ class ExecuteNode(LogStub):
         if p.stdin:
             p.stdin.close()
 
-        # return pipe
-        if pipe:
-            return p
+        return p
+
+    def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False,
+            return_stderr=False):
+        """run a command on the node , checks output and parses/handle output and returns it
+
+        :param cmd: the actual command, should be a list, where the first item is the command
+                    and the rest are parameters.
+        :param inp: Can be None, a string or a pipe-handle you got from get_pipe()
+        :param tab_split: split tabbed files in output into a list
+        :param valid_exitcodes: list of valid exit codes for this command (checks exit code of both sides of a pipe)
+                                Use [] to accept all exit codes.
+        :param readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
+        :param hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
+        :param return_stderr: return both stdout and stderr as a tuple. (normally only returns stdout)
+
+        """
+
+        if valid_exitcodes is None:
+            valid_exitcodes = [0]
+
+        # encoded_cmd = self._encode_cmd(cmd)
+        #
+        # # debug and test stuff
+        # debug_txt = ""
+        # for c in encoded_cmd:
+        #     debug_txt = debug_txt + " " + c.decode()
+        #
+        # if pipe:
+        #     debug_txt = debug_txt + " |"
+        #
+        # if self.readonly and not readonly:
+        #     self.debug("SKIP   > " + debug_txt)
+        # else:
+        #     if pipe:
+        #         self.debug("PIPE   > " + debug_txt)
+        #     else:
+        #         self.debug("RUN    > " + debug_txt)
+        #
+        # # determine stdin
+        # if inp is None:
+        #     # NOTE: Not None, otherwise it reads stdin from terminal!
+        #     stdin = subprocess.PIPE
+        # elif isinstance(inp, str) or type(inp) == 'unicode':
+        #     self.debug("INPUT  > \n" + inp.rstrip())
+        #     stdin = subprocess.PIPE
+        # elif isinstance(inp, subprocess.Popen):
+        #     self.debug("Piping input")
+        #     stdin = inp.stdout
+        # else:
+        #     raise (Exception("Program error: Incompatible input"))
+
+        # if self.readonly and not readonly:
+        #     # todo: what happens if input is piped?
+        #     return
+        #
+        # # execute and parse/return results
+        # p = subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin, stderr=subprocess.PIPE)
+
+        # # Note: make streaming?
+        # if isinstance(inp, str) or type(inp) == 'unicode':
+        #     p.stdin.write(inp.encode('utf-8'))
+        #
+        # if p.stdin:
+        #     p.stdin.close()
+        #
+        # # return pipe
+        # if pipe:
+        #     return p
+
+        p = self.get_pipe(cmd, inp=inp, readonly=readonly)
+
+        if p is None:
+            return None
 
         # handle all outputs
         if isinstance(inp, subprocess.Popen):
@@ -206,9 +261,24 @@ class ExecuteNode(LogStub):
                 raise (subprocess.CalledProcessError(inp.returncode, "(pipe)"))
 
         if valid_exitcodes and p.returncode not in valid_exitcodes:
-            raise (subprocess.CalledProcessError(p.returncode, encoded_cmd))
+            raise (subprocess.CalledProcessError(p.returncode, self._encode_cmd(cmd)))
 
         if return_stderr:
             return output_lines, error_lines
         else:
             return output_lines
+
+    # def run_pipe(self, cmds, *args, **kwargs):
+    #     """run a array of commands piped together. """
+    #
+    #     #i
+    #     if self.zfs_node.is_local():
+    #         output_pipe = self.zfs_node.run(cmd, pipe=True)
+    #         for pipe_cmd in output_pipes:
+    #             output_pipe=self.zfs_node.run(pipe_cmd, inp=output_pipe, pipe=True, )
+    #         return output_pipe
+    #     #remote, so add with actual | and let remote shell handle it
+    #     else:
+    #         for pipe_cmd in output_pipes:
+    #             cmd.append("|")
+    #             cmd.extend(pipe_cmd)

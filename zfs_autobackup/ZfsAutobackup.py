@@ -104,11 +104,11 @@ class ZfsAutobackup:
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
         parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
 
-        parser.add_argument('--output-pipe', metavar="COMMAND", default=[], action='append',
-                            help='add zfs send output pipe command')
+        parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
+                            help='pipe zfs send output through COMMAND')
 
-        parser.add_argument('--input-pipe', metavar="COMMAND", default=[], action='append',
-                            help='add zfs recv input pipe command')
+        parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
+                            help='pipe zfs recv input through COMMAND')
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
@@ -222,7 +222,11 @@ class ZfsAutobackup:
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
-        """Sync datasets, or thin-only on both sides"""
+        """Sync datasets, or thin-only on both sides
+        :type target_node: ZfsNode
+        :type source_datasets: list of ZfsDataset
+        :type source_node: ZfsNode
+        """
 
         fail_count = 0
         target_datasets = []
@@ -255,7 +259,7 @@ class ZfsAutobackup:
                                               raw=self.args.raw, also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              no_thinning=self.args.no_thinning)
+                                              no_thinning=self.args.no_thinning, output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -383,6 +387,7 @@ class ZfsAutobackup:
                     source_datasets=source_datasets,
                     target_node=target_node)
 
+            #no target specified, run in snapshot-only mode
             else:
                 if not self.args.no_thinning:
                     self.thin_source(source_datasets)
@@ -390,7 +395,7 @@ class ZfsAutobackup:
 
             if not fail_count:
                 if self.args.test:
-                    self.set_title("All tests successfull.")
+                    self.set_title("All tests successful.")
                 else:
                     self.set_title("All operations completed successfully")
                     if not self.args.target_path:
