@@ -511,9 +511,7 @@ This usually means you've created a new snapshot on the target side during a bac
 
 This means files have been modified on the target side somehow. 
 
-You can use --rollback to automaticly rollback such changes.
-
-Note: This usually happens if the source-side has a non-standard mountpoint for a dataset, and you're using --clear-mountpoint. In this case the target side creates a mountpoint in the parent dataset, causing the change. 
+You can use --rollback to automaticly rollback such changes. Also try destroying the target dataset and using --clear-mountpoint on the next run. This way it wont get mounted.
 
 ### It says 'internal error: Invalid argument'
 
