@@ -19,7 +19,7 @@ if ! [ -e /root/.ssh/id_rsa ]; then
 fi
 
 
-coverage run --source zfs_autobackup -m unittest discover -vvvvf $SCRIPTDIR $@ 2>&1
+coverage run --branch --source zfs_autobackup -m unittest discover -vvvvf $SCRIPTDIR $@ 2>&1
 EXIT=$?
 
 echo
