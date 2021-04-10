@@ -42,7 +42,7 @@ class CmdPipe:
         """run the pipe"""
 
         if not self._should_execute:
-            return False
+            return None
 
         # first process should have actual user input as stdin:
         selectors = []

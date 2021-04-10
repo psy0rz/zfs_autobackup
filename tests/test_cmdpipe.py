@@ -45,3 +45,57 @@ class TestCmdPipe(unittest2.TestCase):
         self.assertEqual(err3, [])
         self.assertEqual(out, ["TEsT"])
         self.assertEqual(exits, [0,0,0])
+
+        #test str representation as well
+        self.assertEqual(str(p), "(echo test) | (tr e E) | (tr t T)")
+
+    def test_pipeerrors(self):
+        """test piped stderrs """
+        p=CmdPipe(readonly=False)
+        err1=[]
+        err2=[]
+        err3=[]
+        out=[]
+        p.add(["ls", "/nonexistent1"], stderr_handler=lambda line: err1.append(line))
+        p.add(["ls", "/nonexistent2"], stderr_handler=lambda line: err2.append(line))
+        p.add(["ls", "/nonexistent3"], stderr_handler=lambda line: err3.append(line))
+        exits=p.execute(stdout_handler=lambda line: out.append(line))
+
+        self.assertEqual(err1, ["ls: cannot access '/nonexistent1': No such file or directory"])
+        self.assertEqual(err2, ["ls: cannot access '/nonexistent2': No such file or directory"])
+        self.assertEqual(err3, ["ls: cannot access '/nonexistent3': No such file or directory"])
+        self.assertEqual(out, [])
+        self.assertEqual(exits, [2,2,2])
+
+    def test_readonly_execute(self):
+        """everything readonly, just should execute"""
+
+        p=CmdPipe(readonly=True)
+        err1=[]
+        err2=[]
+        out=[]
+        p.add(["echo", "test1"], stderr_handler=lambda line: err1.append(line), readonly=True)
+        p.add(["echo", "test2"], stderr_handler=lambda line: err2.append(line), readonly=True)
+        exits=p.execute(stdout_handler=lambda line: out.append(line))
+
+        self.assertEqual(err1, [])
+        self.assertEqual(err2, [])
+        self.assertEqual(out, ["test2"])
+        self.assertEqual(exits, [0,0])
+
+    def test_readonly_skip(self):
+        """one command not readonly, skip"""
+
+        p=CmdPipe(readonly=True)
+        err1=[]
+        err2=[]
+        out=[]
+        p.add(["echo", "test1"], stderr_handler=lambda line: err1.append(line), readonly=False)
+        p.add(["echo", "test2"], stderr_handler=lambda line: err2.append(line), readonly=True)
+        exits=p.execute(stdout_handler=lambda line: out.append(line))
+
+        self.assertEqual(err1, [])
+        self.assertEqual(err2, [])
+        self.assertEqual(out, [])
+        self.assertEqual(exits, None)
+
