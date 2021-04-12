@@ -38,7 +38,7 @@ class TestZfsScaling(unittest2.TestCase):
 
 
             #this triggers if you make a change with an impact of more than O(snapshot_count/2)
-            expected_runs=240
+            expected_runs=343
             print("ACTUAL RUNS: {}".format(run_counter))
             self.assertLess(abs(run_counter-expected_runs), snapshot_count/2)
 
@@ -69,6 +69,7 @@ class TestZfsScaling(unittest2.TestCase):
 
         global run_counter
 
+        #first run
         run_counter=0
         with patch.object(ExecuteNode,'run', run_count) as p:
 
@@ -77,11 +78,12 @@ class TestZfsScaling(unittest2.TestCase):
 
 
             #this triggers if you make a change with an impact of more than O(snapshot_count/2)
-            expected_runs=640
+            expected_runs=743
             print("ACTUAL RUNS: {}".format(run_counter))
             self.assertLess(abs(run_counter-expected_runs), dataset_count/2)
 
 
+        #second run, should have higher number of expected_runs
         run_counter=0
         with patch.object(ExecuteNode,'run', run_count) as p:
 
@@ -90,6 +92,6 @@ class TestZfsScaling(unittest2.TestCase):
 
 
             #this triggers if you make a change with a performance impact of more than O(snapshot_count/2)
-            expected_runs=844
+            expected_runs=947
             print("ACTUAL RUNS: {}".format(run_counter))
             self.assertLess(abs(run_counter-expected_runs), dataset_count/2)

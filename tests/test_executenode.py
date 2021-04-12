@@ -64,7 +64,7 @@ class TestExecuteNode(unittest2.TestCase):
     def test_readonly(self):
         node=ExecuteNode(debug_output=True, readonly=True)
 
-        self.assertEqual(node.run(["echo","test"], readonly=False), None)
+        self.assertEqual(node.run(["echo","test"], readonly=False), [])
         self.assertEqual(node.run(["echo","test"], readonly=True), ["test"])
 
 
@@ -73,36 +73,36 @@ class TestExecuteNode(unittest2.TestCase):
     def pipe(self, nodea, nodeb):
 
         with self.subTest("pipe data"):
-            output=nodea.get_pipe(["dd", "if=/dev/zero", "count=1000"])
+            output=nodea.run(["dd", "if=/dev/zero", "count=1000"],pipe=True)
             self.assertEqual(nodeb.run(["md5sum"], inp=output), ["816df6f64deba63b029ca19d880ee10a  -"])
 
         with self.subTest("exit code both ends of pipe ok"):
-            output=nodea.get_pipe(["true"])
+            output=nodea.run(["true"], pipe=True)
             nodeb.run(["true"], inp=output)
 
         with self.subTest("error on pipe input side"):
             with self.assertRaises(subprocess.CalledProcessError):
-                output=nodea.get_pipe(["false"])
+                output=nodea.run(["false"], pipe=True)
                 nodeb.run(["true"], inp=output)
 
         with self.subTest("error on pipe output side "):
             with self.assertRaises(subprocess.CalledProcessError):
-                output=nodea.get_pipe(["true"])
+                output=nodea.run(["true"], pipe=True)
                 nodeb.run(["false"], inp=output)
 
         with self.subTest("error on both sides of pipe"):
             with self.assertRaises(subprocess.CalledProcessError):
-                output=nodea.get_pipe(["false"])
+                output=nodea.run(["false"], pipe=True)
                 nodeb.run(["false"], inp=output)
 
         with self.subTest("check stderr on pipe output side"):
-            output=nodea.get_pipe(["true"])
+            output=nodea.run(["true"], pipe=True)
             (stdout, stderr)=nodeb.run(["ls", "nonexistingfile"], inp=output, return_stderr=True, valid_exitcodes=[0,2])
             self.assertEqual(stdout,[])
             self.assertRegex(stderr[0], "nonexistingfile" )
 
         with self.subTest("check stderr on pipe input side (should be only printed)"):
-            output=nodea.get_pipe(["ls", "nonexistingfile"])
+            output=nodea.run(["ls", "nonexistingfile"], pipe=True)
             (stdout, stderr)=nodeb.run(["true"], inp=output, return_stderr=True, valid_exitcodes=[0,2])
             self.assertEqual(stdout,[])
             self.assertEqual(stderr,[])

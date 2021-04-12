@@ -3,7 +3,7 @@ import os
 import select
 
 class CmdPipe:
-    """a pipe of one or more commands """
+    """a pipe of one or more commands. also takes care of utf-8 encoding/decoding and line based parsing"""
 
     def __init__(self, readonly=False, inp=None):
         """
@@ -30,6 +30,12 @@ class CmdPipe:
 
     def __str__(self):
         """transform into oneliner for debugging and testing """
+
+        #just one command?
+        if len(self.items)==1:
+            return " ".join(self.items[0]['cmd'])
+
+        #an actual pipe
         ret = ""
         for item in self.items:
             if ret:
@@ -38,11 +44,14 @@ class CmdPipe:
 
         return ret
 
+    def should_execute(self):
+        return(self._should_execute)
+
     def execute(self, stdout_handler):
-        """run the pipe"""
+        """run the pipe. returns True if it executed, and false if it skipped due to readonly conditions"""
 
         if not self._should_execute:
-            return None
+            return False
 
         # first process should have actual user input as stdin:
         selectors = []
@@ -51,7 +60,14 @@ class CmdPipe:
         last_stdout = None
         stdin = subprocess.PIPE
         for item in self.items:
-            item['process'] = subprocess.Popen(item['cmd'], env=os.environ, stdout=subprocess.PIPE, stdin=stdin,
+
+            # make sure the command gets all the data in utf8 format:
+            # (this is necessary if LC_ALL=en_US.utf8 is not set in the environment)
+            encoded_cmd = []
+            for arg in item['cmd']:
+                encoded_cmd.append(arg.encode('utf-8'))
+
+            item['process'] = subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin,
                                                stderr=subprocess.PIPE)
 
             selectors.append(item['process'].stderr)
@@ -101,11 +117,10 @@ class CmdPipe:
             if eof_count == len(selectors) and done_count == len(self.items):
                 break
 
-        # close all filehandles and get all exit codes
-        ret = []
+        # ret = []
         last_stdout.close()
         for item in self.items:
             item['process'].stderr.close()
-            ret.append(item['process'].returncode)
+            # ret.append(item['process'].returncode)
 
-        return ret
+        return True

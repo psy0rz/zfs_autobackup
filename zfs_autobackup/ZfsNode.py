@@ -135,8 +135,8 @@ class ZfsNode(ExecuteNode):
         else:
             self.error(prefix + line.rstrip())
 
-    def _parse_stderr_pipe(self, line, hide_errors):
-        self.parse_zfs_progress(line, hide_errors, "STDERR|> ")
+    # def _parse_stderr_pipe(self, line, hide_errors):
+    #     self.parse_zfs_progress(line, hide_errors, "STDERR|> ")
 
     def _parse_stderr(self, line, hide_errors):
         self.parse_zfs_progress(line, hide_errors, "STDERR > ")

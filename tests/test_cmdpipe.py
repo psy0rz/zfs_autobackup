@@ -10,11 +10,12 @@ class TestCmdPipe(unittest2.TestCase):
         err=[]
         out=[]
         p.add(["ls", "-d", "/", "/", "/nonexistent"], stderr_handler=lambda line: err.append(line))
-        exits=p.execute(stdout_handler=lambda line: out.append(line))
+        executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err, ["ls: cannot access '/nonexistent': No such file or directory"])
         self.assertEqual(out, ["/","/"])
-        self.assertEqual(exits, [2])
+        self.assertTrue(executed)
+        self.assertEqual(p.items[0]['process'].returncode,2)
 
     def test_input(self):
         """test stdinput"""
@@ -22,11 +23,12 @@ class TestCmdPipe(unittest2.TestCase):
         err=[]
         out=[]
         p.add(["echo", "test"], stderr_handler=lambda line: err.append(line))
-        exits=p.execute(stdout_handler=lambda line: out.append(line))
+        executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err, [])
         self.assertEqual(out, ["test"])
-        self.assertEqual(exits, [0])
+        self.assertTrue(executed)
+        self.assertEqual(p.items[0]['process'].returncode,0)
 
     def test_pipe(self):
         """test piped"""
@@ -38,13 +40,16 @@ class TestCmdPipe(unittest2.TestCase):
         p.add(["echo", "test"], stderr_handler=lambda line: err1.append(line))
         p.add(["tr", "e", "E"], stderr_handler=lambda line: err2.append(line))
         p.add(["tr", "t", "T"], stderr_handler=lambda line: err3.append(line))
-        exits=p.execute(stdout_handler=lambda line: out.append(line))
+        executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err1, [])
         self.assertEqual(err2, [])
         self.assertEqual(err3, [])
         self.assertEqual(out, ["TEsT"])
-        self.assertEqual(exits, [0,0,0])
+        self.assertTrue(executed)
+        self.assertEqual(p.items[0]['process'].returncode,0)
+        self.assertEqual(p.items[1]['process'].returncode,0)
+        self.assertEqual(p.items[2]['process'].returncode,0)
 
         #test str representation as well
         self.assertEqual(str(p), "(echo test) | (tr e E) | (tr t T)")
@@ -59,13 +64,16 @@ class TestCmdPipe(unittest2.TestCase):
         p.add(["ls", "/nonexistent1"], stderr_handler=lambda line: err1.append(line))
         p.add(["ls", "/nonexistent2"], stderr_handler=lambda line: err2.append(line))
         p.add(["ls", "/nonexistent3"], stderr_handler=lambda line: err3.append(line))
-        exits=p.execute(stdout_handler=lambda line: out.append(line))
+        executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err1, ["ls: cannot access '/nonexistent1': No such file or directory"])
         self.assertEqual(err2, ["ls: cannot access '/nonexistent2': No such file or directory"])
         self.assertEqual(err3, ["ls: cannot access '/nonexistent3': No such file or directory"])
         self.assertEqual(out, [])
-        self.assertEqual(exits, [2,2,2])
+        self.assertTrue(executed)
+        self.assertEqual(p.items[0]['process'].returncode,2)
+        self.assertEqual(p.items[1]['process'].returncode,2)
+        self.assertEqual(p.items[2]['process'].returncode,2)
 
     def test_readonly_execute(self):
         """everything readonly, just should execute"""
@@ -76,12 +84,14 @@ class TestCmdPipe(unittest2.TestCase):
         out=[]
         p.add(["echo", "test1"], stderr_handler=lambda line: err1.append(line), readonly=True)
         p.add(["echo", "test2"], stderr_handler=lambda line: err2.append(line), readonly=True)
-        exits=p.execute(stdout_handler=lambda line: out.append(line))
+        executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err1, [])
         self.assertEqual(err2, [])
         self.assertEqual(out, ["test2"])
-        self.assertEqual(exits, [0,0])
+        self.assertTrue(executed)
+        self.assertEqual(p.items[0]['process'].returncode,0)
+        self.assertEqual(p.items[1]['process'].returncode,0)
 
     def test_readonly_skip(self):
         """one command not readonly, skip"""
@@ -92,10 +102,10 @@ class TestCmdPipe(unittest2.TestCase):
         out=[]
         p.add(["echo", "test1"], stderr_handler=lambda line: err1.append(line), readonly=False)
         p.add(["echo", "test2"], stderr_handler=lambda line: err2.append(line), readonly=True)
-        exits=p.execute(stdout_handler=lambda line: out.append(line))
+        executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err1, [])
         self.assertEqual(err2, [])
         self.assertEqual(out, [])
-        self.assertEqual(exits, None)
+        self.assertFalse(executed)
 
