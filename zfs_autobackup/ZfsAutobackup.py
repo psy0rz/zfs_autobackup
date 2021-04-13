@@ -131,7 +131,7 @@ class ZfsAutobackup:
         if args.destroy_incompatible:
             args.rollback = True
 
-        self.log = LogConsole(show_debug=self.args.debug, show_verbose=self.args.verbose)
+        self.log = LogConsole(show_debug=self.args.debug, show_verbose=self.args.verbose, color=sys.stdout.isatty())
 
         if args.resume:
             self.verbose("NOTE: The --resume option isn't needed anymore (its autodetected now)")

@@ -8,17 +8,17 @@ class TestLog(unittest2.TestCase):
         """test with color output"""
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                l=LogConsole(show_verbose=False, show_debug=False)
+                l=LogConsole(show_verbose=False, show_debug=False, color=True)
                 l.verbose("verbose")
                 l.debug("debug")
 
             with redirect_stdout(buf):
-                l=LogConsole(show_verbose=True, show_debug=True)
+                l=LogConsole(show_verbose=True, show_debug=True, color=True)
                 l.verbose("verbose")
                 l.debug("debug")
 
             with redirect_stderr(buf):
-                l=LogConsole()
+                l=LogConsole(show_verbose=False, show_debug=False, color=True)
                 l.error("error")
 
             print(list(buf.getvalue()))
@@ -27,21 +27,19 @@ class TestLog(unittest2.TestCase):
     def test_nocolor(self):
         """test without color output"""
 
-        zfs_autobackup.LogConsole.colorama=False
-
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                l=LogConsole(show_verbose=False, show_debug=False)
+                l=LogConsole(show_verbose=False, show_debug=False, color=False)
                 l.verbose("verbose")
                 l.debug("debug")
 
             with redirect_stdout(buf):
-                l=LogConsole(show_verbose=True, show_debug=True)
+                l=LogConsole(show_verbose=True, show_debug=True, color=False)
                 l.verbose("verbose")
                 l.debug("debug")
 
             with redirect_stderr(buf):
-                l=LogConsole()
+                l=LogConsole(show_verbose=False, show_debug=False, color=False)
                 l.error("error")
 
             print(list(buf.getvalue()))
