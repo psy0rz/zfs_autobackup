@@ -39,6 +39,10 @@ class ThinnerRule:
         rule_str = rule_str.lower()
         matches = re.findall("([0-9]*)([a-z]*)([0-9]*)([a-z]*)", rule_str)[0]
 
+        if '' in matches:
+            raise (Exception("Invalid schedule string: '{}'".format(rule_str)))
+
+        print(matches)
         period_amount = int(matches[0])
         period_unit = matches[1]
         ttl_amount = int(matches[2])

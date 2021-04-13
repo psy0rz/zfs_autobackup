@@ -3,7 +3,7 @@ import pprint
 
 from zfs_autobackup.Thinner import Thinner
 
-#randint is different in python 2 vs 3
+# randint is different in python 2 vs 3
 randint_compat = lambda lo, hi: lo + int(random.random() * (hi + 1 - lo))
 
 
@@ -22,6 +22,20 @@ class TestThinner(unittest2.TestCase):
     # def setUp(self):
 
         # return super().setUp()
+
+    def test_exceptions(self):
+        with self.assertRaisesRegexp(Exception, "^Invalid period"):
+            ThinnerRule("12X12m")
+
+        with self.assertRaisesRegexp(Exception, "^Invalid ttl"):
+            ThinnerRule("12d12X")
+
+        with self.assertRaisesRegexp(Exception, "^Period cant be"):
+            ThinnerRule("12d1d")
+
+        with self.assertRaisesRegexp(Exception, "^Invalid schedule"):
+            ThinnerRule("XXX")
+
 
     def test_incremental(self):
         ok=['2023-01-03 10:53:16',
