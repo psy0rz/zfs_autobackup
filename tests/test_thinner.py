@@ -138,5 +138,5 @@ class TestThinner(unittest2.TestCase):
         self.assertEqual(result, ok)
 
 
-if __name__ == '__main__':
-    unittest.main()
+# if __name__ == '__main__':
+#     unittest.main()
