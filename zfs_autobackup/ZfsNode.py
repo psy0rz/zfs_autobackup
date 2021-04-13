@@ -18,10 +18,7 @@ class ZfsNode(ExecuteNode):
     def __init__(self, backup_name, logger, ssh_config=None, ssh_to=None, readonly=False, description="",
                  debug_output=False, thinner=Thinner()):
         self.backup_name = backup_name
-        if not description and ssh_to:
-            self.description = ssh_to
-        else:
-            self.description = description
+        self.description = description
 
         self.logger = logger
 

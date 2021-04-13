@@ -45,8 +45,7 @@ class ZfsPool():
         ret = {}
 
         for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
-            if len(pair) == 4:
-                ret[pair[1]] = pair[2]
+            ret[pair[1]] = pair[2]
 
         return ret
 
