@@ -11,3 +11,4 @@ __pycache__
 python2.env
 venv
 .idea
+password.sh

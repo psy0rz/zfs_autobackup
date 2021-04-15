@@ -1,6 +1,6 @@
 colorama
 argparse
-coverage==4.5.4
+coverage
 python-coveralls
 unittest2
 mock

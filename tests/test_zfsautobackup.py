@@ -2,7 +2,6 @@ from basetest import *
 import time
 
 
-
 class TestZfsAutobackup(unittest2.TestCase):
 
     def setUp(self):
@@ -696,8 +695,8 @@ test_target1
 
 
         #test incremental
-        with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
+        with patch('time.strftime', return_value="20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --allow-empty --verbose --test".split(" ")).run())
 
         r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
         self.assertMultiLineEqual(r,"""

@@ -42,7 +42,6 @@ class ThinnerRule:
         if '' in matches:
             raise (Exception("Invalid schedule string: '{}'".format(rule_str)))
 
-        print(matches)
         period_amount = int(matches[0])
         period_unit = matches[1]
         ttl_amount = int(matches[2])
