@@ -36,6 +36,9 @@ class TestThinner(unittest2.TestCase):
         with self.assertRaisesRegexp(Exception, "^Invalid schedule"):
             ThinnerRule("XXX")
 
+        with self.assertRaisesRegexp(Exception, "^Number of"):
+            Thinner("-1")
+
 
     def test_incremental(self):
         ok=['2023-01-03 10:53:16',
