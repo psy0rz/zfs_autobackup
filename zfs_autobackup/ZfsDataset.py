@@ -162,26 +162,27 @@ class ZfsDataset:
         else:
             return ZfsDataset(self.zfs_node, self.rstrip_path(1))
 
-    def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
-        """find previous snapshot in this dataset. None if it doesn't exist.
-
-        also_other_snapshots: set to true to also return snapshots that where
-        not created by us. (is_ours)
-
-        Args:
-            :type snapshot: str or ZfsDataset.ZfsDataset
-            :type also_other_snapshots: bool
-        """
-
-        if self.is_snapshot:
-            raise (Exception("Please call this on a dataset."))
-
-        index = self.find_snapshot_index(snapshot)
-        while index:
-            index = index - 1
-            if also_other_snapshots or self.snapshots[index].is_ours():
-                return self.snapshots[index]
-        return None
+    # NOTE: unused for now
+    # def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
+    #     """find previous snapshot in this dataset. None if it doesn't exist.
+    #
+    #     also_other_snapshots: set to true to also return snapshots that where
+    #     not created by us. (is_ours)
+    #
+    #     Args:
+    #         :type snapshot: str or ZfsDataset.ZfsDataset
+    #         :type also_other_snapshots: bool
+    #     """
+    #
+    #     if self.is_snapshot:
+    #         raise (Exception("Please call this on a dataset."))
+    #
+    #     index = self.find_snapshot_index(snapshot)
+    #     while index:
+    #         index = index - 1
+    #         if also_other_snapshots or self.snapshots[index].is_ours():
+    #             return self.snapshots[index]
+    #     return None
 
     def find_next_snapshot(self, snapshot, also_other_snapshots=False):
         """find next snapshot in this dataset. None if it doesn't exist
