@@ -45,10 +45,13 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 * Gracefully handles destroyed datasets on source.
 * Easy installation:
   * Just install zfs-autobackup via pip, or download it manually.
+  * Only needs to be installed on one side.
   * Written in python and uses zfs-commands, no 3rd party dependency's or libraries needed.
   * No separate config files or properties. Just one zfs-autobackup command you can copy/paste in your backup script.
 
 ## Installation
+
+You only need to install zfs-autobackup on the side that initiates the backup. The other side doesnt need any extra configration.
 
 ### Using pip
 
