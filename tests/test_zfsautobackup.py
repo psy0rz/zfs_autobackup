@@ -12,6 +12,22 @@ class TestZfsAutobackup(unittest2.TestCase):
 
         self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --keep-source -1".split(" ")).run(), 255)
 
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --resume --verbose --no-snapshot".split(" ")).run(), 0)
+
+            print(buf.getvalue())
+            self.assertIn("The --resume", buf.getvalue())
+
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                self.assertEqual(ZfsAutobackup("test test_target_nonexisting --no-progress".split(" ")).run(), 255)
+
+            print(buf.getvalue())
+            # correct message?
+            self.assertIn("Please create this dataset", buf.getvalue())
+
+
     def  test_snapshotmode(self):
         """test snapshot tool mode"""
 
