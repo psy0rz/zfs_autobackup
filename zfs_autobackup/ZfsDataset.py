@@ -494,14 +494,13 @@ class ZfsDataset:
 
         return self.from_names(names[1:])
 
-    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, output_pipes):
+    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw):
         """returns a pipe with zfs send output for this snapshot
 
         resume_token: resume sending from this token. (in that case we don't
         need to know snapshot names)
 
         Args:
-            :type output_pipes: list of str
             :type features: list of str
             :type prev_snapshot: ZfsDataset
             :type resume_token: str

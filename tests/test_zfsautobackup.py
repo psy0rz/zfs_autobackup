@@ -1,3 +1,4 @@
+from CmdPipe import CmdPipe
 from basetest import *
 import time
 
@@ -884,3 +885,27 @@ test_target1/test_source2/fs2/sub@test-20101111000003
     def  test_raw(self):
 
         self.skipTest("todo: later when travis supports zfs 0.8")
+
+
+    def test_progress(self):
+
+        r=shelltest("dd if=/dev/zero of=/test_source1/data.txt bs=200000 count=1")
+        r = shelltest("zfs snapshot test_source1@test")
+
+        l=LogConsole(show_verbose=True, show_debug=False, color=False)
+        n=ZfsNode("test",l)
+        d=ZfsDataset(n,"test_source1@test")
+
+        sp=d.send_pipe([], prev_snapshot=None, resume_token=None, show_progress=True, raw=False)
+
+
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                try:
+                    n.run(["sleep", "2"], inp=sp)
+                except:
+                    pass
+
+            print(buf.getvalue())
+            # correct message?
+            self.assertRegex(buf.getvalue(),".*>>> .*minutes left.*")
