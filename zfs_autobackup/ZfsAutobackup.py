@@ -259,7 +259,7 @@ class ZfsAutobackup:
                                               raw=self.args.raw, also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              no_thinning=self.args.no_thinning, output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe)
+                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -267,8 +267,7 @@ class ZfsAutobackup:
                     raise
 
         target_path_dataset = ZfsDataset(target_node, self.args.target_path)
-        if not self.args.no_thinning:
-            self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
+        self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
         if self.args.destroy_missing is not None:
             self.destroy_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
@@ -277,10 +276,11 @@ class ZfsAutobackup:
 
     def thin_source(self, source_datasets):
 
-        self.set_title("Thinning source")
+        if not self.args.no_thinning:
+            self.set_title("Thinning source")
 
-        for source_dataset in source_datasets:
-            source_dataset.thin(skip_holds=True)
+            for source_dataset in source_datasets:
+                source_dataset.thin(skip_holds=True)
 
     def filter_replicated(self, datasets):
         if not self.args.ignore_replicated:
@@ -331,7 +331,10 @@ class ZfsAutobackup:
             self.set_title("Source settings")
 
             description = "[Source]"
-            source_thinner = Thinner(self.args.keep_source)
+            if self.args.no_thinning:
+                source_thinner=None
+            else:
+                source_thinner = Thinner(self.args.keep_source)
             source_node = ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner)
@@ -362,7 +365,10 @@ class ZfsAutobackup:
 
                 # create target_node
                 self.set_title("Target settings")
-                target_thinner = Thinner(self.args.keep_target)
+                if self.args.no_thinning:
+                    target_thinner=None
+                else:
+                    target_thinner = Thinner(self.args.keep_target)
                 target_node = ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config,
                                       ssh_to=self.args.ssh_target,
                                       readonly=self.args.test, debug_output=self.args.debug_output,
@@ -370,10 +376,7 @@ class ZfsAutobackup:
                                       thinner=target_thinner)
                 target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
-                if self.args.no_send:
-                    self.set_title("Thinning source and target")
-                else:
-                    self.set_title("Sending and thinning")
+                self.set_title("Synchronising")
 
                 # check if exists, to prevent vague errors
                 target_dataset = ZfsDataset(target_node, self.args.target_path)
@@ -382,6 +385,7 @@ class ZfsAutobackup:
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
 
                 # do the actual sync
+                # NOTE: even with no_send, no_thinning and no_snapshot it does a usefull thing because it checks if the common snapshots and shows incompatible snapshots
                 fail_count = self.sync_datasets(
                     source_node=source_node,
                     source_datasets=source_datasets,
@@ -389,8 +393,7 @@ class ZfsAutobackup:
 
             #no target specified, run in snapshot-only mode
             else:
-                if not self.args.no_thinning:
-                    self.thin_source(source_datasets)
+                self.thin_source(source_datasets)
                 fail_count = 0
 
             if not fail_count:

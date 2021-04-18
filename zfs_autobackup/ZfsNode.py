@@ -16,7 +16,7 @@ class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
     def __init__(self, backup_name, logger, ssh_config=None, ssh_to=None, readonly=False, description="",
-                 debug_output=False, thinner=Thinner()):
+                 debug_output=False, thinner=None):
         self.backup_name = backup_name
         self.description = description
 
@@ -30,14 +30,15 @@ class ZfsNode(ExecuteNode):
         else:
             self.verbose("Datasets are local")
 
-        rules = thinner.human_rules()
-        if rules:
-            for rule in rules:
-                self.verbose(rule)
-        else:
-            self.verbose("Keep no old snaphots")
+        if thinner is not None:
+            rules = thinner.human_rules()
+            if rules:
+                for rule in rules:
+                    self.verbose(rule)
+            else:
+                self.verbose("Keep no old snaphots")
 
-        self.thinner = thinner
+        self.__thinner = thinner
 
         # list of ZfsPools
         self.__pools = {}
@@ -46,6 +47,12 @@ class ZfsNode(ExecuteNode):
         self._progress_start_time = time.time()
 
         ExecuteNode.__init__(self, ssh_config=ssh_config, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
+
+    def thin(self, objects, keep_objects):
+        if self.__thinner is not None:
+            return self.__thinner.thin(objects, keep_objects)
+        else:
+            return ( keep_objects, [] )
 
     @CachedProperty
     def supported_send_options(self):

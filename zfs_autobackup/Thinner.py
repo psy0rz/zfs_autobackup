@@ -7,8 +7,9 @@ class Thinner:
     """progressive thinner (universal, used for cleaning up snapshots)"""
 
     def __init__(self, schedule_str=""):
-        """schedule_str: comma seperated list of ThinnerRules. A plain number specifies how many snapshots to always
-        keep.
+        """
+        Args:
+            schedule_str: comma seperated list of ThinnerRules. A plain number specifies how many snapshots to always keep.
         """
 
         self.rules = []
@@ -37,11 +38,15 @@ class Thinner:
         return ret
 
     def thin(self, objects, keep_objects=None, now=None):
-        """thin list of objects with current schedule rules. objects: list of objects to thin. every object should
-        have timestamp attribute. keep_objects: objects to always keep (these should also be in normal objects list,
-        so we can use them to perhaps delete other obsolete objects)
+        """thin list of objects with current schedule rules. objects: list of
+        objects to thin. every object should have timestamp attribute.
 
             return( keeps, removes )
+
+        Args:
+            objects: list of objects to check (should have a timestamp attribute)
+            keep_objects: objects to always keep (if they also are in the in the normal objects list)
+            now: if specified, use this time as current time
         """
 
         if not keep_objects:
