@@ -1,4 +1,3 @@
-from CmdPipe import CmdPipe
 from basetest import *
 import time
 
