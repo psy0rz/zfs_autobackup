@@ -462,17 +462,16 @@ Look in man ssh_config for many more options.
 
 ## Usage
 
-Here you find all the options:
+(NOTE: Quite a lot has changed since the current stable version 3.0. The page your are viewing is for upcoming version 3.1 which is still in beta.)
 
 ```console
-[root@server ~]# zfs-autobackup --help
 usage: zfs-autobackup [-h] [--ssh-config CONFIG-FILE] [--ssh-source USER@HOST] [--ssh-target USER@HOST] [--keep-source SCHEDULE] [--keep-target SCHEDULE] [--other-snapshots] [--no-snapshot] [--no-send]
                    [--no-thinning] [--no-holds] [--min-change BYTES] [--allow-empty] [--ignore-replicated] [--strip-path N] [--clear-refreservation] [--clear-mountpoint] [--filter-properties PROPERY,...]
-                   [--set-properties PROPERTY=VALUE,...] [--rollback] [--destroy-incompatible] [--destroy-missing SCHEDULE] [--ignore-transfer-errors] [--raw] [--test] [--verbose] [--debug] [--debug-output]
-                   [--progress]
+                   [--set-properties PROPERTY=VALUE,...] [--rollback] [--destroy-incompatible] [--destroy-missing SCHEDULE] [--ignore-transfer-errors] [--decrypt] [--encrypt] [--test] [--verbose] [--debug]
+                   [--debug-output] [--progress] [--send-pipe COMMAND] [--recv-pipe COMMAND]
                    backup-name [target-path]
 
-zfs-autobackup v3.1-beta2 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
+zfs-autobackup v3.1-beta3 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
 
 positional arguments:
   backup-name           Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup
@@ -513,12 +512,15 @@ optional arguments:
                         Destroy datasets on target that are missing on the source. Specify the time since the last snapshot, e.g: --destroy-missing 30d
   --ignore-transfer-errors
                         Ignore transfer errors (still checks if received filesystem exists. useful for acltype errors)
-  --raw                 For encrypted datasets, send data exactly as it exists on disk.
+  --decrypt             Decrypt data before sending it over.
+  --encrypt             Encrypt data after receiving it.
   --test                dont change anything, just show what would be done (still does all read-only operations)
   --verbose             verbose output
   --debug               Show zfs commands that are executed, stops after an exception.
   --debug-output        Show zfs commands and their output/exit codes. (noisy)
   --progress            show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)
+  --send-pipe COMMAND   pipe zfs send output through COMMAND
+  --recv-pipe COMMAND   pipe zfs recv input through COMMAND
 
 Full manual at: https://github.com/psy0rz/zfs_autobackup
 ```
