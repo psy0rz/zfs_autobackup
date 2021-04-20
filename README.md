@@ -32,7 +32,8 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
   * "pull" remote data from a server via SSH and backup it locally.
   * Or even pull data from a server while pushing the backup to another server. (Zero trust between source and target server)
 * Can be scheduled via a simple cronjob or run directly from commandline.
-* Supports resuming of interrupted transfers. 
+* Supports resuming of interrupted transfers.
+* ZFS encryption support: Can decrypt / encrypt or even re-encrypt datasets during transfer.
 * Multiple backups from and to the same datasets are no problem.
 * Creates the snapshot before doing anything else. (assuring you at least have a snapshot if all else fails)
 * Checks everything but tries continue on non-fatal errors when possible. (Reports error-count when done)
@@ -42,7 +43,7 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs.
 * Uses zfs-holds on important snapshots so they cant be accidentally destroyed.
 * Automatic resuming of failed transfers.
 * Can continue from existing common snapshots. (e.g. easy migration)
-* Gracefully handles destroyed datasets on source.
+* Gracefully handles datasets that no longer exist on source.
 * Easy installation:
   * Just install zfs-autobackup via pip, or download it manually.
   * Only needs to be installed on one side.
