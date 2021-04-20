@@ -375,15 +375,23 @@ Snapshots on the source that still have to be send to the target wont be destroy
 In normal operation datasets are transferred unaltered:
 
 * Source datasets that are encrypted will be send over as such and stay encrypted at the target side. (In ZFS this is called raw-mode) You dont need keys at the target side if you dont want to access the data.
-* Source datasets that are plain will stay that way on the target. Even if the specified target-path IS encrypted. 
+* Source datasets that are plain will stay that way on the target. (Even if the specified target-path IS encrypted.) 
+
+Basically you dont have to do anything or worry about anything. 
 
 ### Decrypting/encrypting
 
-If you want to alter the encryption-state of a dataset you have several options:
+Things get different if you want to change the encryption-state of a dataset during transfer:
 
 * If you want to decrypt encrypted datasets before sending them, you should use the `--decrypt` option. Datasets will then be stored plain at the target.
-* If you want to encrypt plain datasets when they are received, you should use the `--encrypt` option. Datasets will then be stored encrypted at the target. (Datasets that are already encrypted will still be sent over unaltered!) You are responsible for creating the target-path with encryption enabled.
+* If you want to encrypt plain datasets when they are received, you should use the `--encrypt` option. Datasets will then be stored encrypted at the target. (Datasets that are already encrypted will still be sent over unaltered!) 
 * If you also want re-encrypt encrypted datasets with the target-side encryption you can use both options. 
+
+Note 1: The --encrypt option will rely on inheriting encryption parameters from the parent datasets on the parent side. You are responsible for setting those up and loading the keys. So --encrypt is no guarantee for encryption, if its not setup, it cant be encrypted.
+
+Note 2: Decide what you want at an early stage: If you change the --encrypt or --decrypt parameter at a later time you might get weird and wonderfull errors. (nothing dangerous)
+
+I'll add some tips when the issues start to get in on github. :)
 
 ## Tips
 

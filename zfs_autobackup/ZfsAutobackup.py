@@ -268,7 +268,7 @@ class ZfsAutobackup:
                                               also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe, decrypt=self.args.decrypt)
+                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe, decrypt=self.args.decrypt, encrypt=self.args.encrypt)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))

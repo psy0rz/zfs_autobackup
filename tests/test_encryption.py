@@ -2,6 +2,21 @@ from zfs_autobackup.CmdPipe import CmdPipe
 from basetest import *
 import time
 
+# We have to do a LOT to properly test encryption/decryption/raw transfers
+#
+# For every scenario we need at least:
+# - plain source dataset
+# - encrypted source dataset
+# - plain target path
+# - encrypted target path
+# - do a full transfer
+# - do a incremental transfer
+
+# Scenarios:
+# - Raw transfer
+# - Decryption transfer (--decrypt)
+# - Encryption transfer (--encrypt)
+# - Re-encryption transfer (--decrypt --encrypt)
 
 class TestZfsEncryption(unittest2.TestCase):
 
@@ -65,8 +80,12 @@ test_target1/test_source2/fs2/sub                                     encryption
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot".split(" ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
         self.assertEqual(r, """
@@ -96,21 +115,72 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot".split(" ")).run())
 
-        r = shelltest("zfs get encryption -H -o value test_target1/test_source1/fs1/encryptedsource test_target1/encryptedtarget/test_source1/fs1/encryptedsource")
-        self.assertNotIn("off",r)
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot".split(" ")).run())
 
+        r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
+        self.assertEqual(r, """
+NAME                                                           PROPERTY        VALUE                                                          SOURCE
+test_target1                                                   encryptionroot  -                                                              -
+test_target1/encryptedtarget                                   encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1                      encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1/fs1                  encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1/fs1/encryptedsource  encryptionroot  test_target1/encryptedtarget/test_source1/fs1/encryptedsource  -
+test_target1/encryptedtarget/test_source1/fs1/sub              encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2                      encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2/fs2                  encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2/fs2/sub              encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/test_source1                                      encryptionroot  -                                                              -
+test_target1/test_source1/fs1                                  encryptionroot  -                                                              -
+test_target1/test_source1/fs1/encryptedsource                  encryptionroot  test_target1/test_source1/fs1/encryptedsource                  -
+test_target1/test_source1/fs1/sub                              encryptionroot  -                                                              -
+test_target1/test_source2                                      encryptionroot  -                                                              -
+test_target1/test_source2/fs2                                  encryptionroot  -                                                              -
+test_target1/test_source2/fs2/sub                              encryptionroot  -                                                              -
+""")
 
-    def  test_reencrypt(self):
-        """decrypt data and reencrypt on the otherside (--decrypt --encrypt) """
+    def test_reencrypt(self):
+        """reencrypt data (--decrypt --encrypt) """
 
-        # create encrypted target dataset
-        shelltest("echo 12345678 > /tmp/zfstest.key")
-        shelltest("zfs create -o keylocation=file:///tmp/zfstest.key -o keyformat=passphrase -o encryption=on test_target1/enc1")
+        self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
+        self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1/enc1 --allow-empty --verbose --no-progress".split(" ")).run())
-        r = shelltest("zfs get encryption -H -o value test_target1/enc1/test_source1/fs1")
-        self.assertNotIn("off",r)
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot".split(
+                    " ")).run())
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot".split(
+                    " ")).run())
+
+        r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
+        self.assertEqual(r, """
+NAME                                                           PROPERTY        VALUE                         SOURCE
+test_target1                                                   encryptionroot  -                             -
+test_target1/encryptedtarget                                   encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source1                      encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source1/fs1                  encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source1/fs1/encryptedsource  encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source1/fs1/sub              encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source2                      encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source2/fs2                  encryptionroot  test_target1/encryptedtarget  -
+test_target1/encryptedtarget/test_source2/fs2/sub              encryptionroot  test_target1/encryptedtarget  -
+test_target1/test_source1                                      encryptionroot  -                             -
+test_target1/test_source1/fs1                                  encryptionroot  -                             -
+test_target1/test_source1/fs1/encryptedsource                  encryptionroot  -                             -
+test_target1/test_source1/fs1/sub                              encryptionroot  -                             -
+test_target1/test_source2                                      encryptionroot  -                             -
+test_target1/test_source2/fs2                                  encryptionroot  -                             -
+test_target1/test_source2/fs2/sub                              encryptionroot  -                             -
+""")
+
