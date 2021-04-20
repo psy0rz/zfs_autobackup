@@ -20,8 +20,14 @@ import time
 
 class TestZfsEncryption(unittest2.TestCase):
 
+
     def setUp(self):
         prepare_zpools()
+
+        try:
+            shelltest("zfs get encryption test_source1")
+        except:
+            self.skipTest("Encryption not supported on this ZFS version.")
 
     def prepare_encrypted_dataset(self, key, path, unload_key=False):
 
