@@ -384,12 +384,12 @@ Basically you dont have to do anything or worry about anything.
 Things get different if you want to change the encryption-state of a dataset during transfer:
 
 * If you want to decrypt encrypted datasets before sending them, you should use the `--decrypt` option. Datasets will then be stored plain at the target.
-* If you want to encrypt plain datasets when they are received, you should use the `--encrypt` option. Datasets will then be stored encrypted at the target. (Datasets that are already encrypted will still be sent over unaltered!) 
+* If you want to encrypt plain datasets when they are received, you should use the `--encrypt` option. Datasets will then be stored encrypted at the target. (Datasets that are already encrypted will still be sent over unaltered in raw-mode.) 
 * If you also want re-encrypt encrypted datasets with the target-side encryption you can use both options. 
 
-Note 1: The --encrypt option will rely on inheriting encryption parameters from the parent datasets on the parent side. You are responsible for setting those up and loading the keys. So --encrypt is no guarantee for encryption, if its not setup, it cant be encrypted.
+Note 1: The --encrypt option will rely on inheriting encryption parameters from the parent datasets on the target side. You are responsible for setting those up and loading the keys. So --encrypt is no guarantee for encryption: If you dont set it up, it cant encrypt.
 
-Note 2: Decide what you want at an early stage: If you change the --encrypt or --decrypt parameter at a later time you might get weird and wonderfull errors. (nothing dangerous)
+Note 2: Decide what you want at an early stage: If you change the --encrypt or --decrypt parameter after the inital sync you might get weird and wonderfull errors. (nothing dangerous)
 
 I'll add some tips when the issues start to get in on github. :)
 
