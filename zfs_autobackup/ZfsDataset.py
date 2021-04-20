@@ -494,14 +494,14 @@ class ZfsDataset:
 
         return self.from_names(names[1:])
 
-    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, output_pipes):
+    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, output_pipes):
         """returns a pipe with zfs send output for this snapshot
 
         resume_token: resume sending from this token. (in that case we don't
         need to know snapshot names)
 
         Args:
-            :type output_pipes: list of CmdPipe
+            :type output_pipes: list of str
             :type features: list of str
             :type prev_snapshot: ZfsDataset
             :type resume_token: str
@@ -523,13 +523,7 @@ class ZfsDataset:
         if "-c" in self.zfs_node.supported_send_options:
             cmd.append("-c")  # use compressed WRITE records
 
-        # NOTE: performance is usually worse with this option, according to manual
-        # also -D will be depricated in newer ZFS versions
-        # if not resume:
-        #     if "-D" in self.zfs_node.supported_send_options:
-        #         cmd.append("-D") # dedupped stream, sends less duplicate data
-
-        # raw? (for encryption)
+        # raw? (send over encrypted data in its original encrypted form without decrypting)
         if raw:
             cmd.append("--raw")
 
@@ -544,7 +538,8 @@ class ZfsDataset:
 
         else:
             # send properties
-            cmd.append("-p")
+            if send_properties:
+                cmd.append("-p")
 
             # incremental?
             if prev_snapshot:
@@ -637,7 +632,7 @@ class ZfsDataset:
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
-                          raw, output_pipes, input_pipes):
+                          raw, send_properties, output_pipes, input_pipes):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for
         incremental transfer
 
@@ -676,7 +671,7 @@ class ZfsDataset:
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
-                              resume_token=resume_token, raw=raw, output_pipes=output_pipes)
+                              resume_token=resume_token, raw=raw, send_properties=send_properties, output_pipes=output_pipes)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
                                   set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code)
 
@@ -963,8 +958,9 @@ class ZfsDataset:
                     snapshot.destroy()
                     self.snapshots.remove(snapshot)
 
+
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
-                       ignore_recv_exit_code, holds, rollback, raw, also_other_snapshots,
+                       ignore_recv_exit_code, holds, rollback, decrypt, also_other_snapshots,
                        no_send, destroy_incompatible, output_pipes, input_pipes):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
@@ -981,6 +977,7 @@ class ZfsDataset:
             :type holds: bool
             :type rollback: bool
             :type raw: bool
+            :type decrypt: bool
             :type also_other_snapshots: bool
             :type no_send: bool
             :type destroy_incompatible: bool
@@ -1010,6 +1007,19 @@ class ZfsDataset:
         if rollback:
             target_dataset.rollback()
 
+        send_properties = True
+        raw = False
+
+        # source dataset encrypted?
+        if self.properties.get('encryption', 'off')!='off':
+            # user wants to send it over decrypted?
+            if decrypt:
+                # when decrypting, zfs cant send properties
+                send_properties=False
+            else:
+                # keep data encrypted by sending it raw (including properties)
+                raw=True
+
         # now actually transfer the snapshots
         prev_source_snapshot = common_snapshot
         source_snapshot = start_snapshot
@@ -1026,7 +1036,7 @@ class ZfsDataset:
                                                   filter_properties=allowed_filter_properties,
                                                   set_properties=allowed_set_properties,
                                                   ignore_recv_exit_code=ignore_recv_exit_code,
-                                                  resume_token=resume_token, raw=raw, output_pipes=output_pipes, input_pipes=input_pipes)
+                                                  resume_token=resume_token, raw=raw, send_properties=send_properties, output_pipes=output_pipes, input_pipes=input_pipes)
 
                 resume_token = None
 

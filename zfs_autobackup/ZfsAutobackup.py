@@ -90,7 +90,10 @@ class ZfsAutobackup:
                             help='Ignore transfer errors (still checks if received filesystem exists. useful for '
                                  'acltype errors)')
         parser.add_argument('--raw', action='store_true',
-                            help='For encrypted datasets, send data exactly as it exists on disk.')
+                            help=argparse.SUPPRESS)
+
+        parser.add_argument('--decrypt', action='store_true',
+                            help='Decrypt data before sending it over')
 
         parser.add_argument('--test', action='store_true',
                             help='dont change anything, just show what would be done (still does all read-only '
@@ -135,6 +138,9 @@ class ZfsAutobackup:
 
         if args.resume:
             self.verbose("NOTE: The --resume option isn't needed anymore (its autodetected now)")
+
+        if args.raw:
+            self.verbose("NOTE: The --raw option isn't needed anymore (its autodetected now). Use --decrypt to explicitly send data decrypted.")
 
         if args.target_path is not None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
@@ -256,10 +262,10 @@ class ZfsAutobackup:
                                               set_properties=self.set_properties_list(),
                                               ignore_recv_exit_code=self.args.ignore_transfer_errors,
                                               holds=not self.args.no_holds, rollback=self.args.rollback,
-                                              raw=self.args.raw, also_other_snapshots=self.args.other_snapshots,
+                                              also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe)
+                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe, decrypt=self.args.decrypt)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -406,7 +412,7 @@ class ZfsAutobackup:
 
             else:
                 if fail_count != 255:
-                    self.error("{} failures!".format(fail_count))
+                    self.error("{} dataset(s) failed!".format(fail_count))
 
             if self.args.test:
                 self.verbose("")
