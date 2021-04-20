@@ -370,6 +370,21 @@ zfs-autobackup will re-evaluate this on every run: As soon as a snapshot doesn't
 
 Snapshots on the source that still have to be send to the target wont be destroyed off course. (If the target still wants them, according to the target schedule)
 
+## How zfs-autobackup handles encryption
+
+In normal operation datasets are transferred unaltered:
+
+* Source datasets that are encrypted will be send over as such and stay encrypted at the target side. (In ZFS this is called raw-mode) You dont need keys at the target side if you dont want to access the data.
+* Source datasets that are plain will stay that way on the target. Even if the specified target-path IS encrypted. 
+
+### Decrypting/encrypting
+
+If you want to alter the encryption-state of a dataset you have several options:
+
+* If you want to decrypt encrypted datasets before sending them, you should use the `--decrypt` option. Datasets will then be stored plain at the target.
+* If you want to encrypt plain datasets when they are received, you should use the `--encrypt` option. Datasets will then be stored encrypted at the target. (Datasets that are already encrypted will still be sent over unaltered!) You are responsible for creating the target-path with encryption enabled.
+* If you also want re-encrypt encrypted datasets with the target-side encryption you can use both options. 
+
 ## Tips
 
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.

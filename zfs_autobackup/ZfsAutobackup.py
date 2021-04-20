@@ -93,7 +93,10 @@ class ZfsAutobackup:
                             help=argparse.SUPPRESS)
 
         parser.add_argument('--decrypt', action='store_true',
-                            help='Decrypt data before sending it over')
+                            help='Decrypt data before sending it over.')
+
+        parser.add_argument('--encrypt', action='store_true',
+                            help='Encrypt data after receiving it.')
 
         parser.add_argument('--test', action='store_true',
                             help='dont change anything, just show what would be done (still does all read-only '

@@ -880,35 +880,6 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000003
 """)
 
-    ###########################
-# TODO:
-
-    def  test_encrypted(self):
-
-        # create encrypted dataset
-        shelltest("echo 12345678 > /tmp/zfstest.key")
-        shelltest("zfs create -o keylocation=file:///tmp/zfstest.key -o keyformat=passphrase -o encryption=on test_source1/fs1/enc1")
-        r=shelltest("dd if=/dev/zero of=/test_source1/fs1/enc1/data.txt bs=200000 count=1")
-
-        with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --verbose --no-progress".split(" ")).run())
-        # self.skipTest("todo: later when travis supports zfs 0.8")
-        r = shelltest("zfs get encryption -H -o value test_target1/test_source1/fs1/enc1")
-        self.assertNotIn("off",r)
-
-    def  test_decrypted(self):
-
-        # create encrypted dataset
-        shelltest("echo 12345678 > /tmp/zfstest.key")
-        shelltest("zfs create -o keylocation=file:///tmp/zfstest.key -o keyformat=passphrase -o encryption=on test_source1/fs1/enc1")
-        r=shelltest("dd if=/dev/zero of=/test_source1/fs1/enc1/data.txt bs=200000 count=1")
-
-        with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --decrypt --allow-empty --no-progress".split(" ")).run())
-        # self.skipTest("todo: later when travis supports zfs 0.8")
-        r = shelltest("zfs get encryption -H -o value test_target1/test_source1/fs1/enc1")
-        self.assertIn("off",r)
-
 
     def test_progress(self):
 
