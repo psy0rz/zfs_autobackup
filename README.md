@@ -17,7 +17,7 @@ Since its using ZFS commands, you can see what its actually doing by specifying 
 
 An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your system.
 
-zfs-autobackup tries to be the easiest to use backup tool for zfs.
+zfs-autobackup tries to be the easiest to use backup tool for zfs, with the most features.
 
 ## Features
 
