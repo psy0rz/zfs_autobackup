@@ -17,12 +17,13 @@ class CmdPipe:
         self.readonly = readonly
         self._should_execute = True
 
-    def add(self, cmd, readonly=False, stderr_handler=None):
+    def add(self, cmd, readonly=False, stderr_handler=None, exit_handler=None):
         """adds a command to pipe"""
 
         self.items.append({
             'cmd': cmd,
-            'stderr_handler': stderr_handler
+            'stderr_handler': stderr_handler,
+            'exit_handler': exit_handler
         })
 
         if not readonly and self.readonly:
@@ -117,10 +118,15 @@ class CmdPipe:
             if eof_count == len(selectors) and done_count == len(self.items):
                 break
 
-        # ret = []
+        #close filehandles
         last_stdout.close()
         for item in self.items:
             item['process'].stderr.close()
-            # ret.append(item['process'].returncode)
+
+        #call exit handlers
+        for item in self.items:
+            if item['exit_handler'] is not None:
+                item['exit_handler'](item['process'].returncode)
+
 
         return True

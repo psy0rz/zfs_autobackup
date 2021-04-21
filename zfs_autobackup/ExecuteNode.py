@@ -5,6 +5,8 @@ import subprocess
 from zfs_autobackup.CmdPipe import CmdPipe
 from zfs_autobackup.LogStub import LogStub
 
+class ExecuteError(Exception):
+    pass
 
 class ExecuteNode(LogStub):
     """an endpoint to execute local or remote commands via ssh"""
@@ -108,9 +110,20 @@ class ExecuteNode(LogStub):
                 error_lines.append(line.rstrip())
             self._parse_stderr(line, hide_errors)
 
+        # exit code hanlder
+        if valid_exitcodes is None:
+            valid_exitcodes = [0]
+
+        def exit_handler(exit_code):
+            if self.debug_output:
+                self.debug("EXIT   > {}".format(exit_code))
+
+            if (valid_exitcodes != []) and (exit_code not in valid_exitcodes):
+             raise (ExecuteError("Command '{}' return exit code '{}' (valid codes: {})".format(" ".join(cmd), exit_code, valid_exitcodes)))
+
         # add command to pipe
         encoded_cmd = self._remote_cmd(cmd)
-        p.add(cmd=encoded_cmd, readonly=readonly, stderr_handler=stderr_handler)
+        p.add(cmd=encoded_cmd, readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler)
 
         # return pipe instead of executing?
         if pipe:
@@ -130,21 +143,8 @@ class ExecuteNode(LogStub):
         else:
             self.debug("CMDSKIP> {}".format(p))
 
-        # execute and verify exit codes
-        if p.execute(stdout_handler=stdout_handler) and valid_exitcodes is not []:
-            if valid_exitcodes is None:
-                valid_exitcodes = [0]
-
-            item_nr=1
-            for item in p.items:
-                exit_code=item['process'].returncode
-
-                if self.debug_output:
-                    self.debug("EXIT{}  > {}".format(item_nr, exit_code))
-
-                if exit_code not in valid_exitcodes:
-                    raise (subprocess.CalledProcessError(exit_code, " ".join(item['cmd'])))
-                item_nr=item_nr+1
+        # execute and calls handlers in CmdPipe
+        p.execute(stdout_handler=stdout_handler)
 
         if return_stderr:
             return output_lines, error_lines

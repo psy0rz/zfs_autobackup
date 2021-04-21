@@ -3,6 +3,7 @@ import subprocess
 import time
 
 from zfs_autobackup.CachedProperty import CachedProperty
+from zfs_autobackup.ExecuteNode import ExecuteError
 
 
 class ZfsDataset:
@@ -250,7 +251,7 @@ class ZfsDataset:
             self.invalidate()
             self.force_exists = False
             return True
-        except subprocess.CalledProcessError:
+        except ExecuteError:
             if not fail_exception:
                 return False
             else:

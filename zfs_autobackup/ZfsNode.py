@@ -10,6 +10,7 @@ from zfs_autobackup.Thinner import Thinner
 from zfs_autobackup.CachedProperty import CachedProperty
 from zfs_autobackup.ZfsPool import ZfsPool
 from zfs_autobackup.ZfsDataset import ZfsDataset
+from zfs_autobackup.ExecuteNode import ExecuteError
 
 
 class ZfsNode(ExecuteNode):
@@ -81,7 +82,7 @@ class ZfsNode(ExecuteNode):
 
         try:
             self.run(cmd, hide_errors=True, valid_exitcodes=[0, 1])
-        except subprocess.CalledProcessError:
+        except ExecuteError:
             return False
 
         return True
