@@ -12,7 +12,7 @@ from zfs_autobackup.ThinnerRule import ThinnerRule
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.1-beta4"
+    VERSION = "3.1-beta5"
     HEADER = "zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
@@ -149,6 +149,7 @@ class ZfsAutobackup:
             self.log.error("Target should not start with a /")
             sys.exit(255)
 
+
     def verbose(self, txt):
         self.log.verbose(txt)
 
@@ -162,20 +163,35 @@ class ZfsAutobackup:
         self.log.verbose("")
         self.log.verbose("#### " + title)
 
+    def progress(self, txt):
+        self.log.progress(txt)
+
+    def clear_progress(self):
+        self.log.clear_progress()
+
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def thin_missing_targets(self, target_dataset, used_target_datasets):
         """thin target datasets that are missing on the source."""
 
         self.debug("Thinning obsolete datasets")
+        missing_datasets=[dataset for dataset in target_dataset.recursive_datasets if dataset not in used_target_datasets]
 
-        for dataset in target_dataset.recursive_datasets:
+        count=0
+        for dataset in missing_datasets:
+
+            count=count+1
+            if self.args.progress:
+                self.progress("Analysing missing {}/{}".format(count, len(missing_datasets)))
+
             try:
-                if dataset not in used_target_datasets:
-                    dataset.debug("Missing on source, thinning")
-                    dataset.thin()
+                dataset.debug("Missing on source, thinning")
+                dataset.thin()
 
             except Exception as e:
                 dataset.error("Error during thinning of missing datasets ({})".format(str(e)))
+
+        if self.args.progress:
+            self.clear_progress()
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def destroy_missing_targets(self, target_dataset, used_target_datasets):
@@ -183,51 +199,60 @@ class ZfsAutobackup:
 
         self.debug("Destroying obsolete datasets")
 
-        for dataset in target_dataset.recursive_datasets:
+        missing_datasets=[dataset for dataset in target_dataset.recursive_datasets if dataset not in used_target_datasets]
+
+        count=0
+        for dataset in missing_datasets:
+
+            count=count+1
+            if self.args.progress:
+                self.progress("Analysing destroy missing {}/{}".format(count, len(missing_datasets)))
+
             try:
-                if dataset not in used_target_datasets:
-
-                    # cant do anything without our own snapshots
-                    if not dataset.our_snapshots:
-                        if dataset.datasets:
-                            # its not a leaf, just ignore
-                            dataset.debug("Destroy missing: ignoring")
-                        else:
-                            dataset.verbose(
-                                "Destroy missing: has no snapshots made by us. (please destroy manually)")
+                # cant do anything without our own snapshots
+                if not dataset.our_snapshots:
+                    if dataset.datasets:
+                        # its not a leaf, just ignore
+                        dataset.debug("Destroy missing: ignoring")
                     else:
-                        # past the deadline?
-                        deadline_ttl = ThinnerRule("0s" + self.args.destroy_missing).ttl
-                        now = int(time.time())
-                        if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
-                            dataset.verbose("Destroy missing: Waiting for deadline.")
+                        dataset.verbose(
+                            "Destroy missing: has no snapshots made by us. (please destroy manually)")
+                else:
+                    # past the deadline?
+                    deadline_ttl = ThinnerRule("0s" + self.args.destroy_missing).ttl
+                    now = int(time.time())
+                    if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
+                        dataset.verbose("Destroy missing: Waiting for deadline.")
+                    else:
+
+                        dataset.debug("Destroy missing: Removing our snapshots.")
+
+                        # remove all our snaphots, except last, to safe space in case we fail later on
+                        for snapshot in dataset.our_snapshots[:-1]:
+                            snapshot.destroy(fail_exception=True)
+
+                        # does it have other snapshots?
+                        has_others = False
+                        for snapshot in dataset.snapshots:
+                            if not snapshot.is_ours():
+                                has_others = True
+                                break
+
+                        if has_others:
+                            dataset.verbose("Destroy missing: Still in use by other snapshots")
                         else:
-
-                            dataset.debug("Destroy missing: Removing our snapshots.")
-
-                            # remove all our snaphots, except last, to safe space in case we fail later on
-                            for snapshot in dataset.our_snapshots[:-1]:
-                                snapshot.destroy(fail_exception=True)
-
-                            # does it have other snapshots?
-                            has_others = False
-                            for snapshot in dataset.snapshots:
-                                if not snapshot.is_ours():
-                                    has_others = True
-                                    break
-
-                            if has_others:
-                                dataset.verbose("Destroy missing: Still in use by other snapshots")
+                            if dataset.datasets:
+                                dataset.verbose("Destroy missing: Still has children here.")
                             else:
-                                if dataset.datasets:
-                                    dataset.verbose("Destroy missing: Still has children here.")
-                                else:
-                                    dataset.verbose("Destroy missing.")
-                                    dataset.our_snapshots[-1].destroy(fail_exception=True)
-                                    dataset.destroy(fail_exception=True)
+                                dataset.verbose("Destroy missing.")
+                                dataset.our_snapshots[-1].destroy(fail_exception=True)
+                                dataset.destroy(fail_exception=True)
 
             except Exception as e:
                 dataset.error("Error during --destroy-missing: {}".format(str(e)))
+
+        if self.args.progress:
+            self.clear_progress()
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
@@ -238,8 +263,14 @@ class ZfsAutobackup:
         """
 
         fail_count = 0
+        count =0
         target_datasets = []
         for source_dataset in source_datasets:
+
+            # stats
+            if self.args.progress:
+                count=count+1
+                self.progress("Analysing dataset {}/{} ({} failed)".format(count, len(source_datasets), fail_count))
 
             try:
                 # determine corresponding target_dataset
@@ -275,8 +306,12 @@ class ZfsAutobackup:
                 if self.args.debug:
                     raise
 
+        if self.args.progress:
+            self.clear_progress()
+
         target_path_dataset = ZfsDataset(target_node, self.args.target_path)
-        self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
+        if not self.args.no_thinning:
+            self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
         if self.args.destroy_missing is not None:
             self.destroy_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
@@ -285,11 +320,10 @@ class ZfsAutobackup:
 
     def thin_source(self, source_datasets):
 
-        if not self.args.no_thinning:
-            self.set_title("Thinning source")
+        self.set_title("Thinning source")
 
-            for source_dataset in source_datasets:
-                source_dataset.thin(skip_holds=True)
+        for source_dataset in source_datasets:
+            source_dataset.thin(skip_holds=True)
 
     def filter_replicated(self, datasets):
         if not self.args.ignore_replicated:
@@ -402,7 +436,8 @@ class ZfsAutobackup:
 
             #no target specified, run in snapshot-only mode
             else:
-                self.thin_source(source_datasets)
+                if not self.args.no_thinning:
+                    self.thin_source(source_datasets)
                 fail_count = 0
 
             if not fail_count:

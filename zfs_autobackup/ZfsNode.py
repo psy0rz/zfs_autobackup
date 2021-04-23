@@ -128,9 +128,8 @@ class ZfsNode(ExecuteNode):
                         bytes_left = self._progress_total_bytes - bytes_
                         minutes_left = int((bytes_left / (bytes_ / (time.time() - self._progress_start_time))) / 60)
 
-                        print(">>> {}% {}MB/s (total {}MB, {} minutes left)     \r".format(percentage, speed, int(
-                            self._progress_total_bytes / (1024 * 1024)), minutes_left), end='', file=sys.stderr)
-                        sys.stderr.flush()
+                        self.logger.progress("Transfer {}% {}MB/s (total {}MB, {} minutes left)".format(percentage, speed, int(
+                            self._progress_total_bytes / (1024 * 1024)), minutes_left))
 
             return
 

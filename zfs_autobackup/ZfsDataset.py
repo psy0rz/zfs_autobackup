@@ -564,7 +564,6 @@ class ZfsDataset:
 
         return self.zfs_node.run(cmd, pipe=True, readonly=True)
 
-
     def recv_pipe(self, pipe, features, filter_properties=None, set_properties=None, ignore_exit_code=False):
         """starts a zfs recv for this snapshot and uses pipe as input
 

@@ -46,3 +46,14 @@ class LogConsole:
             else:
                 print("# " + txt)
             sys.stdout.flush()
+
+    def progress(self, txt):
+        """print progress output to stderr (stays on same line)"""
+        self.clear_progress()
+        print(">>> {}\r".format(txt), end='', file=sys.stderr)
+        sys.stderr.flush()
+
+    def clear_progress(self):
+        import colorama
+        print(colorama.ansi.clear_line(), end='', file=sys.stderr)
+        sys.stderr.flush()
