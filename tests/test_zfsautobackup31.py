@@ -47,3 +47,27 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
 
+    def test_re_replication(self):
+        """test re-replication of something thats already a backup (new in v3.1-beta5)"""
+
+        shelltest("zfs create test_target1/a")
+        shelltest("zfs create test_target1/b")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1/a --no-progress --verbose --debug".split(" ")).run())
+
+        with patch('time.strftime', return_value="20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1/b --no-progress --verbose".split(" ")).run())
+
+            r=shelltest("zfs list -H -o name -r -t snapshot test_target1")
+            #NOTE: it wont backup test_target1/a/test_source2/fs2/sub to test_target1/b since it doesnt have the zfs_autobackup property anymore.
+            self.assertMultiLineEqual(r,"""
+test_target1/a/test_source1/fs1@test-20101111000000
+test_target1/a/test_source1/fs1/sub@test-20101111000000
+test_target1/a/test_source2/fs2/sub@test-20101111000000
+test_target1/b/test_source1/fs1@test-20101111000000
+test_target1/b/test_source1/fs1/sub@test-20101111000000
+test_target1/b/test_source2/fs2/sub@test-20101111000000
+test_target1/b/test_target1/a/test_source1/fs1@test-20101111000000
+test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000000
+""")
