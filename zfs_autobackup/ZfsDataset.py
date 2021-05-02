@@ -1,5 +1,4 @@
 import re
-import subprocess
 import time
 
 from zfs_autobackup.CachedProperty import CachedProperty
@@ -113,15 +112,16 @@ class ZfsDataset:
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
 
-    def is_selected(self, value, source, inherited, ignore_received):
+    def is_selected(self, value, source, inherited, exclude_received, exclude_paths):
         """determine if dataset should be selected for backup (called from
         ZfsNode)
 
         Args:
+            :type exclude_paths: list of str
             :type value: str
             :type source: str
             :type inherited: bool
-            :type ignore_received: bool
+            :type exclude_received: bool
         """
 
         # sanity checks
@@ -129,22 +129,30 @@ class ZfsDataset:
             # probably a program error in zfs-autobackup or new feature in zfs
             raise (Exception(
                 "{} autobackup-property has illegal source: '{}' (possible BUG)".format(self.name, source)))
+
         if value not in ["false", "true", "child", "-"]:
             # user error
             raise (Exception(
                 "{} autobackup-property has illegal value: '{}'".format(self.name, value)))
 
+        # our path starts with one of the excluded paths?
+        for exclude_path in exclude_paths:
+            if self.name.startswith(exclude_path):
+                # too noisy for verbose
+                self.debug("Excluded (in exclude list)")
+                return False
+
         # now determine if its actually selected
         if value == "false":
-            self.verbose("Ignored (disabled)")
+            self.verbose("Excluded (disabled)")
             return False
         elif value == "true" or (value == "child" and inherited):
             if source == "local":
                 self.verbose("Selected")
                 return True
             elif source == "received":
-                if ignore_received:
-                    self.verbose("Ignored (local backup)")
+                if exclude_received:
+                    self.verbose("Excluded (dataset already received)")
                     return False
                 else:
                     self.verbose("Selected")
@@ -976,7 +984,6 @@ class ZfsDataset:
             :type ignore_recv_exit_code: bool
             :type holds: bool
             :type rollback: bool
-            :type raw: bool
             :type decrypt: bool
             :type also_other_snapshots: bool
             :type no_send: bool

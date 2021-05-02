@@ -197,8 +197,7 @@ class ZfsNode(ExecuteNode):
             self.verbose("Creating snapshots {} in pool {}".format(snapshot_name, pool_name))
             self.run(cmd, readonly=False)
 
-    @CachedProperty
-    def selected_datasets(self, ignore_received=True):
+    def selected_datasets(self, exclude_received, exclude_paths):
         """determine filesystems that should be backupped by looking at the special autobackup-property, systemwide
 
            returns: list of ZfsDataset
@@ -233,7 +232,7 @@ class ZfsNode(ExecuteNode):
                 source = raw_source
 
             # determine it
-            if dataset.is_selected(value=value, source=source, inherited=inherited, ignore_received=ignore_received):
+            if dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received, exclude_paths=exclude_paths):
                 selected_filesystems.append(dataset)
 
         return selected_filesystems

@@ -119,7 +119,7 @@ class ExecuteNode(LogStub):
                 self.debug("EXIT   > {}".format(exit_code))
 
             if (valid_exitcodes != []) and (exit_code not in valid_exitcodes):
-             raise (ExecuteError("Command '{}' return exit code '{}' (valid codes: {})".format(" ".join(cmd), exit_code, valid_exitcodes)))
+             raise (ExecuteError("Command '{}' returned exit code {} (valid codes: {})".format(" ".join(cmd), exit_code, valid_exitcodes)))
 
         # add command to pipe
         encoded_cmd = self._remote_cmd(cmd)

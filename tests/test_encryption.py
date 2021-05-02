@@ -49,12 +49,12 @@ class TestZfsEncryption(unittest2.TestCase):
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --no-snapshot --exclude-received".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --no-snapshot --exclude-received".split(" ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
         self.assertMultiLineEqual(r,"""
@@ -86,12 +86,12 @@ test_target1/test_source2/fs2/sub                                     encryption
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received".split(" ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
         self.assertEqual(r, """
@@ -121,12 +121,12 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received".split(" ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
         self.assertEqual(r, """
@@ -157,16 +157,16 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
 
         with patch('time.strftime', return_value="20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty".split(" ")).run())
+                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received".split(
                     " ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty".split(" ")).run())
+                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received".split(
                     " ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")

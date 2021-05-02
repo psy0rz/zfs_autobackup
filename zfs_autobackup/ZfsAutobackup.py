@@ -13,7 +13,7 @@ class ZfsAutobackup:
     """main class"""
 
     VERSION = "3.1-beta5"
-    HEADER = "zfs-autobackup v{} - Copyright 2020 E.H.Eefting (edwin@datux.nl)".format(VERSION)
+    HEADER = "zfs-autobackup v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
 
@@ -59,7 +59,6 @@ class ZfsAutobackup:
                             help='Ignore datasets that seem to be replicated some other way. (No changes since '
                                  'lastest snapshot. Useful for proxmox HA replication)')
 
-        parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--strip-path', metavar='N', default=0, type=int,
                             help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
                                  'SmartOS machines)')
@@ -89,8 +88,6 @@ class ZfsAutobackup:
         parser.add_argument('--ignore-transfer-errors', action='store_true',
                             help='Ignore transfer errors (still checks if received filesystem exists. useful for '
                                  'acltype errors)')
-        parser.add_argument('--raw', action='store_true',
-                            help=argparse.SUPPRESS)
 
         parser.add_argument('--decrypt', action='store_true',
                             help='Decrypt data before sending it over.')
@@ -108,13 +105,19 @@ class ZfsAutobackup:
                             help='Show zfs commands and their output/exit codes. (noisy)')
         parser.add_argument('--progress', action='store_true',
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
-        parser.add_argument('--no-progress', action='store_true', help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
+        parser.add_argument('--no-progress', action='store_true',
+                            help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
 
         parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
                             help='pipe zfs send output through COMMAND')
 
         parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
                             help='pipe zfs recv input through COMMAND')
+
+        parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--exclude-received', action='store_true',
+                            help=argparse.SUPPRESS)  # probably never needed anymore
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
@@ -143,12 +146,12 @@ class ZfsAutobackup:
             self.verbose("NOTE: The --resume option isn't needed anymore (its autodetected now)")
 
         if args.raw:
-            self.verbose("NOTE: The --raw option isn't needed anymore (its autodetected now). Use --decrypt to explicitly send data decrypted.")
+            self.verbose(
+                "NOTE: The --raw option isn't needed anymore (its autodetected now). Also see --encrypt and --decrypt.")
 
         if args.target_path is not None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
             sys.exit(255)
-
 
     def verbose(self, txt):
         self.log.verbose(txt)
@@ -174,12 +177,13 @@ class ZfsAutobackup:
         """thin target datasets that are missing on the source."""
 
         self.debug("Thinning obsolete datasets")
-        missing_datasets=[dataset for dataset in target_dataset.recursive_datasets if dataset not in used_target_datasets]
+        missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
+                            dataset not in used_target_datasets]
 
-        count=0
+        count = 0
         for dataset in missing_datasets:
 
-            count=count+1
+            count = count + 1
             if self.args.progress:
                 self.progress("Analysing missing {}/{}".format(count, len(missing_datasets)))
 
@@ -199,12 +203,13 @@ class ZfsAutobackup:
 
         self.debug("Destroying obsolete datasets")
 
-        missing_datasets=[dataset for dataset in target_dataset.recursive_datasets if dataset not in used_target_datasets]
+        missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
+                            dataset not in used_target_datasets]
 
-        count=0
+        count = 0
         for dataset in missing_datasets:
 
-            count=count+1
+            count = count + 1
             if self.args.progress:
                 self.progress("Analysing destroy missing {}/{}".format(count, len(missing_datasets)))
 
@@ -263,13 +268,13 @@ class ZfsAutobackup:
         """
 
         fail_count = 0
-        count =0
+        count = 0
         target_datasets = []
         for source_dataset in source_datasets:
 
             # stats
             if self.args.progress:
-                count=count+1
+                count = count + 1
                 self.progress("Analysing dataset {}/{} ({} failed)".format(count, len(source_datasets), fail_count))
 
             try:
@@ -299,7 +304,8 @@ class ZfsAutobackup:
                                               also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe, decrypt=self.args.decrypt, encrypt=self.args.encrypt)
+                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe,
+                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -371,11 +377,12 @@ class ZfsAutobackup:
             if self.args.test:
                 self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
+            ################ create source zfsNode
             self.set_title("Source settings")
 
             description = "[Source]"
             if self.args.no_thinning:
-                source_thinner=None
+                source_thinner = None
             else:
                 source_thinner = Thinner(self.args.keep_source)
             source_node = ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config,
@@ -386,8 +393,24 @@ class ZfsAutobackup:
                 "'autobackup:{}=child')".format(
                     self.args.backup_name, self.args.backup_name))
 
+            ################# select source datasets
             self.set_title("Selecting")
-            selected_source_datasets = source_node.selected_datasets
+
+            #Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanto to replicate an existing backup to another host and use the same backupname/snapshots.
+            exclude_paths = []
+            exclude_received=self.args.exclude_received
+            if self.args.ssh_source == self.args.ssh_target:
+                if self.args.target_path:
+                    # target and source are the same, make sure to exclude target_path
+                    source_node.verbose("NOTE: Source and target are on the same host, excluding target-path")
+                    exclude_paths.append(self.args.target_path)
+                else:
+                    source_node.verbose("NOTE: Source and target are on the same host, excluding received datasets.")
+                    exclude_received=True
+
+
+            selected_source_datasets = source_node.selected_datasets(exclude_received=exclude_received,
+                                                                     exclude_paths=exclude_paths)
             if not selected_source_datasets:
                 self.error(
                     "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
@@ -398,18 +421,20 @@ class ZfsAutobackup:
             # filter out already replicated stuff?
             source_datasets = self.filter_replicated(selected_source_datasets)
 
+            ################# snapshotting
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
                 source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(),
                                                 min_changed_bytes=self.args.min_change)
 
+            ################# sync
             # if target is specified, we sync the datasets, otherwise we just thin the source. (e.g. snapshot mode)
             if self.args.target_path:
 
                 # create target_node
                 self.set_title("Target settings")
                 if self.args.no_thinning:
-                    target_thinner=None
+                    target_thinner = None
                 else:
                     target_thinner = Thinner(self.args.keep_target)
                 target_node = ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config,
@@ -424,7 +449,7 @@ class ZfsAutobackup:
                 # check if exists, to prevent vague errors
                 target_dataset = ZfsDataset(target_node, self.args.target_path)
                 if not target_dataset.exists:
-                    raise(Exception(
+                    raise (Exception(
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
 
                 # do the actual sync
@@ -434,7 +459,7 @@ class ZfsAutobackup:
                     source_datasets=source_datasets,
                     target_node=target_node)
 
-            #no target specified, run in snapshot-only mode
+            # no target specified, run in snapshot-only mode
             else:
                 if not self.args.no_thinning:
                     self.thin_source(source_datasets)

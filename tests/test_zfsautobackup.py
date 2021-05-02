@@ -590,10 +590,10 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         #test all ssh directions
 
         with patch('time.strftime', return_value="20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost --exclude-received".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-target localhost".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-target localhost --exclude-received".split(" ")).run())
 
         with patch('time.strftime', return_value="20101111000002"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost --ssh-target localhost".split(" ")).run())
