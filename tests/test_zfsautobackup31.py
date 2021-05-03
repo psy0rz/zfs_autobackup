@@ -2,6 +2,7 @@ from basetest import *
 import time
 
 class TestZfsAutobackup31(unittest2.TestCase):
+    """various new 3.1 features"""
 
     def setUp(self):
         prepare_zpools()
