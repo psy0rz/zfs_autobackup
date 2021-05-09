@@ -62,7 +62,7 @@ class ExecuteNode(LogStub):
 
             ret.append(self.ssh_to)
 
-        ret.append(shlex.join(cmd))
+        ret.append(" ".join(map(shlex.quote, cmd)))
 
         return ret
 

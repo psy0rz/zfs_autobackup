@@ -43,7 +43,7 @@ class CmdPipe:
                 ret = ret + "(" + " ".join(item['cmd']) + ")"
             else:
                 #make it copy-pastable, will make a mess of quotes sometimes, but is correct
-                ret = ret + "(" + shlex.join(item['cmd']) + ")"
+                ret = ret + "(" + " ".join(map(shlex.quote,item['cmd'])) + ")"
 
         return ret
 
