@@ -3,6 +3,11 @@ import os
 import select
 import shlex
 
+try:
+    from shlex import quote as cmd_quote
+except ImportError:
+    from pipes import quote as cmd_quote
+
 class CmdPipe:
     """a pipe of one or more commands. also takes care of utf-8 encoding/decoding and line based parsing"""
 
@@ -43,7 +48,7 @@ class CmdPipe:
                 ret = ret + "(" + " ".join(item['cmd']) + ")"
             else:
                 #make it copy-pastable, will make a mess of quotes sometimes, but is correct
-                ret = ret + "(" + " ".join(map(shlex.quote,item['cmd'])) + ")"
+                ret = ret + "(" + " ".join(map(cmd_quote,item['cmd'])) + ")"
 
         return ret
 

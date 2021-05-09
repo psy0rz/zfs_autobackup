@@ -1,9 +1,14 @@
 import os
 import select
 import subprocess
-import shlex
 from zfs_autobackup.CmdPipe import CmdPipe
 from zfs_autobackup.LogStub import LogStub
+
+try:
+    from shlex import quote as cmd_quote
+except ImportError:
+    from pipes import quote as cmd_quote
+
 
 class ExecuteError(Exception):
     pass
@@ -62,7 +67,7 @@ class ExecuteNode(LogStub):
 
             ret.append(self.ssh_to)
 
-        ret.append(" ".join(map(shlex.quote, cmd)))
+        ret.append(" ".join(map(cmd_quote, cmd)))
 
         return ret
 
