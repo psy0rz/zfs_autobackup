@@ -1,6 +1,7 @@
 import subprocess
 import os
 import select
+import shlex
 
 class CmdPipe:
     """a pipe of one or more commands. also takes care of utf-8 encoding/decoding and line based parsing"""
@@ -17,31 +18,32 @@ class CmdPipe:
         self.readonly = readonly
         self._should_execute = True
 
-    def add(self, cmd, readonly=False, stderr_handler=None, exit_handler=None):
+    def add(self, cmd, readonly=False, stderr_handler=None, exit_handler=None, shell=False):
         """adds a command to pipe"""
 
         self.items.append({
             'cmd': cmd,
             'stderr_handler': stderr_handler,
-            'exit_handler': exit_handler
+            'exit_handler': exit_handler,
+            'shell': shell
         })
 
         if not readonly and self.readonly:
             self._should_execute = False
 
     def __str__(self):
-        """transform into oneliner for debugging and testing """
+        """transform into oneliner for debugging and testing. this should generate a copy-pastable string for in a console """
 
-        #just one command?
-        if len(self.items)==1:
-            return " ".join(self.items[0]['cmd'])
-
-        #an actual pipe
         ret = ""
         for item in self.items:
             if ret:
                 ret = ret + " | "
-            ret = ret + "(" + " ".join(item['cmd']) + ")"
+            if item['shell']:
+                #its already copy pastable for a shell:
+                ret = ret + "(" + " ".join(item['cmd']) + ")"
+            else:
+                #make it copy-pastable, will make a mess of quotes sometimes, but is correct
+                ret = ret + "(" + shlex.join(item['cmd']) + ")"
 
         return ret
 
@@ -69,7 +71,7 @@ class CmdPipe:
                 encoded_cmd.append(arg.encode('utf-8'))
 
             item['process'] = subprocess.Popen(encoded_cmd, env=os.environ, stdout=subprocess.PIPE, stdin=stdin,
-                                               stderr=subprocess.PIPE)
+                                               stderr=subprocess.PIPE, shell=item['shell'])
 
             selectors.append(item['process'].stderr)
 

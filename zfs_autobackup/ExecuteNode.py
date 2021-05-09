@@ -1,7 +1,7 @@
 import os
 import select
 import subprocess
-
+import shlex
 from zfs_autobackup.CmdPipe import CmdPipe
 from zfs_autobackup.LogStub import LogStub
 
@@ -48,30 +48,23 @@ class ExecuteNode(LogStub):
     #     else:
     #         self.error("STDERR|> " + line.rstrip())
 
-    def _remote_cmd(self, cmd):
-        """transforms cmd in correct form for remote over ssh, if needed"""
+    def _shell_cmd(self, cmd):
+        """prefix specified ssh shell to command and escape shell characters"""
 
-        # use ssh?
-        if self.ssh_to is not None:
-            encoded_cmd = []
-            encoded_cmd.append("ssh")
+        ret=[]
+
+        #add remote shell
+        if not self.is_local():
+            ret=["ssh"]
 
             if self.ssh_config is not None:
-                encoded_cmd.extend(["-F", self.ssh_config])
+                ret.extend(["-F", self.ssh_config])
 
-            encoded_cmd.append(self.ssh_to)
+            ret.append(self.ssh_to)
 
-            for arg in cmd:
-                # add single quotes for remote commands to support spaces and other weird stuff (remote commands are
-                # executed in a shell) and escape existing single quotes (bash needs ' to end the quoted string,
-                # then a \' for the actual quote and then another ' to start a new quoted string) (and then python
-                # needs the double \ to get a single \)
-                encoded_cmd.append(("'" + arg.replace("'", "'\\''") + "'"))
+        ret.append(shlex.join(cmd))
 
-            return encoded_cmd
-        else:
-            return(cmd)
-
+        return ret
 
     def is_local(self):
         return self.ssh_to is None
@@ -80,6 +73,8 @@ class ExecuteNode(LogStub):
     def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False,
             return_stderr=False, pipe=False):
         """run a command on the node , checks output and parses/handle output and returns it
+
+        Either uses a local shell (sh -c) or remote shell (ssh) to execute the command. Therefore the command can have stuff like actual pipes in it, if you dont want to use pipe=True to pipe stuff.
 
         :param cmd: the actual command, should be a list, where the first item is the command
                     and the rest are parameters.
@@ -121,9 +116,8 @@ class ExecuteNode(LogStub):
             if (valid_exitcodes != []) and (exit_code not in valid_exitcodes):
              raise (ExecuteError("Command '{}' returned exit code {} (valid codes: {})".format(" ".join(cmd), exit_code, valid_exitcodes)))
 
-        # add command to pipe
-        encoded_cmd = self._remote_cmd(cmd)
-        p.add(cmd=encoded_cmd, readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler)
+        #add shell command and handlers to pipe
+        p.add(cmd=self._shell_cmd(cmd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
 
         # return pipe instead of executing?
         if pipe:

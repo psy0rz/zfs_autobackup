@@ -557,17 +557,17 @@ class ZfsDataset:
             cmd.append(self.name)
 
         # #add custom output pipes?
-        #local so do our own piping
-        if self.zfs_node.is_local():
-            output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
-            for pipe_cmd in output_pipes:
-                output_pipe=self.zfs_node.run(pipe_cmd.split(" "), inp=output_pipe, pipe=True, readonly=False)
-        #remote, so add with actual | and let remote shell handle it
-        else:
-            for pipe_cmd in output_pipes:
-                cmd.append("|")
-                cmd.extend(pipe_cmd.split(" "))
-            output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
+        # #local so do our own piping
+        # if self.zfs_node.is_local():
+        #     output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
+        #     for pipe_cmd in output_pipes:
+        #         output_pipe=self.zfs_node.run(pipe_cmd.split(" "), inp=output_pipe, pipe=True, readonly=False)
+        # #remote, so add with actual | and let remote shell handle it
+        # else:
+        #     for pipe_cmd in output_pipes:
+        #         cmd.append("|")
+        #         cmd.extend(pipe_cmd.split(" "))
+        output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
 
         return output_pipe
 
