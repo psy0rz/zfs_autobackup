@@ -28,7 +28,7 @@ class TestExecuteNode(unittest2.TestCase):
 
         #escaping test
         with self.subTest("escape test"):
-            s="><`'\"@&$()$bla\\/.* !#test _+-={}[]| ${bla} $bla"
+            s="><`'\"@&$()$bla\\/.* !#test _+-={}[]|${bla} $bla"
             self.assertEqual(node.run(["echo",s]), [s])
 
         #return std err as well, trigger stderr by listing something non existing
@@ -50,6 +50,15 @@ class TestExecuteNode(unittest2.TestCase):
         #command that wants input, while we dont have input, shouldnt hang forever.
         with self.subTest("stdin process with inp=None (shouldn't hang)"):
             self.assertEqual(node.run(["cat"]), [])
+
+        # let the system do the piping with an unescaped |:
+        with self.subTest("system piping test"):
+
+            #first make sure the actual | character is still properly escaped:
+            self.assertEqual(node.run(["echo","|"]), ["|"])
+
+            #now pipe
+            self.assertEqual(node.run(["echo", "abc", node.PIPE, "tr", "a", "A" ]), ["Abc"])
 
     def test_basics_local(self):
         node=ExecuteNode(debug_output=True)

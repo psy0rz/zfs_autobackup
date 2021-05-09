@@ -24,7 +24,7 @@ class CmdPipe:
         self._should_execute = True
 
     def add(self, cmd, readonly=False, stderr_handler=None, exit_handler=None, shell=False):
-        """adds a command to pipe"""
+        """adds a command to pipe. called has to make sure its properly escaped."""
 
         self.items.append({
             'cmd': cmd,

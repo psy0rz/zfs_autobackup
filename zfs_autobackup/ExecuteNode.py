@@ -13,8 +13,11 @@ except ImportError:
 class ExecuteError(Exception):
     pass
 
+
 class ExecuteNode(LogStub):
     """an endpoint to execute local or remote commands via ssh"""
+
+    PIPE=1
 
     def __init__(self, ssh_config=None, ssh_to=None, readonly=False, debug_output=False):
         """ssh_config: custom ssh config
@@ -46,14 +49,14 @@ class ExecuteNode(LogStub):
         else:
             self.error("STDERR > " + line.rstrip())
 
-    # def _parse_stderr_pipe(self, line, hide_errors):
-    #     """parse stderr from pipe input process. can be overridden in subclass"""
-    #     if hide_errors:
-    #         self.debug("STDERR|> " + line.rstrip())
-    #     else:
-    #         self.error("STDERR|> " + line.rstrip())
+    def __quote(self, cmd):
+        """return quoted version of command. if it has value PIPE it will add an actual | """
+        if cmd==self.PIPE:
+            return('|')
+        else:
+            return(cmd_quote(cmd))
 
-    def _shell_cmd(self, cmd):
+    def __shell_cmd(self, cmd):
         """prefix specified ssh shell to command and escape shell characters"""
 
         ret=[]
@@ -67,7 +70,7 @@ class ExecuteNode(LogStub):
 
             ret.append(self.ssh_to)
 
-        ret.append(" ".join(map(cmd_quote, cmd)))
+        ret.append(" ".join(map(self.__quote, cmd)))
 
         return ret
 
@@ -82,7 +85,8 @@ class ExecuteNode(LogStub):
         Either uses a local shell (sh -c) or remote shell (ssh) to execute the command. Therefore the command can have stuff like actual pipes in it, if you dont want to use pipe=True to pipe stuff.
 
         :param cmd: the actual command, should be a list, where the first item is the command
-                    and the rest are parameters.
+                    and the rest are parameters. use ExecuteNode.PIPE to add an unescaped |
+                    (if you want to use system piping instead of python piping)
         :param pipe: return CmdPipe instead of executing it.
         :param inp: Can be None, a string or a CmdPipe that was previously returned.
         :param tab_split: split tabbed files in output into a list
@@ -122,7 +126,7 @@ class ExecuteNode(LogStub):
              raise (ExecuteError("Command '{}' returned exit code {} (valid codes: {})".format(" ".join(cmd), exit_code, valid_exitcodes)))
 
         #add shell command and handlers to pipe
-        p.add(cmd=self._shell_cmd(cmd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
+        p.add(cmd=self.__shell_cmd(cmd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
 
         # return pipe instead of executing?
         if pipe:
