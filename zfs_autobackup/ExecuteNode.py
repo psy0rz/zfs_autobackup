@@ -1,7 +1,7 @@
 import os
 import select
 import subprocess
-from zfs_autobackup.CmdPipe import CmdPipe
+from zfs_autobackup.CmdPipe import CmdPipe, CmdItem
 from zfs_autobackup.LogStub import LogStub
 
 try:
@@ -49,14 +49,14 @@ class ExecuteNode(LogStub):
         else:
             self.error("STDERR > " + line.rstrip())
 
-    def __quote(self, cmd):
+    def _quote(self, cmd):
         """return quoted version of command. if it has value PIPE it will add an actual | """
         if cmd==self.PIPE:
             return('|')
         else:
             return(cmd_quote(cmd))
 
-    def __shell_cmd(self, cmd):
+    def _shell_cmd(self, cmd):
         """prefix specified ssh shell to command and escape shell characters"""
 
         ret=[]
@@ -70,13 +70,12 @@ class ExecuteNode(LogStub):
 
             ret.append(self.ssh_to)
 
-        ret.append(" ".join(map(self.__quote, cmd)))
+        ret.append(" ".join(map(self._quote, cmd)))
 
         return ret
 
     def is_local(self):
         return self.ssh_to is None
-
 
     def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False,
             return_stderr=False, pipe=False):
@@ -100,13 +99,14 @@ class ExecuteNode(LogStub):
 
         # create new pipe?
         if not isinstance(inp, CmdPipe):
-            p = CmdPipe(self.readonly, inp)
+            cmd_pipe = CmdPipe(self.readonly, inp)
         else:
             # add stuff to existing pipe
-            p = inp
+            cmd_pipe = inp
 
         # stderr parser
         error_lines = []
+
         def stderr_handler(line):
             if tab_split:
                 error_lines.append(line.rstrip().split('\t'))
@@ -123,17 +123,22 @@ class ExecuteNode(LogStub):
                 self.debug("EXIT   > {}".format(exit_code))
 
             if (valid_exitcodes != []) and (exit_code not in valid_exitcodes):
-             raise (ExecuteError("Command '{}' returned exit code {} (valid codes: {})".format(" ".join(cmd), exit_code, valid_exitcodes)))
+                self.error("Command \"{}\" returned exit code {} (valid codes: {})".format(cmd_item, exit_code, valid_exitcodes))
+                return False
 
-        #add shell command and handlers to pipe
-        p.add(cmd=self.__shell_cmd(cmd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
+            return True
+
+        # add shell command and handlers to pipe
+        cmd_item=CmdItem(cmd=self._shell_cmd(cmd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
+        cmd_pipe.add(cmd_item)
 
         # return pipe instead of executing?
         if pipe:
-            return p
+            return cmd_pipe
 
         # stdout parser
         output_lines = []
+
         def stdout_handler(line):
             if tab_split:
                 output_lines.append(line.rstrip().split('\t'))
@@ -141,13 +146,14 @@ class ExecuteNode(LogStub):
                 output_lines.append(line.rstrip())
             self._parse_stdout(line)
 
-        if p.should_execute():
-            self.debug("CMD    > {}".format(p))
+        if cmd_pipe.should_execute():
+            self.debug("CMD    > {}".format(cmd_pipe))
         else:
-            self.debug("CMDSKIP> {}".format(p))
+            self.debug("CMDSKIP> {}".format(cmd_pipe))
 
         # execute and calls handlers in CmdPipe
-        p.execute(stdout_handler=stdout_handler)
+        if not cmd_pipe.execute(stdout_handler=stdout_handler):
+            raise(ExecuteError("Last command returned error"))
 
         if return_stderr:
             return output_lines, error_lines

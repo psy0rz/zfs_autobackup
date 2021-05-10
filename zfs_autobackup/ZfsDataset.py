@@ -510,6 +510,7 @@ class ZfsDataset:
         need to know snapshot names)
 
         Args:
+            :param output_pipes: output cmd array that will be added to actual zfs send command. (e.g. mbuffer or compression program)
             :type output_pipes: list of str
             :type features: list of str
             :type prev_snapshot: ZfsDataset
@@ -556,22 +557,13 @@ class ZfsDataset:
 
             cmd.append(self.name)
 
-        # #add custom output pipes?
-        # #local so do our own piping
-        # if self.zfs_node.is_local():
-        #     output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
-        #     for pipe_cmd in output_pipes:
-        #         output_pipe=self.zfs_node.run(pipe_cmd.split(" "), inp=output_pipe, pipe=True, readonly=False)
-        # #remote, so add with actual | and let remote shell handle it
-        # else:
-        #     for pipe_cmd in output_pipes:
-        #         cmd.append("|")
-        #         cmd.extend(pipe_cmd.split(" "))
+        cmd.extend(output_pipes)
+
         output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
 
         return output_pipe
 
-    def recv_pipe(self, pipe, features, filter_properties=None, set_properties=None, ignore_exit_code=False):
+    def recv_pipe(self, pipe, features, input_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False):
         """starts a zfs recv for this snapshot and uses pipe as input
 
         note: you can it both on a snapshot or filesystem object. The
@@ -579,6 +571,7 @@ class ZfsDataset:
         differently.
 
         Args:
+            :param input_pipes: input cmd array that will be prepended to actual zfs recv command. (e.g. mbuffer or decompression program)
             :type pipe: subprocess.pOpen
             :type features: list of str
             :type filter_properties: list of str
@@ -594,6 +587,8 @@ class ZfsDataset:
 
         # build target command
         cmd = []
+
+        cmd.extend(input_pipes)
 
         cmd.extend(["zfs", "recv"])
 
@@ -680,7 +675,7 @@ class ZfsDataset:
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
                               resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, output_pipes=output_pipes)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
-                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code)
+                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, input_pipes=input_pipes)
 
     def abort_resume(self):
         """abort current resume state"""

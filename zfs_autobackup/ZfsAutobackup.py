@@ -2,11 +2,13 @@ import argparse
 import sys
 import time
 
+from zfs_autobackup.ExecuteNode import ExecuteNode
 from zfs_autobackup.Thinner import Thinner
 from zfs_autobackup.ZfsDataset import ZfsDataset
 from zfs_autobackup.LogConsole import LogConsole
 from zfs_autobackup.ZfsNode import ZfsNode
 from zfs_autobackup.ThinnerRule import ThinnerRule
+
 
 
 class ZfsAutobackup:
@@ -109,10 +111,10 @@ class ZfsAutobackup:
                             help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
 
         parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
-                            help='pipe zfs send output through COMMAND')
+                            help='pipe zfs send output through COMMAND (can be used multiple times)')
 
         parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
-                            help='pipe zfs recv input through COMMAND')
+                            help='pipe zfs recv input through COMMAND (can be used multiple times)')
 
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
@@ -259,6 +261,26 @@ class ZfsAutobackup:
         if self.args.progress:
             self.clear_progress()
 
+    def get_input_pipes(self):
+
+        ret=[]
+
+        for input_pipe in self.args.recv_pipe:
+            ret.extend(input_pipe.split(" "))
+            ret.append(ExecuteNode.PIPE)
+
+        return ret
+
+    def get_output_pipes(self):
+
+        ret=[]
+
+        for output_pipe in self.args.send_pipe:
+            ret.append(ExecuteNode.PIPE)
+            ret.extend(output_pipe.split(" "))
+
+        return ret
+
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
         """Sync datasets, or thin-only on both sides
@@ -266,6 +288,9 @@ class ZfsAutobackup:
         :type source_datasets: list of ZfsDataset
         :type source_node: ZfsNode
         """
+
+        output_pipes=self.get_output_pipes()
+        input_pipes=self.get_input_pipes()
 
         fail_count = 0
         count = 0
@@ -304,8 +329,8 @@ class ZfsAutobackup:
                                               also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              output_pipes=self.args.send_pipe, input_pipes=self.args.recv_pipe,
-                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt)
+                                              output_pipes=output_pipes, input_pipes=input_pipes,
+                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt, )
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
