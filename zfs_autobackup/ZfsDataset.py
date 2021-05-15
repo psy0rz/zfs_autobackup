@@ -503,15 +503,15 @@ class ZfsDataset:
 
         return self.from_names(names[1:])
 
-    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded, output_pipes):
+    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded, send_pipes):
         """returns a pipe with zfs send output for this snapshot
 
         resume_token: resume sending from this token. (in that case we don't
         need to know snapshot names)
 
         Args:
-            :param output_pipes: output cmd array that will be added to actual zfs send command. (e.g. mbuffer or compression program)
-            :type output_pipes: list of str
+            :param send_pipes: output cmd array that will be added to actual zfs send command. (e.g. mbuffer or compression program)
+            :type send_pipes: list of str
             :type features: list of str
             :type prev_snapshot: ZfsDataset
             :type resume_token: str
@@ -557,13 +557,13 @@ class ZfsDataset:
 
             cmd.append(self.name)
 
-        cmd.extend(output_pipes)
+        cmd.extend(send_pipes)
 
         output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
 
         return output_pipe
 
-    def recv_pipe(self, pipe, features, input_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False):
+    def recv_pipe(self, pipe, features, recv_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False):
         """starts a zfs recv for this snapshot and uses pipe as input
 
         note: you can it both on a snapshot or filesystem object. The
@@ -571,7 +571,7 @@ class ZfsDataset:
         differently.
 
         Args:
-            :param input_pipes: input cmd array that will be prepended to actual zfs recv command. (e.g. mbuffer or decompression program)
+            :param recv_pipes: input cmd array that will be prepended to actual zfs recv command. (e.g. mbuffer or decompression program)
             :type pipe: subprocess.pOpen
             :type features: list of str
             :type filter_properties: list of str
@@ -588,7 +588,7 @@ class ZfsDataset:
         # build target command
         cmd = []
 
-        cmd.extend(input_pipes)
+        cmd.extend(recv_pipes)
 
         cmd.extend(["zfs", "recv"])
 
@@ -634,15 +634,15 @@ class ZfsDataset:
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
-                          raw, send_properties, write_embedded, output_pipes, input_pipes):
+                          raw, send_properties, write_embedded, send_pipes, recv_pipes):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for
         incremental transfer
 
         connects a send_pipe() to recv_pipe()
 
         Args:
-            :type output_pipes: list of str
-            :type input_pipes: list of str
+            :type send_pipes: list of str
+            :type recv_pipes: list of str
             :type target_snapshot: ZfsDataset
             :type features: list of str
             :type prev_snapshot: ZfsDataset
@@ -673,9 +673,9 @@ class ZfsDataset:
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
-                              resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, output_pipes=output_pipes)
+                              resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, send_pipes=send_pipes)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
-                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, input_pipes=input_pipes)
+                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, recv_pipes=recv_pipes)
 
     def abort_resume(self):
         """abort current resume state"""
@@ -963,13 +963,13 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, output_pipes, input_pipes):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
         Args:
-            :type output_pipes: list of str
-            :type input_pipes: list of str
+            :type send_pipes: list of str
+            :type recv_pipes: list of str
             :type target_dataset: ZfsDataset
             :type features: list of str
             :type show_progress: bool
@@ -1046,7 +1046,7 @@ class ZfsDataset:
                                                   filter_properties=active_filter_properties,
                                                   set_properties=active_set_properties,
                                                   ignore_recv_exit_code=ignore_recv_exit_code,
-                                                  resume_token=resume_token, write_embedded=write_embedded,raw=raw, send_properties=send_properties, output_pipes=output_pipes, input_pipes=input_pipes)
+                                                  resume_token=resume_token, write_embedded=write_embedded, raw=raw, send_properties=send_properties, send_pipes=send_pipes, recv_pipes=recv_pipes)
 
                 resume_token = None
 

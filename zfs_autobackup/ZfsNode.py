@@ -120,7 +120,7 @@ class ZfsNode(ExecuteNode):
                     self._progress_total_bytes = int(progress_fields[2])
                 elif progress_fields[0] == 'incremental':
                     self._progress_total_bytes = int(progress_fields[3])
-                else:
+                elif progress_fields[1].isnumeric():
                     bytes_ = int(progress_fields[1])
                     if self._progress_total_bytes:
                         percentage = min(100, int(bytes_ * 100 / self._progress_total_bytes))

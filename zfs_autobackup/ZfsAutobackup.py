@@ -261,25 +261,28 @@ class ZfsAutobackup:
         if self.args.progress:
             self.clear_progress()
 
-    def get_input_pipes(self):
+    def get_recv_pipes(self):
 
         ret=[]
 
-        for input_pipe in self.args.recv_pipe:
-            ret.extend(input_pipe.split(" "))
+        for recv_pipe in self.args.recv_pipe:
+            ret.extend(recv_pipe.split(" "))
             ret.append(ExecuteNode.PIPE)
+            self.verbose("Added recv pipe: {}".format(recv_pipe))
 
         return ret
 
-    def get_output_pipes(self):
+    def get_send_pipes(self):
 
         ret=[]
 
-        for output_pipe in self.args.send_pipe:
+        for send_pipe in self.args.send_pipe:
             ret.append(ExecuteNode.PIPE)
-            ret.extend(output_pipe.split(" "))
+            ret.extend(send_pipe.split(" "))
+            self.verbose("Added send pipe: {}".format(send_pipe))
 
         return ret
+
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
@@ -289,8 +292,8 @@ class ZfsAutobackup:
         :type source_node: ZfsNode
         """
 
-        output_pipes=self.get_output_pipes()
-        input_pipes=self.get_input_pipes()
+        send_pipes=self.get_send_pipes()
+        recv_pipes=self.get_recv_pipes()
 
         fail_count = 0
         count = 0
@@ -329,7 +332,7 @@ class ZfsAutobackup:
                                               also_other_snapshots=self.args.other_snapshots,
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
-                                              output_pipes=output_pipes, input_pipes=input_pipes,
+                                              send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt, )
             except Exception as e:
                 fail_count = fail_count + 1

@@ -890,7 +890,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         n=ZfsNode("test",l)
         d=ZfsDataset(n,"test_source1@test")
 
-        sp=d.send_pipe([], prev_snapshot=None, resume_token=None, show_progress=True, raw=False, output_pipes=[], send_properties=True, write_embedded=True)
+        sp=d.send_pipe([], prev_snapshot=None, resume_token=None, show_progress=True, raw=False, send_pipes=[], send_properties=True, write_embedded=True)
 
 
         with OutputIO() as buf:
