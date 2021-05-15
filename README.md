@@ -64,6 +64,8 @@ The recommended way on most servers is to use [pip](https://pypi.org/project/zfs
 
 This can also be used to upgrade zfs-autobackup to the newest stable version.
 
+To install the latest beta version add the `--pre` option.
+
 ### Using easy_install
 
 On older servers you might have to use easy_install
