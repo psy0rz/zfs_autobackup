@@ -2,12 +2,14 @@ import argparse
 import sys
 import time
 
+from zfs_autobackup import compressors
 from zfs_autobackup.ExecuteNode import ExecuteNode
 from zfs_autobackup.Thinner import Thinner
 from zfs_autobackup.ZfsDataset import ZfsDataset
 from zfs_autobackup.LogConsole import LogConsole
 from zfs_autobackup.ZfsNode import ZfsNode
 from zfs_autobackup.ThinnerRule import ThinnerRule
+
 
 
 
@@ -120,6 +122,9 @@ class ZfsAutobackup:
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--exclude-received', action='store_true',
                             help=argparse.SUPPRESS)  # probably never needed anymore
+
+        parser.add_argument('--compress', metavar='TYPE', default=None, choices=compressors.choices(), help='Use compression during transfer ({})'.format(", ".join(compressors.choices())))
+
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
@@ -261,28 +266,44 @@ class ZfsAutobackup:
         if self.args.progress:
             self.clear_progress()
 
-    def get_recv_pipes(self):
+    def get_send_pipes(self, logger):
+        """determine the zfs send pipe"""
 
         ret=[]
 
-        for recv_pipe in self.args.recv_pipe:
-            ret.extend(recv_pipe.split(" "))
+        # compression
+        if self.args.compress!=None:
             ret.append(ExecuteNode.PIPE)
-            self.verbose("Added recv pipe: {}".format(recv_pipe))
+            cmd=compressors.compress_cmd(self.args.compress)
+            ret.extend(cmd)
+            logger("zfs send compression   : {}".format(" ".join(cmd)))
 
-        return ret
-
-    def get_send_pipes(self):
-
-        ret=[]
-
+        # custom pipes
         for send_pipe in self.args.send_pipe:
             ret.append(ExecuteNode.PIPE)
             ret.extend(send_pipe.split(" "))
-            self.verbose("Added send pipe: {}".format(send_pipe))
+            logger("zfs send custom pipe   : {}".format(send_pipe))
 
         return ret
 
+    def get_recv_pipes(self, logger):
+
+        ret=[]
+
+        # custom pipes
+        for recv_pipe in self.args.recv_pipe:
+            ret.extend(recv_pipe.split(" "))
+            ret.append(ExecuteNode.PIPE)
+            logger("zfs recv custom pipe   : {}".format(recv_pipe))
+
+        # decompression
+        if self.args.compress!=None:
+            cmd=compressors.decompress_cmd(self.args.compress)
+            ret.extend(cmd)
+            ret.append(ExecuteNode.PIPE)
+            logger("zfs recv decompression : {}".format(" ".join(cmd)))
+
+        return ret
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
@@ -292,8 +313,8 @@ class ZfsAutobackup:
         :type source_node: ZfsNode
         """
 
-        send_pipes=self.get_send_pipes()
-        recv_pipes=self.get_recv_pipes()
+        send_pipes=self.get_send_pipes(source_node.verbose)
+        recv_pipes=self.get_recv_pipes(target_node.verbose)
 
         fail_count = 0
         count = 0
