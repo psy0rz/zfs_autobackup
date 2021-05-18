@@ -31,6 +31,13 @@ class LogConsole:
             print("! " + txt, file=sys.stderr)
         sys.stderr.flush()
 
+    def warning(self, txt):
+        if self.colorama:
+            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "* " + txt + colorama.Style.RESET_ALL)
+        else:
+            print("* " + txt)
+        sys.stdout.flush()
+
     def verbose(self, txt):
         if self.show_verbose:
             if self.colorama:

@@ -151,6 +151,9 @@ class ZfsNode(ExecuteNode):
     def error(self, txt):
         self.logger.error("{} {}".format(self.description, txt))
 
+    def warning(self, txt):
+        self.logger.warning("{} {}".format(self.description, txt))
+
     def debug(self, txt):
         self.logger.debug("{} {}".format(self.description, txt))
 

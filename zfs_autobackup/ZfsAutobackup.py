@@ -112,18 +112,20 @@ class ZfsAutobackup:
         parser.add_argument('--no-progress', action='store_true',
                             help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
 
-        parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
-                            help='pipe zfs send output through COMMAND (can be used multiple times)')
-
-        parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
-                            help='pipe zfs recv input through COMMAND (can be used multiple times)')
-
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--exclude-received', action='store_true',
                             help=argparse.SUPPRESS)  # probably never needed anymore
 
-        parser.add_argument('--compress', metavar='TYPE', default=None, choices=compressors.choices(), help='Use compression during transfer, zstd-fast recommended ({})'.format(", ".join(compressors.choices())))
+        #these things all do stuff by piping zfs send/recv IO
+        parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
+                            help='pipe zfs send output through COMMAND (can be used multiple times)')
+        parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
+                            help='pipe zfs recv input through COMMAND (can be used multiple times)')
+        parser.add_argument('--compress', metavar='TYPE', default=None, choices=compressors.choices(), help='Use compression during transfer, zstd-fast recommended. ({})'.format(", ".join(compressors.choices())))
+        parser.add_argument('--rate', metavar='DATARATE', default=None, help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
+        parser.add_argument('--buffer', metavar='SIZE', default=None, help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
+
 
 
         # note args is the only global variable we use, since its a global readonly setting anyway
@@ -150,11 +152,11 @@ class ZfsAutobackup:
         self.log = LogConsole(show_debug=self.args.debug, show_verbose=self.args.verbose, color=sys.stdout.isatty())
 
         if args.resume:
-            self.verbose("NOTE: The --resume option isn't needed anymore (its autodetected now)")
+            self.warning("The --resume option isn't needed anymore (its autodetected now)")
 
         if args.raw:
-            self.verbose(
-                "NOTE: The --raw option isn't needed anymore (its autodetected now). Also see --encrypt and --decrypt.")
+            self.warning(
+                "The --raw option isn't needed anymore (its autodetected now). Also see --encrypt and --decrypt.")
 
         if args.target_path is not None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
@@ -162,6 +164,9 @@ class ZfsAutobackup:
 
     def verbose(self, txt):
         self.log.verbose(txt)
+
+    def warning(self, txt):
+        self.log.warning(txt)
 
     def error(self, txt):
         self.log.error(txt)
@@ -451,10 +456,10 @@ class ZfsAutobackup:
             if self.args.ssh_source == self.args.ssh_target:
                 if self.args.target_path:
                     # target and source are the same, make sure to exclude target_path
-                    source_node.verbose("NOTE: Source and target are on the same host, excluding target-path")
+                    self.warning("Source and target are on the same host, excluding target-path from selection.")
                     exclude_paths.append(self.args.target_path)
                 else:
-                    source_node.verbose("NOTE: Source and target are on the same host, excluding received datasets.")
+                    self.warning("Source and target are on the same host, excluding received datasets from selection.")
                     exclude_received=True
 
 

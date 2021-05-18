@@ -11,5 +11,8 @@ class LogStub:
     def verbose(self, txt):
         print("VERBOSE: " + txt)
 
+    def warning(self, txt):
+        print("WARNING: " + txt)
+
     def error(self, txt):
         print("ERROR  : " + txt)
