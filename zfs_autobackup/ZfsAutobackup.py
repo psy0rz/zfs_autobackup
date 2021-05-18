@@ -150,6 +150,7 @@ class ZfsAutobackup:
             args.rollback = True
 
         self.log = LogConsole(show_debug=self.args.debug, show_verbose=self.args.verbose, color=sys.stdout.isatty())
+        self.verbose(self.HEADER)
 
         if args.resume:
             self.warning("The --resume option isn't needed anymore (its autodetected now)")
@@ -161,6 +162,9 @@ class ZfsAutobackup:
         if args.target_path is not None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
             sys.exit(255)
+
+        if args.compress and not args.ssh_source and not args.ssh_target:
+            self.warning("Using compression, but transfer is local.")
 
     def verbose(self, txt):
         self.log.verbose(txt)
@@ -276,6 +280,12 @@ class ZfsAutobackup:
 
         ret=[]
 
+        # custom pipes
+        for send_pipe in self.args.send_pipe:
+            ret.append(ExecuteNode.PIPE)
+            ret.extend(send_pipe.split(" "))
+            logger("zfs send custom pipe   : {}".format(send_pipe))
+
         # compression
         if self.args.compress!=None:
             ret.append(ExecuteNode.PIPE)
@@ -283,11 +293,6 @@ class ZfsAutobackup:
             ret.extend(cmd)
             logger("zfs send compression   : {}".format(" ".join(cmd)))
 
-        # custom pipes
-        for send_pipe in self.args.send_pipe:
-            ret.append(ExecuteNode.PIPE)
-            ret.extend(send_pipe.split(" "))
-            logger("zfs send custom pipe   : {}".format(send_pipe))
 
         return ret
 
@@ -295,18 +300,18 @@ class ZfsAutobackup:
 
         ret=[]
 
-        # custom pipes
-        for recv_pipe in self.args.recv_pipe:
-            ret.extend(recv_pipe.split(" "))
-            ret.append(ExecuteNode.PIPE)
-            logger("zfs recv custom pipe   : {}".format(recv_pipe))
-
         # decompression
         if self.args.compress!=None:
             cmd=compressors.decompress_cmd(self.args.compress)
             ret.extend(cmd)
             ret.append(ExecuteNode.PIPE)
             logger("zfs recv decompression : {}".format(" ".join(cmd)))
+
+        # custom pipes
+        for recv_pipe in self.args.recv_pipe:
+            ret.extend(recv_pipe.split(" "))
+            ret.append(ExecuteNode.PIPE)
+            logger("zfs recv custom pipe   : {}".format(recv_pipe))
 
         return ret
 
@@ -426,10 +431,9 @@ class ZfsAutobackup:
     def run(self):
 
         try:
-            self.verbose(self.HEADER)
 
             if self.args.test:
-                self.verbose("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
+                self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
             ################ create source zfsNode
             self.set_title("Source settings")
@@ -533,7 +537,7 @@ class ZfsAutobackup:
 
             if self.args.test:
                 self.verbose("")
-                self.verbose("TEST MODE - DID NOT MAKE ANY CHANGES!")
+                self.warning("TEST MODE - DID NOT MAKE ANY CHANGES!")
 
             return fail_count
 

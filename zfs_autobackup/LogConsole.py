@@ -33,9 +33,9 @@ class LogConsole:
 
     def warning(self, txt):
         if self.colorama:
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "* " + txt + colorama.Style.RESET_ALL)
+            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "  NOTE: " + txt + colorama.Style.RESET_ALL)
         else:
-            print("* " + txt)
+            print("  NOTE: " + txt)
         sys.stdout.flush()
 
     def verbose(self, txt):
