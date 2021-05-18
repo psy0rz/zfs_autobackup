@@ -17,7 +17,7 @@ jobs:
 
 
       - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+        run: sudo apt update && sudo apt install zfsutils-linux lzop pigz zstd gzip xz-utils && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
 
 
       - name: Regression test
@@ -39,7 +39,7 @@ jobs:
 
 
       - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux python3-setuptools && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+        run: sudo apt update && sudo apt install zfsutils-linux python3-setuptools lzop pigz zstd gzip xz-utils && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
 
 
       - name: Regression test
@@ -64,7 +64,7 @@ jobs:
           python-version: '2.x'
 
       - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux python-setuptools && sudo -H pip install coverage unittest2 mock==3.0.5 coveralls colorama
+        run: sudo apt update && sudo apt install zfsutils-linux python-setuptools lzop pigz zstd gzip xz-utils && sudo -H pip install coverage unittest2 mock==3.0.5 coveralls colorama
 
       - name: Regression test
         run: sudo -E ./tests/run_tests

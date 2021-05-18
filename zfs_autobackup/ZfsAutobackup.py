@@ -123,7 +123,7 @@ class ZfsAutobackup:
         parser.add_argument('--exclude-received', action='store_true',
                             help=argparse.SUPPRESS)  # probably never needed anymore
 
-        parser.add_argument('--compress', metavar='TYPE', default=None, choices=compressors.choices(), help='Use compression during transfer ({})'.format(", ".join(compressors.choices())))
+        parser.add_argument('--compress', metavar='TYPE', default=None, choices=compressors.choices(), help='Use compression during transfer, zstd-fast recommended ({})'.format(", ".join(compressors.choices())))
 
 
         # note args is the only global variable we use, since its a global readonly setting anyway
