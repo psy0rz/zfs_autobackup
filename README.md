@@ -5,7 +5,7 @@
 
 ## Introduction
 
-This is a tool I wrote to make replicating ZFS datasets easy and reliable.
+ZFS-autobackup tries to be the most reliable and easiest to use tool, while having all the features.
 
 You can either use it as a **backup** tool, **replication** tool or **snapshot** tool.
 
@@ -13,11 +13,9 @@ You can select what to backup by setting a custom `ZFS property`. This makes it 
 
 Other settings are just specified on the commandline: Simply setup and test your zfs-autobackup command and  fix all the issues you might encounter. When you're done you can just copy/paste your command to a cron or script.
 
-Since its using ZFS commands, you can see what its actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (something I missed in other tools)
+Since its using ZFS commands, you can see what it's actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (something I missed in other tools)
 
 An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your system.
-
-zfs-autobackup tries to be the easiest to use backup tool for zfs, with the most features.
 
 ## Features
 
@@ -34,6 +32,9 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs, with the most
 * Can be scheduled via a simple cronjob or run directly from commandline.
 * Supports resuming of interrupted transfers.
 * ZFS encryption support: Can decrypt / encrypt or even re-encrypt datasets during transfer.
+* Supports sending with compression. (Using pigz, zstd etc)
+* IO buffering to speed up transfer.
+* Bandwidth rate limiting.
 * Multiple backups from and to the same datasets are no problem.
 * Creates the snapshot before doing anything else. (assuring you at least have a snapshot if all else fails)
 * Checks everything but tries continue on non-fatal errors when possible. (Reports error-count when done)
@@ -44,10 +45,11 @@ zfs-autobackup tries to be the easiest to use backup tool for zfs, with the most
 * Automatic resuming of failed transfers.
 * Can continue from existing common snapshots. (e.g. easy migration)
 * Gracefully handles datasets that no longer exist on source.
+* Support for ZFS sending/receiving through custom pipes.
 * Easy installation:
-  * Just install zfs-autobackup via pip, or download it manually.
+  * Just install zfs-autobackup via pip.
   * Only needs to be installed on one side.
-  * Written in python and uses zfs-commands, no 3rd party dependency's or libraries needed.
+  * Written in python and uses zfs-commands, no special 3rd party dependency's or compiled libraries needed.
   * No separate config files or properties. Just one zfs-autobackup command you can copy/paste in your backup script.
 
 ## Installation
@@ -468,17 +470,31 @@ Look in man ssh_config for many more options.
 (NOTE: Quite a lot has changed since the current stable version 3.0. The page your are viewing is for upcoming version 3.1 which is still in beta.)
 
 ```console
-usage: zfs-autobackup [-h] [--ssh-config CONFIG-FILE] [--ssh-source USER@HOST] [--ssh-target USER@HOST] [--keep-source SCHEDULE] [--keep-target SCHEDULE] [--other-snapshots] [--no-snapshot] [--no-send]
-                   [--no-thinning] [--no-holds] [--min-change BYTES] [--allow-empty] [--ignore-replicated] [--strip-path N] [--clear-refreservation] [--clear-mountpoint] [--filter-properties PROPERY,...]
-                   [--set-properties PROPERTY=VALUE,...] [--rollback] [--destroy-incompatible] [--destroy-missing SCHEDULE] [--ignore-transfer-errors] [--decrypt] [--encrypt] [--test] [--verbose] [--debug]
-                   [--debug-output] [--progress] [--send-pipe COMMAND] [--recv-pipe COMMAND]
-                   backup-name [target-path]
+usage: zfs-autobackup [-h] [--ssh-config CONFIG-FILE] [--ssh-source USER@HOST]
+                      [--ssh-target USER@HOST] [--keep-source SCHEDULE]
+                      [--keep-target SCHEDULE] [--other-snapshots]
+                      [--no-snapshot] [--no-send] [--no-thinning] [--no-holds]
+                      [--min-change BYTES] [--allow-empty]
+                      [--ignore-replicated] [--strip-path N]
+                      [--clear-refreservation] [--clear-mountpoint]
+                      [--filter-properties PROPERY,...]
+                      [--set-properties PROPERTY=VALUE,...] [--rollback]
+                      [--destroy-incompatible] [--destroy-missing SCHEDULE]
+                      [--ignore-transfer-errors] [--decrypt] [--encrypt]
+                      [--test] [--verbose] [--debug] [--debug-output]
+                      [--progress] [--send-pipe COMMAND] [--recv-pipe COMMAND]
+                      [--compress TYPE] [--rate DATARATE] [--buffer SIZE]
+                      backup-name [target-path]
 
-zfs-autobackup v3.1-beta3 - Copyright 2020 E.H.Eefting (edwin@datux.nl)
+zfs-autobackup v3.1-beta6 - (c)2021 E.H.Eefting (edwin@datux.nl)
 
 positional arguments:
-  backup-name           Name of the backup (you should set the zfs property "autobackup:backup-name" to true on filesystems you want to backup
-  target-path           Target ZFS filesystem (optional: if not specified, zfs-autobackup will only operate as snapshot-tool on source)
+  backup-name           Name of the backup (you should set the zfs property
+                        "autobackup:backup-name" to true on filesystems you
+                        want to backup
+  target-path           Target ZFS filesystem (optional: if not specified,
+                        zfs-autobackup will only operate as snapshot-tool on
+                        source)
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -489,41 +505,77 @@ optional arguments:
   --ssh-target USER@HOST
                         Target host to push backup to.
   --keep-source SCHEDULE
-                        Thinning schedule for old source snapshots. Default: 10,1d1w,1w1m,1m1y
+                        Thinning schedule for old source snapshots. Default:
+                        10,1d1w,1w1m,1m1y
   --keep-target SCHEDULE
-                        Thinning schedule for old target snapshots. Default: 10,1d1w,1w1m,1m1y
-  --other-snapshots     Send over other snapshots as well, not just the ones created by this tool.
-  --no-snapshot         Don't create new snapshots (useful for finishing uncompleted backups, or cleanups)
-  --no-send             Don't send snapshots (useful for cleanups, or if you want a serperate send-cronjob)
+                        Thinning schedule for old target snapshots. Default:
+                        10,1d1w,1w1m,1m1y
+  --other-snapshots     Send over other snapshots as well, not just the ones
+                        created by this tool.
+  --no-snapshot         Don't create new snapshots (useful for finishing
+                        uncompleted backups, or cleanups)
+  --no-send             Don't send snapshots (useful for cleanups, or if you
+                        want a serperate send-cronjob)
   --no-thinning         Do not destroy any snapshots.
-  --no-holds            Don't hold snapshots. (Faster. Allows you to destroy common snapshot.)
-  --min-change BYTES    Number of bytes written after which we consider a dataset changed (default 1)
-  --allow-empty         If nothing has changed, still create empty snapshots. (same as --min-change=0)
-  --ignore-replicated   Ignore datasets that seem to be replicated some other way. (No changes since lastest snapshot. Useful for proxmox HA replication)
-  --strip-path N        Number of directories to strip from target path (use 1 when cloning zones between 2 SmartOS machines)
+  --no-holds            Don't hold snapshots. (Faster. Allows you to destroy
+                        common snapshot.)
+  --min-change BYTES    Number of bytes written after which we consider a
+                        dataset changed (default 1)
+  --allow-empty         If nothing has changed, still create empty snapshots.
+                        (same as --min-change=0)
+  --ignore-replicated   Ignore datasets that seem to be replicated some other
+                        way. (No changes since lastest snapshot. Useful for
+                        proxmox HA replication)
+  --strip-path N        Number of directories to strip from target path (use 1
+                        when cloning zones between 2 SmartOS machines)
   --clear-refreservation
-                        Filter "refreservation" property. (recommended, safes space. same as --filter-properties refreservation)
-  --clear-mountpoint    Set property canmount=noauto for new datasets. (recommended, prevents mount conflicts. same as --set-properties canmount=noauto)
+                        Filter "refreservation" property. (recommended, safes
+                        space. same as --filter-properties refreservation)
+  --clear-mountpoint    Set property canmount=noauto for new datasets.
+                        (recommended, prevents mount conflicts. same as --set-
+                        properties canmount=noauto)
   --filter-properties PROPERY,...
-                        List of properties to "filter" when receiving filesystems. (you can still restore them with zfs inherit -S)
+                        List of properties to "filter" when receiving
+                        filesystems. (you can still restore them with zfs
+                        inherit -S)
   --set-properties PROPERTY=VALUE,...
-                        List of propererties to override when receiving filesystems. (you can still restore them with zfs inherit -S)
-  --rollback            Rollback changes to the latest target snapshot before starting. (normally you can prevent changes by setting the readonly property on the target_path to on)
+                        List of propererties to override when receiving
+                        filesystems. (you can still restore them with zfs
+                        inherit -S)
+  --rollback            Rollback changes to the latest target snapshot before
+                        starting. (normally you can prevent changes by setting
+                        the readonly property on the target_path to on)
   --destroy-incompatible
-                        Destroy incompatible snapshots on target. Use with care! (implies --rollback)
+                        Destroy incompatible snapshots on target. Use with
+                        care! (implies --rollback)
   --destroy-missing SCHEDULE
-                        Destroy datasets on target that are missing on the source. Specify the time since the last snapshot, e.g: --destroy-missing 30d
+                        Destroy datasets on target that are missing on the
+                        source. Specify the time since the last snapshot, e.g:
+                        --destroy-missing 30d
   --ignore-transfer-errors
-                        Ignore transfer errors (still checks if received filesystem exists. useful for acltype errors)
+                        Ignore transfer errors (still checks if received
+                        filesystem exists. useful for acltype errors)
   --decrypt             Decrypt data before sending it over.
   --encrypt             Encrypt data after receiving it.
-  --test                dont change anything, just show what would be done (still does all read-only operations)
+  --test                dont change anything, just show what would be done
+                        (still does all read-only operations)
   --verbose             verbose output
-  --debug               Show zfs commands that are executed, stops after an exception.
+  --debug               Show zfs commands that are executed, stops after an
+                        exception.
   --debug-output        Show zfs commands and their output/exit codes. (noisy)
-  --progress            show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)
-  --send-pipe COMMAND   pipe zfs send output through COMMAND
-  --recv-pipe COMMAND   pipe zfs recv input through COMMAND
+  --progress            show zfs progress output. Enabled automaticly on ttys.
+                        (use --no-progress to disable)
+  --send-pipe COMMAND   pipe zfs send output through COMMAND (can be used
+                        multiple times)
+  --recv-pipe COMMAND   pipe zfs recv input through COMMAND (can be used
+                        multiple times)
+  --compress TYPE       Use compression during transfer, zstd-fast
+                        recommended. (zstd-slow, xz, pigz-fast, lz4, pigz-
+                        slow, zstd-fast, gzip, lzo)
+  --rate DATARATE       Limit data transfer rate (e.g. 128K. requires
+                        mbuffer.)
+  --buffer SIZE         Add zfs send and recv buffers to smooth out IO bursts.
+                        (e.g. 128M. requires mbuffer)
 
 Full manual at: https://github.com/psy0rz/zfs_autobackup
 ```
