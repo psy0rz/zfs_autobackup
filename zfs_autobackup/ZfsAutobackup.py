@@ -280,6 +280,11 @@ class ZfsAutobackup:
 
         ret=[]
 
+        # IO buffer
+        if self.args.buffer:
+            logger("zfs send buffer        : {}".format(self.args.buffer))
+            ret.extend([ ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m"+self.args.buffer ])
+
         # custom pipes
         for send_pipe in self.args.send_pipe:
             ret.append(ExecuteNode.PIPE)
@@ -292,6 +297,11 @@ class ZfsAutobackup:
             cmd=compressors.compress_cmd(self.args.compress)
             ret.extend(cmd)
             logger("zfs send compression   : {}".format(" ".join(cmd)))
+
+        # transfer rate
+        if self.args.rate:
+            logger("zfs send transfer rate : {}".format(self.args.rate))
+            ret.extend([ ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m16M", "-R"+self.args.rate ])
 
 
         return ret
