@@ -73,3 +73,16 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("remote remote pipe"):
             with patch('time.strftime', return_value="20101111000000"):
                 self.assertFalse(ZfsAutobackup(["test", "test_target1",  "--exclude-received", "--no-holds", "--no-progress", "--ssh-source=localhost", "--ssh-target=localhost", "--buffer=1M"]).run())
+
+    def test_rate(self):
+        """test rate limit"""
+
+
+        start=time.time()
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup(["test", "test_target1", "--exclude-received", "--no-holds", "--no-progress", "--rate=50k" ]).run())
+
+        #not a great way of verifying but it works.
+        self.assertGreater(time.time()-start, 5)
+
+
