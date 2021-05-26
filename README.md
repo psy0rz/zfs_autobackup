@@ -398,6 +398,25 @@ Note 2: Decide what you want at an early stage: If you change the --encrypt or -
 
 I'll add some tips when the issues start to get in on github. :)
 
+## Transfer buffering, compression and rate limiting.
+
+If you're transferring over a slow link it might be useful to use `--compress=zstd-fast`. This will compres the data before sending, so it uses less bandwidth.
+
+You can also limit the datarate by using the `--rate` option.
+
+The `--buffer` option might also help since it acts as an IO buffer: zfs send can vary wildly between completely idle and huge bursts of data. When zfs send is idle, the buffer will continue transferring data over the slow link.
+
+It's also possible to add custom send or receive pipes with `--send-pipe` and `--recv-pipe`.
+
+These options all work together and the buffer on the receiving side is only added if appropriate. When all options are active:
+
+#### On the sending side:
+
+zfs send -> send buffer -> custom send pipes -> compression -> transfer rate limiter
+
+#### On the receiving side:
+decompression -> custom recv pipes -> buffer -> zfs recv
+
 ## Tips
 
 * Use ```--debug``` if something goes wrong and you want to see the commands that are executed. This will also stop at the first error.
@@ -409,6 +428,8 @@ I'll add some tips when the issues start to get in on github. :)
 ### Performance tips
 
 If you have a large number of datasets its important to keep the following tips in mind.
+
+Also it might help to use the --buffer option to add IO buffering during the data transfer. This might speed up things since it smooths out sudden IO bursts that are frequent during a zfs send or recv.
 
 #### Some statistics
 
@@ -526,6 +547,7 @@ optional arguments:
   --ignore-replicated   Ignore datasets that seem to be replicated some other
                         way. (No changes since lastest snapshot. Useful for
                         proxmox HA replication)
+
   --strip-path N        Number of directories to strip from target path (use 1
                         when cloning zones between 2 SmartOS machines)
   --clear-refreservation
