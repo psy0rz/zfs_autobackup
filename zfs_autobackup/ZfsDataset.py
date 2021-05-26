@@ -679,6 +679,7 @@ class ZfsDataset:
 
     def abort_resume(self):
         """abort current resume state"""
+        self.debug("Aborting resume")
         self.zfs_node.run(["zfs", "recv", "-A", self.name])
 
     def rollback(self):
@@ -901,14 +902,18 @@ class ZfsDataset:
         """
 
         if 'receive_resume_token' in target_dataset.properties:
-            resume_token = target_dataset.properties['receive_resume_token']
-            # not valid anymore?
-            resume_snapshot = self.get_resume_snapshot(resume_token)
-            if not resume_snapshot or start_snapshot.snapshot_name != resume_snapshot.snapshot_name:
-                target_dataset.verbose("Cant resume, resume token no longer valid.")
+            if start_snapshot==None:
+                target_dataset.verbose("Aborting resume, its obsolete.")
                 target_dataset.abort_resume()
             else:
-                return resume_token
+                resume_token = target_dataset.properties['receive_resume_token']
+                # not valid anymore
+                resume_snapshot = self.get_resume_snapshot(resume_token)
+                if not resume_snapshot or start_snapshot.snapshot_name != resume_snapshot.snapshot_name:
+                    target_dataset.verbose("Aborting resume, its no longer valid.")
+                    target_dataset.abort_resume()
+                else:
+                    return resume_token
 
     def _plan_sync(self, target_dataset, also_other_snapshots):
         """plan where to start syncing and what to sync and what to keep
@@ -1075,7 +1080,7 @@ class ZfsDataset:
                 source_snapshot.debug("skipped (target doesn't need it)")
                 # was it actually a resume?
                 if resume_token:
-                    target_dataset.debug("aborting resume, since we don't want that snapshot anymore")
+                    target_dataset.verbose("Aborting resume, we dont want that snapshot anymore.")
                     target_dataset.abort_resume()
                     resume_token = None
 

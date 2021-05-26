@@ -227,11 +227,11 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                 # incremental, doesnt want previous anymore
                 with patch('time.strftime', return_value="20101111000002"):
                     self.assertFalse(ZfsAutobackup(
-                        "test test_target1 --no-progress --verbose --keep-target=0 --debug --allow-empty".split(" ")).run())
+                        "test test_target1 --no-progress --verbose --keep-target=0 --allow-empty".split(" ")).run())
 
             print(buf.getvalue())
 
-            self.assertIn(": aborting resume, since", buf.getvalue())
+            self.assertIn("Aborting resume, we dont want that snapshot anymore.", buf.getvalue())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
         self.assertMultiLineEqual(r, """
@@ -246,6 +246,34 @@ test_target1/test_source2/fs2
 test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000002
 """)
+
+    # test with empty snapshot list (this was a bug)
+    def test_abort_resume_emptysnapshotlist(self):
+
+        if "0.6.5" in ZFS_USERSPACE:
+            self.skipTest("Resume not supported in this ZFS userspace version")
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
+
+        # generate resume
+        with patch('time.strftime', return_value="20101111000001"):
+            self.generate_resume()
+
+        shelltest("zfs destroy test_source1/fs1@test-20101111000001")
+
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                # incremental, doesnt want previous anymore
+                with patch('time.strftime', return_value="20101111000002"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --no-snapshot".split(
+                            " ")).run())
+
+            print(buf.getvalue())
+
+            self.assertIn("Aborting resume, its obsolete", buf.getvalue())
+
 
     def test_missing_common(self):
 
