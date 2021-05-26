@@ -16,7 +16,7 @@ from zfs_autobackup.ThinnerRule import ThinnerRule
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.1-beta6"
+    VERSION = "3.1-beta7"
     HEADER = "zfs-autobackup v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
@@ -163,7 +163,7 @@ class ZfsAutobackup:
             self.log.error("Target should not start with a /")
             sys.exit(255)
 
-        if args.compress and not args.ssh_source and not args.ssh_target:
+        if args.compress and args.ssh_source is None and args.ssh_target is None:
             self.warning("Using compression, but transfer is local.")
 
     def verbose(self, txt):
@@ -322,6 +322,13 @@ class ZfsAutobackup:
             ret.extend(recv_pipe.split(" "))
             ret.append(ExecuteNode.PIPE)
             logger("zfs recv custom pipe   : {}".format(recv_pipe))
+
+        # IO buffer
+        if self.args.buffer:
+            #only add second buffer if its usefull. (e.g. non local transfer or other pipes active)
+            if self.args.ssh_source!=None or self.args.ssh_target!=None or self.args.recv_pipe or self.args.send_pipe or self.args.compress!=None:
+                logger("zfs recv buffer        : {}".format(self.args.buffer))
+                ret.extend(["mbuffer", "-q", "-s128k", "-m"+self.args.buffer,  ExecuteNode.PIPE ])
 
         return ret
 

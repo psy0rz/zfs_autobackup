@@ -1,4 +1,6 @@
 
+# To run tests as non-root, use this hack:
+# chmod 4755 /usr/sbin/zpool /usr/sbin/zfs
 
 import subprocess
 import random
