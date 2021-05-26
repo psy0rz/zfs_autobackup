@@ -21,7 +21,7 @@ class TestCmdPipe(unittest2.TestCase):
         p=CmdPipe(readonly=False, inp="test")
         err=[]
         out=[]
-        p.add(CmdItem(["echo", "test"], stderr_handler=lambda line: err.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,0)))
+        p.add(CmdItem(["cat"], stderr_handler=lambda line: err.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,0)))
         executed=p.execute(stdout_handler=lambda line: out.append(line))
 
         self.assertEqual(err, [])
