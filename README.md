@@ -400,7 +400,7 @@ I'll add some tips when the issues start to get in on github. :)
 
 ## Transfer buffering, compression and rate limiting.
 
-If you're transferring over a slow link it might be useful to use `--compress=zstd-fast`. This will compres the data before sending, so it uses less bandwidth.
+If you're transferring over a slow link it might be useful to use `--compress=zstd-fast`. This will compress the data before sending, so it uses less bandwidth. An alternative to this is to use --zfs-compressed: This will transfer blocks that already have compression intact. (--compress will usually compress much better but uses much more resources. --zfs-compressed uses the least resources, but can be a disadvantage if you want to use a different compression method on the target.)
 
 You can also limit the datarate by using the `--rate` option.
 
