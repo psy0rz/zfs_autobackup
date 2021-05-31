@@ -99,6 +99,9 @@ class ZfsAutobackup:
         parser.add_argument('--encrypt', action='store_true',
                             help='Encrypt data after receiving it.')
 
+        parser.add_argument('--zfs-compressed', action='store_true',
+                            help='Transfer blocks that already have zfs-compression as-is.')
+
         parser.add_argument('--test', action='store_true',
                             help='dont change anything, just show what would be done (still does all read-only '
                                  'operations)')
@@ -165,6 +168,9 @@ class ZfsAutobackup:
 
         if args.compress and args.ssh_source is None and args.ssh_target is None:
             self.warning("Using compression, but transfer is local.")
+
+        if args.compress and args.zfs_compressed:
+            self.warning("Using --compress with --zfs-compress, might be inefficient.")
 
     def verbose(self, txt):
         self.log.verbose(txt)
@@ -381,7 +387,7 @@ class ZfsAutobackup:
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
-                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt, )
+                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt, zfs_compressed=self.args.zfs_compressed )
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
