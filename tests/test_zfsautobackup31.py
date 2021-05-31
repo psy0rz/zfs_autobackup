@@ -72,3 +72,10 @@ test_target1/b/test_source2/fs2/sub@test-20101111000000
 test_target1/b/test_target1/a/test_source1/fs1@test-20101111000000
 test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000000
 """)
+
+    def test_zfs_compressed(self):
+
+        with patch('time.strftime', return_value="20101111000000"):
+            self.assertFalse(
+                ZfsAutobackup("test test_target1 --no-progress --verbose --debug --zfs-compressed".split(" ")).run())
+
