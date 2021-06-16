@@ -75,7 +75,7 @@ class ZfsAutobackup:
         parser.add_argument('--clear-mountpoint', action='store_true',
                             help='Set property canmount=noauto for new datasets. (recommended, prevents mount '
                                  'conflicts. same as --set-properties canmount=noauto)')
-        parser.add_argument('--filter-properties', metavar='PROPERY,...', type=str,
+        parser.add_argument('--filter-properties', metavar='PROPERTY,...', type=str,
                             help='List of properties to "filter" when receiving filesystems. (you can still restore '
                                  'them with zfs inherit -S)')
         parser.add_argument('--set-properties', metavar='PROPERTY=VALUE,...', type=str,
@@ -470,7 +470,7 @@ class ZfsAutobackup:
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner)
             source_node.verbose(
-                "Selects all datasets that have property 'autobackup:{}=true' (or childs of datasets that have "
+                "Selects all datasets that have property 'autobackup:{}=true' (or children of datasets that have "
                 "'autobackup:{}=child')".format(
                     self.args.backup_name, self.args.backup_name))
 
