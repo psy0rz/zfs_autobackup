@@ -45,6 +45,10 @@ class ZfsAutobackup:
                             help='Target ZFS filesystem (optional: if not specified, zfs-autobackup will only operate '
                                  'as snapshot-tool on source)')
 
+        parser.add_argument('--pre-snapshot-cmd', metavar="COMMAND", type=str,
+                            help='Run COMMAND before snapshotting.')
+        parser.add_argument('--post-snapshot-cmd', metavar="COMMAND", type=str,
+                            help='Run COMMAND after snapshotting.')
         parser.add_argument('--other-snapshots', action='store_true',
                             help='Send over other snapshots as well, not just the ones created by this tool.')
         parser.add_argument('--no-snapshot', action='store_true',
@@ -506,7 +510,9 @@ class ZfsAutobackup:
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
                 source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(),
-                                                min_changed_bytes=self.args.min_change)
+                                                min_changed_bytes=self.args.min_change,
+                                                pre_snapshot_cmd=self.args.pre_snapshot_cmd,
+                                                post_snapshot_cmd=self.args.post_snapshot_cmd)
 
             ################# sync
             # if target is specified, we sync the datasets, otherwise we just thin the source. (e.g. snapshot mode)
