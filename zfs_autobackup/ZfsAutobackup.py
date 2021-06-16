@@ -170,7 +170,7 @@ class ZfsAutobackup:
             self.warning("Using compression, but transfer is local.")
 
         if args.compress and args.zfs_compressed:
-            self.warning("Using --compress with --zfs-compress, might be inefficient.")
+            self.warning("Using --compress with --zfs-compressed, might be inefficient.")
 
     def verbose(self, txt):
         self.log.verbose(txt)
