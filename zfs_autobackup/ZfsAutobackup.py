@@ -45,10 +45,10 @@ class ZfsAutobackup:
                             help='Target ZFS filesystem (optional: if not specified, zfs-autobackup will only operate '
                                  'as snapshot-tool on source)')
 
-        parser.add_argument('--pre-snapshot-cmd', metavar="COMMAND", type=str,
-                            help='Run COMMAND before snapshotting.')
-        parser.add_argument('--post-snapshot-cmd', metavar="COMMAND", type=str,
-                            help='Run COMMAND after snapshotting.')
+        parser.add_argument('--pre-snapshot-cmd', metavar="COMMAND", default=[], action='append',
+                            help='Run COMMAND before snapshotting (can be used multiple times.')
+        parser.add_argument('--post-snapshot-cmd', metavar="COMMAND", default=[], action='append',
+                            help='Run COMMAND after snapshotting (can be used multiple times.')
         parser.add_argument('--other-snapshots', action='store_true',
                             help='Send over other snapshots as well, not just the ones created by this tool.')
         parser.add_argument('--no-snapshot', action='store_true',

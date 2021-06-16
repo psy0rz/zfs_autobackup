@@ -279,6 +279,19 @@ root@ws1:~# zfs-autobackup test --verbose
 
 This also allows you to make several snapshots during the day, but only backup the data at night when the server is not busy.
 
+## Running custom commands before and after snapshotting
+
+If you need, e.g. to quiesce a couple of mysql databases to make on-disk data consistent before snapshotting, try:
+
+```sh
+zfs-autobackup \
+    --pre-snapshot-cmd 'daemon -fP /tmp/mysql1_lock.pid jexec mysqljail1 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! sleep 60"' \
+    --pre-snapshot-cmd 'daemon -fP /tmp/mysql2_lock.pid jexec mysqljail2 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! sleep 60"' \
+    --post-snapshot-cmd 'pkill -F /tmp/mysql1_lock.pid' \
+    --post-snapshot-cmd 'pkill -F /tmp/mysql2_lock.pid' \
+    test
+```
+
 ## Thinning out obsolete snapshots
 
 The thinner is the thing that destroys old snapshots on the source and target.
@@ -493,7 +506,8 @@ Look in man ssh_config for many more options.
 ```console
 usage: zfs-autobackup [-h] [--ssh-config CONFIG-FILE] [--ssh-source USER@HOST]
                       [--ssh-target USER@HOST] [--keep-source SCHEDULE]
-                      [--keep-target SCHEDULE] [--other-snapshots]
+                      [--keep-target SCHEDULE] [--pre-snapshot-cmd COMMAND]
+                      [--post-snapshot-cmd COMMAND] [--other-snapshots]
                       [--no-snapshot] [--no-send] [--no-thinning] [--no-holds]
                       [--min-change BYTES] [--allow-empty]
                       [--ignore-replicated] [--strip-path N]
@@ -531,6 +545,12 @@ optional arguments:
   --keep-target SCHEDULE
                         Thinning schedule for old target snapshots. Default:
                         10,1d1w,1w1m,1m1y
+  --pre-snapshot-cmd COMMAND
+                        Run COMMAND before snapshotting (can be used multiple
+                        times.
+  --post-snapshot-cmd COMMAND
+                        Run COMMAND after snapshotting (can be used multiple
+                        times.
   --other-snapshots     Send over other snapshots as well, not just the ones
                         created by this tool.
   --no-snapshot         Don't create new snapshots (useful for finishing
