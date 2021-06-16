@@ -201,7 +201,7 @@ class ZfsNode(ExecuteNode):
             self.run(cmd, readonly=False)
 
     def selected_datasets(self, exclude_received, exclude_paths):
-        """determine filesystems that should be backupped by looking at the special autobackup-property, systemwide
+        """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide
 
            returns: list of ZfsDataset
         """
