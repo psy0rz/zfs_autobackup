@@ -162,7 +162,7 @@ class ZfsNode(ExecuteNode):
         """determine uniq new snapshotname"""
         return self.backup_name + "-" + time.strftime("%Y%m%d%H%M%S")
 
-    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmd=None, post_snapshot_cmd=None):
+    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmd=[], post_snapshot_cmd=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
         """
 
