@@ -1,6 +1,7 @@
 # python 2 compatibility
 from __future__ import print_function
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -193,7 +194,7 @@ class ZfsNode(ExecuteNode):
 
         if pre_snapshot_cmd:
             self.verbose("Running pre-snapshot-cmd:\n\t{}".format(pre_snapshot_cmd))
-            self.run(cmd=pre_snapshot_cmd.split(" "), readonly=False)
+            self.run(cmd=shlex.split(pre_snapshot_cmd), readonly=False)
 
         # create consistent snapshot per pool
         for (pool_name, snapshots) in pools.items():
@@ -206,7 +207,7 @@ class ZfsNode(ExecuteNode):
 
         if post_snapshot_cmd:
             self.verbose("Running post-snapshot-cmd:\n\t{}".format(post_snapshot_cmd))
-            self.run(cmd=post_snapshot_cmd.split(" "), readonly=False)
+            self.run(cmd=shlex.split(post_snapshot_cmd), readonly=False)
 
     def selected_datasets(self, exclude_received, exclude_paths):
         """determine filesystems that should be backupped by looking at the special autobackup-property, systemwide
