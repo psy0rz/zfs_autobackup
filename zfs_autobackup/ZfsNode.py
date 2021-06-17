@@ -192,22 +192,24 @@ class ZfsNode(ExecuteNode):
             self.verbose("No changes anywhere: not creating snapshots.")
             return
 
-        for cmd in pre_snapshot_cmd:
-            self.verbose("Running pre-snapshot-cmd")
-            self.run(cmd=shlex.split(cmd), readonly=False)
+        try:
+            for cmd in pre_snapshot_cmd:
+                self.verbose("Running pre-snapshot-cmd")
+                self.run(cmd=shlex.split(cmd), readonly=False)
 
-        # create consistent snapshot per pool
-        for (pool_name, snapshots) in pools.items():
-            cmd = ["zfs", "snapshot"]
+            # create consistent snapshot per pool
+            for (pool_name, snapshots) in pools.items():
+                cmd = ["zfs", "snapshot"]
 
-            cmd.extend(map(lambda snapshot_: str(snapshot_), snapshots))
+                cmd.extend(map(lambda snapshot_: str(snapshot_), snapshots))
 
-            self.verbose("Creating snapshots {} in pool {}".format(snapshot_name, pool_name))
-            self.run(cmd, readonly=False)
+                self.verbose("Creating snapshots {} in pool {}".format(snapshot_name, pool_name))
+                self.run(cmd, readonly=False)
 
-        for cmd in post_snapshot_cmd:
-            self.verbose("Running post-snapshot-cmd")
-            self.run(cmd=shlex.split(cmd), readonly=False)
+        finally:
+            for cmd in post_snapshot_cmd:
+                self.verbose("Running post-snapshot-cmd")
+                self.run(cmd=shlex.split(cmd), readonly=False, valid_exitcodes=[])
 
     def selected_datasets(self, exclude_received, exclude_paths):
         """determine filesystems that should be backupped by looking at the special autobackup-property, systemwide
