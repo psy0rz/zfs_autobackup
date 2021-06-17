@@ -285,10 +285,10 @@ If you need, e.g. to quiesce a couple of mysql databases to make on-disk data co
 
 ```sh
 zfs-autobackup \
-    --pre-snapshot-cmd 'daemon -fP /tmp/mysql1_lock.pid jexec mysqljail1 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! sleep 60"' \
-    --pre-snapshot-cmd 'daemon -fP /tmp/mysql2_lock.pid jexec mysqljail2 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! sleep 60"' \
-    --post-snapshot-cmd 'pkill -F /tmp/mysql1_lock.pid' \
-    --post-snapshot-cmd 'pkill -F /tmp/mysql2_lock.pid' \
+    --pre-snapshot-cmd 'daemon -f jexec mysqljail1 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! echo \$\$ > /tmp/mysql_lock.pid && sleep 60"' \
+    --pre-snapshot-cmd 'daemon -f jexec mysqljail2 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! echo \$\$ > /tmp/mysql_lock.pid && sleep 60"' \
+    --post-snapshot-cmd 'pkill -F /jails/mysqljail1/tmp/mysql_lock.pid' \
+    --post-snapshot-cmd 'pkill -F /jails/mysqljail2/tmp/mysql_lock.pid' \
     test
 ```
 
