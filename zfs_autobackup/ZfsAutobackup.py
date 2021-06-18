@@ -511,8 +511,8 @@ class ZfsAutobackup:
                 self.set_title("Snapshotting")
                 source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(),
                                                 min_changed_bytes=self.args.min_change,
-                                                pre_snapshot_cmd=self.args.pre_snapshot_cmd,
-                                                post_snapshot_cmd=self.args.post_snapshot_cmd)
+                                                pre_snapshot_cmds=self.args.pre_snapshot_cmd,
+                                                post_snapshot_cmds=self.args.post_snapshot_cmd)
 
             ################# sync
             # if target is specified, we sync the datasets, otherwise we just thin the source. (e.g. snapshot mode)

@@ -162,7 +162,7 @@ class ZfsNode(ExecuteNode):
         """determine uniq new snapshotname"""
         return self.backup_name + "-" + time.strftime("%Y%m%d%H%M%S")
 
-    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmd=[], post_snapshot_cmd=[]):
+    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmds=[], post_snapshot_cmds=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
         """
 
@@ -193,7 +193,7 @@ class ZfsNode(ExecuteNode):
             return
 
         try:
-            for cmd in pre_snapshot_cmd:
+            for cmd in pre_snapshot_cmds:
                 self.verbose("Running pre-snapshot-cmd")
                 self.run(cmd=shlex.split(cmd), readonly=False)
 
@@ -207,9 +207,15 @@ class ZfsNode(ExecuteNode):
                 self.run(cmd, readonly=False)
 
         finally:
-            for cmd in post_snapshot_cmd:
+            for cmd in post_snapshot_cmds:
                 self.verbose("Running post-snapshot-cmd")
-                self.run(cmd=shlex.split(cmd), readonly=False, valid_exitcodes=[])
+                try:
+                    self.run(cmd=shlex.split(cmd), readonly=False)
+                except Exception as e:
+                    pass
+                    self.warning("Post snapshot command failed, ignoring.")
+
+
 
     def selected_datasets(self, exclude_received, exclude_paths):
         """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide

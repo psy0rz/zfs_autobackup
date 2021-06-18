@@ -279,19 +279,6 @@ root@ws1:~# zfs-autobackup test --verbose
 
 This also allows you to make several snapshots during the day, but only backup the data at night when the server is not busy.
 
-## Running custom commands before and after snapshotting
-
-If you need, e.g. to quiesce a couple of mysql databases to make on-disk data consistent before snapshotting, try:
-
-```sh
-zfs-autobackup \
-    --pre-snapshot-cmd 'daemon -f jexec mysqljail1 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! echo \$\$ > /tmp/mysql_lock.pid && sleep 60"' \
-    --pre-snapshot-cmd 'daemon -f jexec mysqljail2 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! echo \$\$ > /tmp/mysql_lock.pid && sleep 60"' \
-    --post-snapshot-cmd 'pkill -F /jails/mysqljail1/tmp/mysql_lock.pid' \
-    --post-snapshot-cmd 'pkill -F /jails/mysqljail2/tmp/mysql_lock.pid' \
-    test
-```
-
 ## Thinning out obsolete snapshots
 
 The thinner is the thing that destroys old snapshots on the source and target.
@@ -429,6 +416,25 @@ zfs send -> send buffer -> custom send pipes -> compression -> transfer rate lim
 
 #### On the receiving side:
 decompression -> custom recv pipes -> buffer -> zfs recv
+
+## Running custom commands before and after snapshotting
+
+If you need, e.g. to quiesce a couple of mysql databases to make on-disk data consistent before snapshotting, you can use the `--pre-snapshot-cmd` and `--post-snapshot-cmd` options.
+
+For example:
+
+```sh
+zfs-autobackup \
+    --pre-snapshot-cmd 'daemon -f jexec mysqljail1 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! echo \$\$ > /tmp/mysql_lock.pid && sleep 60"' \
+    --pre-snapshot-cmd 'daemon -f jexec mysqljail2 mysql -s -e "set autocommit=0;flush logs;flush tables with read lock;\\! echo \$\$ > /tmp/mysql_lock.pid && sleep 60"' \
+    --post-snapshot-cmd 'pkill -F /jails/mysqljail1/tmp/mysql_lock.pid' \
+    --post-snapshot-cmd 'pkill -F /jails/mysqljail2/tmp/mysql_lock.pid' \
+    backupfs1
+```
+
+The post-snapshot commands are ALWAYS executed, even if a pre-snapshot command or the actual snapshot fail.
+
+A failure of a post-snapshot command is non-fatal and will be ignored. The remaining post-snapshot commands wont be executed in that case.
 
 ## Tips
 
