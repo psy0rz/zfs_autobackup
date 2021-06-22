@@ -223,7 +223,12 @@ class ZfsDataset:
         if self.is_snapshot:
             raise (Exception("Please call this on a dataset."))
 
-        index = self.find_snapshot_index(snapshot)
+        if snapshot.name == self.properties.get("origin"):
+            # Special case when start snapshot filesystem is other
+            index = -1
+        else:
+            index = self.find_snapshot_index(snapshot)
+
         while index is not None and index < len(self.snapshots) - 1:
             index = index + 1
             if also_other_snapshots or self.snapshots[index].is_ours():
@@ -567,7 +572,10 @@ class ZfsDataset:
 
             # incremental?
             if prev_snapshot:
-                cmd.extend(["-i", "@" + prev_snapshot.snapshot_name])
+                if self.filesystem_name == prev_snapshot.filesystem_name:
+                    cmd.extend(["-i", "@" + prev_snapshot.snapshot_name])
+                else:
+                    cmd.extend(["-i", prev_snapshot.name])
 
             cmd.append(self.name)
 
@@ -776,6 +784,10 @@ class ZfsDataset:
         """
         if not target_dataset.snapshots:
             # target has nothing yet
+            origin = self.properties.get("origin")
+            if origin:
+                # We are a clone. The origin has earlier creation time and thus must have been already synced.
+                return ZfsDataset(self.zfs_node, origin)
             return None
         else:
             # snapshot=self.find_snapshot(target_dataset.snapshots[-1].snapshot_name)
@@ -986,7 +998,7 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, make_target_name):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1010,6 +1022,14 @@ class ZfsDataset:
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots)
+
+        if not target_dataset.exists and common_snapshot and common_snapshot.filesystem_name != target_dataset.filesystem_name:
+            target_origin = ZfsDataset(target_dataset.zfs_node, make_target_name(common_snapshot))
+            if not target_origin.exists:
+                raise Exception("Origin {} for clone {} does not exist on target.{}"
+                                .format(target_origin.name, target_dataset.name,
+                                        ("" if also_other_snapshots
+                                         else " You may want to retransfer {} with --other-snapshots.".format(common_snapshot.filesystem_name))))
 
         # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
