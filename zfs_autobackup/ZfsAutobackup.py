@@ -397,7 +397,9 @@ class ZfsAutobackup(ZfsAuto):
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force, guid_check=not self.args.no_guid_check)
+                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force,
+                                              guid_check=not self.args.no_guid_check,
+                                              make_target_name=lambda source_dataset: self.make_target_name(source_dataset))
             except Exception as e:
 
                 fail_count = fail_count + 1
