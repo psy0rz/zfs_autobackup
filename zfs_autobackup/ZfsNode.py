@@ -213,7 +213,6 @@ class ZfsNode(ExecuteNode):
                     self.run(cmd=shlex.split(cmd), readonly=False)
                 except Exception as e:
                     pass
-                    self.warning("Post snapshot command failed, ignoring.")
 
 
 

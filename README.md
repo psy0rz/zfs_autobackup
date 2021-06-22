@@ -419,7 +419,9 @@ decompression -> custom recv pipes -> buffer -> zfs recv
 
 ## Running custom commands before and after snapshotting
 
-If you need, e.g. to quiesce a couple of mysql databases to make on-disk data consistent before snapshotting, you can use the `--pre-snapshot-cmd` and `--post-snapshot-cmd` options.
+You can run commands before and after the snapshot to freeze databases to make the on for example to make the on-disk data consistent before snapshotting.
+
+The commands will be executed on the source side. Use the `--pre-snapshot-cmd` and `--post-snapshot-cmd` options for this.
 
 For example:
 
@@ -432,9 +434,10 @@ zfs-autobackup \
     backupfs1
 ```
 
-The post-snapshot commands are ALWAYS executed, even if a pre-snapshot command or the actual snapshot fail.
+Failure handling during pre/post commands:
 
-A failure of a post-snapshot command is non-fatal and will be ignored. The remaining post-snapshot commands wont be executed in that case.
+* If a pre-command fails, zfs-autobackup will exit with an error. (after executing the post-commands)
+* All post-commands are always executed. Even if the pre-commands or actual snapshot have failed. This way you can be sure that stuff is always cleanedup and unfreezed.
 
 ## Tips
 
