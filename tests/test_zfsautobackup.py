@@ -312,8 +312,6 @@ test_target1/test_source2/fs2
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-send --no-progress".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
-            #(only parents are created )
-            #TODO: it probably shouldn't create these
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -337,8 +335,6 @@ test_target1
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --ignore-replicated".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
-            #(only parents are created )
-            #TODO: it probably shouldn't create these
             self.assertMultiLineEqual(r,"""
 test_source1
 test_source1/fs1
@@ -851,7 +847,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
 """)
 
 
-        # make snapshot 4, since we used no-holds, it will delete 3 on the source, breaking the backup
+        # run with snapshot-only for 4, since we used no-holds, it will delete 3 on the source, breaking the backup
         with patch('time.strftime', return_value="20101111000004"):
             self.assertFalse(ZfsAutobackup("test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
 

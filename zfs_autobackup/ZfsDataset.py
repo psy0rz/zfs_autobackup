@@ -874,9 +874,13 @@ class ZfsDataset:
             :type target_keeps: list of ZfsDataset
         """
 
-        # on source: destroy all obsoletes before common.
+        # on source: destroy all obsoletes before common. (since we cant send them anyways)
         # But after common, only delete snapshots that target also doesn't want
-        before_common = True
+        if common_snapshot:
+            before_common = True
+        else:
+            before_common = False
+
         for source_snapshot in self.snapshots:
             if common_snapshot and source_snapshot.snapshot_name == common_snapshot.snapshot_name:
                 before_common = False
@@ -888,8 +892,8 @@ class ZfsDataset:
 
         # on target: destroy everything thats obsolete, except common_snapshot
         for target_snapshot in target_dataset.snapshots:
-            if (target_snapshot in target_obsoletes) and (
-                    not common_snapshot or target_snapshot.snapshot_name != common_snapshot.snapshot_name):
+            if (target_snapshot in target_obsoletes) \
+                    and ( not common_snapshot or (target_snapshot.snapshot_name != common_snapshot.snapshot_name)):
                 if target_snapshot.exists:
                     target_snapshot.destroy()
 
