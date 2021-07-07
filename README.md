@@ -754,7 +754,7 @@ for HOST in $HOSTS; do
   ssh $HOST "zfs set autobackup:data_$NAME=child rpool/data"
 
   #backup data filesystems to a common directory
-  zfs-autobackup --keep-source=1d1w,1w1m --ssh-source $HOST data_$NAME $TARGET/data --clear-mountpoint --clear-refreservation --ignore-transfer-errors --strip-path 2 --verbose  --ignore-replicated --min-change 200000 --no-holds   $@
+  zfs-autobackup --keep-source=1d1w,1w1m --ssh-source $HOST data_$NAME $TARGET/data --clear-mountpoint --clear-refreservation --ignore-transfer-errors --strip-path 2 --verbose  --ignore-replicated --min-change 300000 --no-holds   $@
 
   zabbix-job-status backup_$HOST""_data_$NAME daily $? >/dev/null 2>/dev/null
 
