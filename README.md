@@ -510,27 +510,25 @@ Look in man ssh_config for many more options.
 
 ## Usage
 
-(NOTE: Quite a lot has changed since the current stable version 3.0. The page your are viewing is for upcoming version 3.1 which is still in beta.)
-
 ```console
 usage: zfs-autobackup [-h] [--ssh-config CONFIG-FILE] [--ssh-source USER@HOST]
-                      [--ssh-target USER@HOST] [--keep-source SCHEDULE]
-                      [--keep-target SCHEDULE] [--pre-snapshot-cmd COMMAND]
-                      [--post-snapshot-cmd COMMAND] [--other-snapshots]
-                      [--no-snapshot] [--no-send] [--no-thinning] [--no-holds]
-                      [--min-change BYTES] [--allow-empty]
-                      [--ignore-replicated] [--strip-path N]
-                      [--clear-refreservation] [--clear-mountpoint]
-                      [--filter-properties PROPERY,...]
-                      [--set-properties PROPERTY=VALUE,...] [--rollback]
-                      [--destroy-incompatible] [--destroy-missing SCHEDULE]
-                      [--ignore-transfer-errors] [--decrypt] [--encrypt]
-                      [--test] [--verbose] [--debug] [--debug-output]
-                      [--progress] [--send-pipe COMMAND] [--recv-pipe COMMAND]
-                      [--compress TYPE] [--rate DATARATE] [--buffer SIZE]
-                      backup-name [target-path]
+                   [--ssh-target USER@HOST] [--keep-source SCHEDULE]
+                   [--keep-target SCHEDULE] [--pre-snapshot-cmd COMMAND]
+                   [--post-snapshot-cmd COMMAND] [--other-snapshots]
+                   [--no-snapshot] [--no-send] [--no-thinning] [--no-holds]
+                   [--min-change BYTES] [--allow-empty] [--ignore-replicated]
+                   [--strip-path N] [--clear-refreservation]
+                   [--clear-mountpoint] [--filter-properties PROPERTY,...]
+                   [--set-properties PROPERTY=VALUE,...] [--rollback]
+                   [--destroy-incompatible] [--destroy-missing SCHEDULE]
+                   [--ignore-transfer-errors] [--decrypt] [--encrypt]
+                   [--zfs-compressed] [--test] [--verbose] [--debug]
+                   [--debug-output] [--progress] [--send-pipe COMMAND]
+                   [--recv-pipe COMMAND] [--compress TYPE] [--rate DATARATE]
+                   [--buffer SIZE]
+                   backup-name [target-path]
 
-zfs-autobackup v3.1-beta6 - (c)2021 E.H.Eefting (edwin@datux.nl)
+zfs-autobackup v3.1 - (c)2021 E.H.Eefting (edwin@datux.nl)
 
 positional arguments:
   backup-name           Name of the backup (you should set the zfs property
@@ -576,7 +574,6 @@ optional arguments:
   --ignore-replicated   Ignore datasets that seem to be replicated some other
                         way. (No changes since lastest snapshot. Useful for
                         proxmox HA replication)
-
   --strip-path N        Number of directories to strip from target path (use 1
                         when cloning zones between 2 SmartOS machines)
   --clear-refreservation
@@ -585,7 +582,7 @@ optional arguments:
   --clear-mountpoint    Set property canmount=noauto for new datasets.
                         (recommended, prevents mount conflicts. same as --set-
                         properties canmount=noauto)
-  --filter-properties PROPERY,...
+  --filter-properties PROPERTY,...
                         List of properties to "filter" when receiving
                         filesystems. (you can still restore them with zfs
                         inherit -S)
@@ -608,6 +605,8 @@ optional arguments:
                         filesystem exists. useful for acltype errors)
   --decrypt             Decrypt data before sending it over.
   --encrypt             Encrypt data after receiving it.
+  --zfs-compressed      Transfer blocks that already have zfs-compression as-
+                        is.
   --test                dont change anything, just show what would be done
                         (still does all read-only operations)
   --verbose             verbose output
@@ -621,14 +620,15 @@ optional arguments:
   --recv-pipe COMMAND   pipe zfs recv input through COMMAND (can be used
                         multiple times)
   --compress TYPE       Use compression during transfer, zstd-fast
-                        recommended. (zstd-slow, xz, pigz-fast, lz4, pigz-
-                        slow, zstd-fast, gzip, lzo)
+                        recommended. (xz, pigz-slow, zstd-slow, zstd-fast,
+                        lzo, gzip, pigz-fast, lz4)
   --rate DATARATE       Limit data transfer rate (e.g. 128K. requires
                         mbuffer.)
   --buffer SIZE         Add zfs send and recv buffers to smooth out IO bursts.
                         (e.g. 128M. requires mbuffer)
 
 Full manual at: https://github.com/psy0rz/zfs_autobackup
+
 ```
 
 ## Troubleshooting
