@@ -619,9 +619,9 @@ optional arguments:
                         multiple times)
   --recv-pipe COMMAND   pipe zfs recv input through COMMAND (can be used
                         multiple times)
-  --compress TYPE       Use compression during transfer, zstd-fast
-                        recommended. (xz, pigz-slow, zstd-slow, zstd-fast,
-                        lzo, gzip, pigz-fast, lz4)
+  --compress TYPE       Use compression during transfer, defaults to zstd-adapt
+                        if TYPE is not specified. (gzip, pigz-fast, pigz-slow,
+                        zstd-fast, zstd-slow, zstd-adapt, xz, lzo, lz4)
   --rate DATARATE       Limit data transfer rate (e.g. 128K. requires
                         mbuffer.)
   --buffer SIZE         Add zfs send and recv buffers to smooth out IO bursts.
