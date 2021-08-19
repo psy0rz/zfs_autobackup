@@ -35,6 +35,12 @@ COMPRESS_CMDS = {
         'dcmd': 'zstdmt',
         'dargs': [ '-dc' ],
     },
+    'zstd-adapt': {
+        'cmd': 'zstdmt',
+        'args': [ '--adapt' ],
+        'dcmd': 'zstdmt',
+        'dargs': [ '-dc' ],
+    },
     'xz': {
         'cmd': 'xz',
         'args': [],
