@@ -279,6 +279,8 @@ root@ws1:~# zfs-autobackup test --verbose
 
 This also allows you to make several snapshots during the day, but only backup the data at night when the server is not busy.
 
+**Note**: In this mode it doesnt take a specified target-schedule into account when thinning, it only knows a snapshot is the common snapshot by looking at the holds. So make sure your source-schedule keeps the snapshots you still want to transfer at a later point.
+
 ## Thinning out obsolete snapshots
 
 The thinner is the thing that destroys old snapshots on the source and target.
