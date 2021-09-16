@@ -66,7 +66,10 @@ class ZfsAutobackup:
         parser.add_argument('--ignore-replicated', action='store_true',
                             help='Ignore datasets that seem to be replicated some other way. (No changes since '
                                  'lastest snapshot. Useful for proxmox HA replication)')
-
+        parser.add_argument('--exclude-received', action='store_true',
+                            help='Ignore datasets that have the origin of their autobackup: property as "received". '
+                                 'This can avoid recursive replication between two backup partners. You would usually '
+                                 'use --ignore-replicated instead of this option.')
         parser.add_argument('--strip-path', metavar='N', default=0, type=int,
                             help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
                                  'SmartOS machines)')
@@ -121,8 +124,6 @@ class ZfsAutobackup:
 
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--exclude-received', action='store_true',
-                            help=argparse.SUPPRESS)  # probably never needed anymore
 
         #these things all do stuff by piping zfs send/recv IO
         parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
@@ -481,7 +482,10 @@ class ZfsAutobackup:
             ################# select source datasets
             self.set_title("Selecting")
 
-            #Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanto to replicate an existing backup to another host and use the same backupname/snapshots.
+            # Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanted to
+            # replicate an existing backup to another host and use the same backupname/snapshots. However, exclude_received
+            # may still need to be used to explicitly exclude a backup with the 'received' source to avoid accidental
+            # recursive replication of a zvol that is currently being received in another session (as it will have changes).
             exclude_paths = []
             exclude_received=self.args.exclude_received
             if self.args.ssh_source == self.args.ssh_target:
