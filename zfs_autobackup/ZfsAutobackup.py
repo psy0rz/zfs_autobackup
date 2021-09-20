@@ -126,9 +126,9 @@ class ZfsAutobackup:
                             help='pipe zfs send output through COMMAND (can be used multiple times)')
         parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
                             help='pipe zfs recv input through COMMAND (can be used multiple times)')
-        parser.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-adapt',
+        parser.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-fast',
                             choices=compressors.choices(),
-                            help='Use compression during transfer, defaults to zstd-adapt if TYPE is not specified. ({})'.format(
+                            help='Use compression during transfer, defaults to zstd-fast if TYPE is not specified. ({})'.format(
                                 ", ".join(compressors.choices())))
         parser.add_argument('--rate', metavar='DATARATE', default=None,
                             help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
