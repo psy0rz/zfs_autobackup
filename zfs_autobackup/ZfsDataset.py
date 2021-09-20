@@ -112,7 +112,7 @@ class ZfsDataset:
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
 
-    def is_selected(self, value, source, inherited, exclude_received, exclude_paths):
+    def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged, min_change):
         """determine if dataset should be selected for backup (called from
         ZfsNode)
 
@@ -122,6 +122,12 @@ class ZfsDataset:
             :type source: str
             :type inherited: bool
             :type exclude_received: bool
+            :type exclude_unchanged: bool
+            :type min_change: bool
+
+            :param value: Value of the zfs property ("false"/"true"/"child"/"-")
+            :param source: Source of the zfs property ("local"/"received", "-")
+            :param inherited: True of the value/source was inherited from a higher dataset.
         """
 
         # sanity checks
@@ -135,28 +141,40 @@ class ZfsDataset:
             raise (Exception(
                 "{} autobackup-property has illegal value: '{}'".format(self.name, value)))
 
+        # non specified, ignore
+        if value == "-":
+            return False
+
+        # only select childs of this dataset, ignore
+        if value == "child" and not inherited:
+            return False
+
+        # manually excluded by property
+        if value == "false":
+            self.verbose("Excluded")
+            return False
+
+        # from here on the dataset is selected by property, now do additional exclusion checks
+
         # our path starts with one of the excluded paths?
         for exclude_path in exclude_paths:
             if self.name.startswith(exclude_path):
                 # too noisy for verbose
-                self.debug("Excluded (in exclude list)")
+                self.debug("Excluded (path in exclude list)")
                 return False
 
-        # now determine if its actually selected
-        if value == "false":
-            self.verbose("Excluded (disabled)")
+        if source == "received":
+            if exclude_received:
+                self.verbose("Excluded (dataset already received)")
+                return False
+
+        if exclude_unchanged and not self.is_changed(min_change):
+            self.verbose("Excluded (unchanged since last snapshot)")
             return False
-        elif value == "true" or (value == "child" and inherited):
-            if source == "local":
-                self.verbose("Selected")
-                return True
-            elif source == "received":
-                if exclude_received:
-                    self.verbose("Excluded (dataset already received)")
-                    return False
-                else:
-                    self.verbose("Selected")
-                    return True
+
+        self.verbose("Selected")
+        return True
+
 
     @CachedProperty
     def parent(self):
@@ -295,6 +313,7 @@ class ZfsDataset:
 
         if min_changed_bytes == 0:
             return True
+
 
         if int(self.properties['written']) < min_changed_bytes:
             return False

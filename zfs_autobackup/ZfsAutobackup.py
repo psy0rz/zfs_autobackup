@@ -11,12 +11,10 @@ from zfs_autobackup.ZfsNode import ZfsNode
 from zfs_autobackup.ThinnerRule import ThinnerRule
 
 
-
-
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.1"
+    VERSION = "3.1.1-beta1"
     HEADER = "zfs-autobackup v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
@@ -63,18 +61,16 @@ class ZfsAutobackup:
                                  'default)s)')
         parser.add_argument('--allow-empty', action='store_true',
                             help='If nothing has changed, still create empty snapshots. (same as --min-change=0)')
-        parser.add_argument('--ignore-replicated', action='store_true',
-                            help='Ignore datasets that seem to be replicated some other way. (No changes since '
-                                 'lastest snapshot. Useful for proxmox HA replication)')
+
+        parser.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--exclude-unchanged', action='store_true',
+                            help='Exclude datasets that have no changes since any last snapshot. (Useful in combination with proxmox HA replication)')
         parser.add_argument('--exclude-received', action='store_true',
-                            help='Ignore datasets that have the origin of their autobackup: property as "received". '
-                                 'This can avoid recursive replication between two backup partners. You would usually '
-                                 'use --ignore-replicated instead of this option.')
+                            help='Exclude datasets that have the origin of their autobackup: property as "received". '
+                                 'This can avoid recursive replication between two backup partners.')
         parser.add_argument('--strip-path', metavar='N', default=0, type=int,
                             help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
                                  'SmartOS machines)')
-        # parser.add_argument('--buffer', default="",  help='Use mbuffer with specified size to speedup zfs transfer.
-        # (e.g. --buffer 1G) Will also show nice progress output.')
 
         parser.add_argument('--clear-refreservation', action='store_true',
                             help='Filter "refreservation" property. (recommended, safes space. same as '
@@ -125,16 +121,19 @@ class ZfsAutobackup:
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
 
-        #these things all do stuff by piping zfs send/recv IO
+        # these things all do stuff by piping zfs send/recv IO
         parser.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
                             help='pipe zfs send output through COMMAND (can be used multiple times)')
         parser.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
                             help='pipe zfs recv input through COMMAND (can be used multiple times)')
-        parser.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-adapt', choices=compressors.choices(), help='Use compression during transfer, defaults to zstd-adapt if TYPE is not specified. ({})'.format(", ".join(compressors.choices())))
-        parser.add_argument('--rate', metavar='DATARATE', default=None, help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
-        parser.add_argument('--buffer', metavar='SIZE', default=None, help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
-
-
+        parser.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-adapt',
+                            choices=compressors.choices(),
+                            help='Use compression during transfer, defaults to zstd-adapt if TYPE is not specified. ({})'.format(
+                                ", ".join(compressors.choices())))
+        parser.add_argument('--rate', metavar='DATARATE', default=None,
+                            help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
+        parser.add_argument('--buffer', metavar='SIZE', default=None,
+                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
 
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
@@ -176,6 +175,10 @@ class ZfsAutobackup:
 
         if args.compress and args.zfs_compressed:
             self.warning("Using --compress with --zfs-compressed, might be inefficient.")
+
+        if args.ignore_replicated:
+            self.warning("--ignore-replicated has been renamed, using --exclude-unchanged")
+            args.exclude_unchanged = True
 
     def verbose(self, txt):
         self.log.verbose(txt)
@@ -289,12 +292,12 @@ class ZfsAutobackup:
     def get_send_pipes(self, logger):
         """determine the zfs send pipe"""
 
-        ret=[]
+        ret = []
 
         # IO buffer
         if self.args.buffer:
             logger("zfs send buffer        : {}".format(self.args.buffer))
-            ret.extend([ ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m"+self.args.buffer ])
+            ret.extend([ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m" + self.args.buffer])
 
         # custom pipes
         for send_pipe in self.args.send_pipe:
@@ -303,27 +306,26 @@ class ZfsAutobackup:
             logger("zfs send custom pipe   : {}".format(send_pipe))
 
         # compression
-        if self.args.compress!=None:
+        if self.args.compress != None:
             ret.append(ExecuteNode.PIPE)
-            cmd=compressors.compress_cmd(self.args.compress)
+            cmd = compressors.compress_cmd(self.args.compress)
             ret.extend(cmd)
             logger("zfs send compression   : {}".format(" ".join(cmd)))
 
         # transfer rate
         if self.args.rate:
             logger("zfs send transfer rate : {}".format(self.args.rate))
-            ret.extend([ ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m16M", "-R"+self.args.rate ])
-
+            ret.extend([ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m16M", "-R" + self.args.rate])
 
         return ret
 
     def get_recv_pipes(self, logger):
 
-        ret=[]
+        ret = []
 
         # decompression
-        if self.args.compress!=None:
-            cmd=compressors.decompress_cmd(self.args.compress)
+        if self.args.compress != None:
+            cmd = compressors.decompress_cmd(self.args.compress)
             ret.extend(cmd)
             ret.append(ExecuteNode.PIPE)
             logger("zfs recv decompression : {}".format(" ".join(cmd)))
@@ -336,10 +338,10 @@ class ZfsAutobackup:
 
         # IO buffer
         if self.args.buffer:
-            #only add second buffer if its usefull. (e.g. non local transfer or other pipes active)
-            if self.args.ssh_source!=None or self.args.ssh_target!=None or self.args.recv_pipe or self.args.send_pipe or self.args.compress!=None:
+            # only add second buffer if its usefull. (e.g. non local transfer or other pipes active)
+            if self.args.ssh_source != None or self.args.ssh_target != None or self.args.recv_pipe or self.args.send_pipe or self.args.compress != None:
                 logger("zfs recv buffer        : {}".format(self.args.buffer))
-                ret.extend(["mbuffer", "-q", "-s128k", "-m"+self.args.buffer,  ExecuteNode.PIPE ])
+                ret.extend(["mbuffer", "-q", "-s128k", "-m" + self.args.buffer, ExecuteNode.PIPE])
 
         return ret
 
@@ -351,8 +353,8 @@ class ZfsAutobackup:
         :type source_node: ZfsNode
         """
 
-        send_pipes=self.get_send_pipes(source_node.verbose)
-        recv_pipes=self.get_recv_pipes(target_node.verbose)
+        send_pipes = self.get_send_pipes(source_node.verbose)
+        recv_pipes = self.get_recv_pipes(target_node.verbose)
 
         fail_count = 0
         count = 0
@@ -392,7 +394,8 @@ class ZfsAutobackup:
                                               no_send=self.args.no_send,
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
-                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt, zfs_compressed=self.args.zfs_compressed )
+                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt,
+                                              zfs_compressed=self.args.zfs_compressed)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -417,20 +420,6 @@ class ZfsAutobackup:
 
         for source_dataset in source_datasets:
             source_dataset.thin(skip_holds=True)
-
-    def filter_replicated(self, datasets):
-        if not self.args.ignore_replicated:
-            return datasets
-        else:
-            self.set_title("Filtering already replicated filesystems")
-            ret = []
-            for dataset in datasets:
-                if dataset.is_changed(self.args.min_change):
-                    ret.append(dataset)
-                else:
-                    dataset.verbose("Ignoring, already replicated")
-
-            return ret
 
     def filter_properties_list(self):
 
@@ -487,7 +476,7 @@ class ZfsAutobackup:
             # may still need to be used to explicitly exclude a backup with the 'received' source to avoid accidental
             # recursive replication of a zvol that is currently being received in another session (as it will have changes).
             exclude_paths = []
-            exclude_received=self.args.exclude_received
+            exclude_received = self.args.exclude_received
             if self.args.ssh_source == self.args.ssh_target:
                 if self.args.target_path:
                     # target and source are the same, make sure to exclude target_path
@@ -495,20 +484,18 @@ class ZfsAutobackup:
                     exclude_paths.append(self.args.target_path)
                 else:
                     self.warning("Source and target are on the same host, excluding received datasets from selection.")
-                    exclude_received=True
+                    exclude_received = True
 
-
-            selected_source_datasets = source_node.selected_datasets(exclude_received=exclude_received,
-                                                                     exclude_paths=exclude_paths)
-            if not selected_source_datasets:
+            source_datasets = source_node.selected_datasets(exclude_received=exclude_received,
+                                                                     exclude_paths=exclude_paths,
+                                                                     exclude_unchanged=self.args.exclude_unchanged,
+                                                                     min_change=self.args.min_change)
+            if not source_datasets:
                 self.error(
                     "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
                     "you want to select.".format(
                         self.args.backup_name))
                 return 255
-
-            # filter out already replicated stuff?
-            source_datasets = self.filter_replicated(selected_source_datasets)
 
             ################# snapshotting
             if not self.args.no_snapshot:

@@ -15,7 +15,7 @@ class TestZfsNode(unittest2.TestCase):
         node = ZfsNode("test", logger, description=description)
 
         with self.subTest("first snapshot"):
-            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False), "test-1", 100000)
+            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-1", 100000)
             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
             self.assertEqual(r, """
 test_source1
@@ -33,7 +33,7 @@ test_target1
 """)
 
         with self.subTest("second snapshot, no changes, no snapshot"):
-            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False), "test-2", 1)
+            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-2", 1)
             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
             self.assertEqual(r, """
 test_source1
@@ -51,7 +51,7 @@ test_target1
 """)
 
         with self.subTest("second snapshot, no changes, empty snapshot"):
-            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False), "test-2", 0)
+            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-2", 0)
             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
             self.assertEqual(r, """
 test_source1
@@ -79,7 +79,7 @@ test_target1
         with self.subTest("Test if all cmds are executed correctly (no failures)"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False), "test-1",
+                    node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
                                              0,
                                              pre_snapshot_cmds=["echo pre1", "echo pre2"],
                                              post_snapshot_cmds=["echo post1 >&2", "echo post2 >&2"]
@@ -95,7 +95,7 @@ test_target1
             with OutputIO() as buf:
                 with redirect_stdout(buf):
                     with self.assertRaises(ExecuteError):
-                        node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False), "test-1",
+                        node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
                                                  0,
                                                  pre_snapshot_cmds=["echo pre1", "false", "echo pre2"],
                                                  post_snapshot_cmds=["echo post1", "false", "echo post2"]
@@ -112,7 +112,7 @@ test_target1
                 with redirect_stdout(buf):
                     with self.assertRaises(ExecuteError):
                         #same snapshot name as before so it fails
-                        node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False), "test-1",
+                        node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
                                                  0,
                                                  pre_snapshot_cmds=["echo pre1", "echo pre2"],
                                                  post_snapshot_cmds=["echo post1", "echo post2"]
@@ -126,10 +126,19 @@ test_target1
 
 
     def test_getselected(self):
+
+        # should be excluded by property
+        shelltest("zfs create test_source1/fs1/subexcluded")
+        shelltest("zfs set autobackup:test=false test_source1/fs1/subexcluded")
+
+        # should be excluded by being unchanged
+        shelltest("zfs create test_source1/fs1/unchanged")
+        shelltest("zfs snapshot test_source1/fs1/unchanged@somesnapshot")
+
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode("test", logger, description=description)
-        s = pformat(node.selected_datasets(exclude_paths=[], exclude_received=False))
+        s = pformat(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=True, min_change=1))
         print(s)
 
         # basics
@@ -137,11 +146,6 @@ test_target1
  (local): test_source1/fs1/sub,
  (local): test_source2/fs2/sub]""")
 
-        # caching, so expect same result after changing it
-        subprocess.check_call("zfs set autobackup:test=true test_source2/fs3", shell=True)
-        self.assertEqual(s, """[(local): test_source1/fs1,
- (local): test_source1/fs1/sub,
- (local): test_source2/fs2/sub]""")
 
     def test_validcommand(self):
         logger = LogStub()
