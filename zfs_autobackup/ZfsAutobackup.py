@@ -36,10 +36,10 @@ class ZfsAutobackup:
         parser.add_argument('--keep-target', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
                             help='Thinning schedule for old target snapshots. Default: %(default)s')
 
-        parser.add_argument('backup_name', metavar='backup-name',
+        parser.add_argument('backup_name', metavar='BACKUP-NAME', default=None, nargs='?',
                             help='Name of the backup (you should set the zfs property "autobackup:backup-name" to '
                                  'true on filesystems you want to backup')
-        parser.add_argument('target_path', metavar='target-path', default=None, nargs='?',
+        parser.add_argument('target_path', metavar='TARGET-PATH', default=None, nargs='?',
                             help='Target ZFS filesystem (optional: if not specified, zfs-autobackup will only operate '
                                  'as snapshot-tool on source)')
 
@@ -105,11 +105,11 @@ class ZfsAutobackup:
         parser.add_argument('--zfs-compressed', action='store_true',
                             help='Transfer blocks that already have zfs-compression as-is.')
 
-        parser.add_argument('--test', action='store_true',
+        parser.add_argument('--test','--dry-run', '-n', action='store_true',
                             help='dont change anything, just show what would be done (still does all read-only '
                                  'operations)')
-        parser.add_argument('--verbose', action='store_true', help='verbose output')
-        parser.add_argument('--debug', action='store_true',
+        parser.add_argument('--verbose','-v', action='store_true', help='verbose output')
+        parser.add_argument('--debug','-d', action='store_true',
                             help='Show zfs commands that are executed, stops after an exception.')
         parser.add_argument('--debug-output', action='store_true',
                             help='Show zfs commands and their output/exit codes. (noisy)')
@@ -135,10 +135,17 @@ class ZfsAutobackup:
         parser.add_argument('--buffer', metavar='SIZE', default=None,
                             help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
 
+        parser.add_argument('--version', action='store_true',
+                            help='Show version.')
+
         # note args is the only global variable we use, since its a global readonly setting anyway
         args = parser.parse_args(argv)
 
         self.args = args
+
+        if args.version:
+            print(self.HEADER)
+            sys.exit(255)
 
         # auto enable progress?
         if sys.stderr.isatty() and not args.no_progress:
@@ -158,6 +165,11 @@ class ZfsAutobackup:
 
         self.log = LogConsole(show_debug=self.args.debug, show_verbose=self.args.verbose, color=sys.stdout.isatty())
         self.verbose(self.HEADER)
+
+        if args.backup_name==None:
+            parser.print_usage()
+            self.log.error("Please specify BACKUP-NAME")
+            sys.exit(255)
 
         if args.resume:
             self.warning("The --resume option isn't needed anymore (its autodetected now)")
