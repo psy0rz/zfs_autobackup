@@ -106,7 +106,7 @@ class ZfsAutobackup:
                             help='Transfer blocks that already have zfs-compression as-is.')
 
         parser.add_argument('--test','--dry-run', '-n', action='store_true',
-                            help='dont change anything, just show what would be done (still does all read-only '
+                            help='Dry run, dont change anything, just show what would be done (still does all read-only '
                                  'operations)')
         parser.add_argument('--verbose','-v', action='store_true', help='verbose output')
         parser.add_argument('--debug','-d', action='store_true',
