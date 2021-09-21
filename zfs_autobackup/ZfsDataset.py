@@ -1,8 +1,8 @@
 import re
 import time
 
-from zfs_autobackup.CachedProperty import CachedProperty
-from zfs_autobackup.ExecuteNode import ExecuteError
+from .CachedProperty import CachedProperty
+from .ExecuteNode import ExecuteError
 
 
 class ZfsDataset:
