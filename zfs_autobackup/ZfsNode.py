@@ -6,12 +6,12 @@ import subprocess
 import sys
 import time
 
-from zfs_autobackup.ExecuteNode import ExecuteNode
-from zfs_autobackup.Thinner import Thinner
-from zfs_autobackup.CachedProperty import CachedProperty
-from zfs_autobackup.ZfsPool import ZfsPool
-from zfs_autobackup.ZfsDataset import ZfsDataset
-from zfs_autobackup.ExecuteNode import ExecuteError
+from .ExecuteNode import ExecuteNode
+from .Thinner import Thinner
+from .CachedProperty import CachedProperty
+from .ZfsPool import ZfsPool
+from .ZfsDataset import ZfsDataset
+from .ExecuteNode import ExecuteError
 
 
 class ZfsNode(ExecuteNode):

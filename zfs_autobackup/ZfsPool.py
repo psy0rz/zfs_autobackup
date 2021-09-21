@@ -1,4 +1,4 @@
-from zfs_autobackup.CachedProperty import CachedProperty
+from .CachedProperty import CachedProperty
 
 
 class ZfsPool():

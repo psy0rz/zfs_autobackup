@@ -1,6 +1,6 @@
 import time
 
-from zfs_autobackup.ThinnerRule import ThinnerRule
+from .ThinnerRule import ThinnerRule
 
 
 class Thinner:
