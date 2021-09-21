@@ -476,9 +476,14 @@ class ZfsAutobackup:
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner)
             source_node.verbose(
-                "Selects all datasets that have property 'autobackup:{}=true' (or children of datasets that have "
-                "'autobackup:{}=child')".format(
+                "Selecting dataset property: 'autobackup:{}'".format(
                     self.args.backup_name, self.args.backup_name))
+
+            source_node.verbose("Snapshot prefix           : '{}-'".format(self.args.backup_name))
+
+            if not self.args.no_holds:
+                source_node.verbose("Hold name                 : '{}'".format("zfs_autobackup:" + self.args.backup_name))
+
 
             ################# select source datasets
             self.set_title("Selecting")
