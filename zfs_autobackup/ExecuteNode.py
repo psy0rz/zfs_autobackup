@@ -1,8 +1,8 @@
 import os
 import select
 import subprocess
-from zfs_autobackup.CmdPipe import CmdPipe, CmdItem
-from zfs_autobackup.LogStub import LogStub
+from .CmdPipe import CmdPipe, CmdItem
+from .LogStub import LogStub
 
 try:
     from shlex import quote as cmd_quote

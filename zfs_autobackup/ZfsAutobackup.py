@@ -2,13 +2,13 @@ import argparse
 import sys
 import time
 
-from zfs_autobackup import compressors
-from zfs_autobackup.ExecuteNode import ExecuteNode
-from zfs_autobackup.Thinner import Thinner
-from zfs_autobackup.ZfsDataset import ZfsDataset
-from zfs_autobackup.LogConsole import LogConsole
-from zfs_autobackup.ZfsNode import ZfsNode
-from zfs_autobackup.ThinnerRule import ThinnerRule
+from . import compressors
+from .ExecuteNode import ExecuteNode
+from .Thinner import Thinner
+from .ZfsDataset import ZfsDataset
+from .LogConsole import LogConsole
+from .ZfsNode import ZfsNode
+from .ThinnerRule import ThinnerRule
 
 
 class ZfsAutobackup:
