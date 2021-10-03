@@ -325,7 +325,6 @@ class ZfsDataset:
         try:
             test = self.timestamp
         except ValueError as e:
-            self.error(str(e))
             return False
 
         return True
