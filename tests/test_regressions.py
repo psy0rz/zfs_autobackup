@@ -11,17 +11,17 @@ class TestZfsNode(unittest2.TestCase):
     def test_keepsource0target10queuedsend(self):
         """Test if thinner doesnt destroy too much early on if there are no common snapshots YET. Issue #84"""
 
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty --no-send".split(
                     " ")).run())
 
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty --no-send".split(
                     " ")).run())
 
-        with patch('time.strftime', return_value="20101111000002"):
+        with patch('time.strftime', return_value="test-20101111000002"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty".split(
                     " ")).run())

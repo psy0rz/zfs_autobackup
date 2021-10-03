@@ -12,60 +12,60 @@ class TestZfsNode(unittest2.TestCase):
     def test_consistent_snapshot(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode("test", logger, description=description)
+        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
 
         with self.subTest("first snapshot"):
-            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-1", 100000)
+            node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test",exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-20101111000001", 100000)
             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
             self.assertEqual(r, """
 test_source1
 test_source1/fs1
-test_source1/fs1@test-1
+test_source1/fs1@test-20101111000001
 test_source1/fs1/sub
-test_source1/fs1/sub@test-1
+test_source1/fs1/sub@test-20101111000001
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
-test_source2/fs2/sub@test-1
+test_source2/fs2/sub@test-20101111000001
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
 """)
 
         with self.subTest("second snapshot, no changes, no snapshot"):
-            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-2", 1)
+            node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test",exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-20101111000002", 1)
             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
             self.assertEqual(r, """
 test_source1
 test_source1/fs1
-test_source1/fs1@test-1
+test_source1/fs1@test-20101111000001
 test_source1/fs1/sub
-test_source1/fs1/sub@test-1
+test_source1/fs1/sub@test-20101111000001
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
-test_source2/fs2/sub@test-1
+test_source2/fs2/sub@test-20101111000001
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
 """)
 
         with self.subTest("second snapshot, no changes, empty snapshot"):
-            node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-2", 0)
+            node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-20101111000002", 0)
             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
             self.assertEqual(r, """
 test_source1
 test_source1/fs1
-test_source1/fs1@test-1
-test_source1/fs1@test-2
+test_source1/fs1@test-20101111000001
+test_source1/fs1@test-20101111000002
 test_source1/fs1/sub
-test_source1/fs1/sub@test-1
-test_source1/fs1/sub@test-2
+test_source1/fs1/sub@test-20101111000001
+test_source1/fs1/sub@test-20101111000002
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
-test_source2/fs2/sub@test-1
-test_source2/fs2/sub@test-2
+test_source2/fs2/sub@test-20101111000001
+test_source2/fs2/sub@test-20101111000002
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
@@ -74,12 +74,12 @@ test_target1
     def test_consistent_snapshot_prepostcmds(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode("test", logger, description=description, debug_output=True)
+        node = ZfsNode(snapshot_time_format="test", hold_name="test", logger=logger, description=description, debug_output=True)
 
         with self.subTest("Test if all cmds are executed correctly (no failures)"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
+                    node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
                                              0,
                                              pre_snapshot_cmds=["echo pre1", "echo pre2"],
                                              post_snapshot_cmds=["echo post1 >&2", "echo post2 >&2"]
@@ -95,7 +95,7 @@ test_target1
             with OutputIO() as buf:
                 with redirect_stdout(buf):
                     with self.assertRaises(ExecuteError):
-                        node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
+                        node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
                                                  0,
                                                  pre_snapshot_cmds=["echo pre1", "false", "echo pre2"],
                                                  post_snapshot_cmds=["echo post1", "false", "echo post2"]
@@ -112,7 +112,7 @@ test_target1
                 with redirect_stdout(buf):
                     with self.assertRaises(ExecuteError):
                         #same snapshot name as before so it fails
-                        node.consistent_snapshot(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
+                        node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1), "test-1",
                                                  0,
                                                  pre_snapshot_cmds=["echo pre1", "echo pre2"],
                                                  post_snapshot_cmds=["echo post1", "echo post2"]
@@ -137,8 +137,8 @@ test_target1
 
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode("test", logger, description=description)
-        s = pformat(node.selected_datasets(exclude_paths=[], exclude_received=False, exclude_unchanged=True, min_change=1))
+        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+        s = pformat(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=True, min_change=1))
         print(s)
 
         # basics
@@ -150,7 +150,7 @@ test_target1
     def test_validcommand(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode("test", logger, description=description)
+        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
 
         with self.subTest("test invalid option"):
             self.assertFalse(node.valid_command(["zfs", "send", "--invalid-option", "nonexisting"]))
@@ -160,7 +160,7 @@ test_target1
     def test_supportedsendoptions(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode("test", logger, description=description)
+        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
         # -D propably always supported
         self.assertGreater(len(node.supported_send_options), 0)
 
@@ -168,7 +168,7 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         # NOTE: this could hang via ssh if we dont close filehandles properly. (which was a previous bug)
-        node = ZfsNode("test", logger, description=description, ssh_to='localhost')
+        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description, ssh_to='localhost')
         self.assertIsInstance(node.supported_recv_options, list)
 
 

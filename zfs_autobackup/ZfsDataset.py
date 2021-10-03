@@ -321,15 +321,14 @@ class ZfsDataset:
             return True
 
     def is_ours(self):
-        """return true if this snapshot is created by this backup_name"""
-        if re.match("^" + self.zfs_node.backup_name + "-[0-9]*$", self.snapshot_name):
-            return True
-        else:
+        """return true if this snapshot name has format"""
+        try:
+            test = self.timestamp
+        except ValueError as e:
+            self.error(str(e))
             return False
 
-    @property
-    def _hold_name(self):
-        return "zfs_autobackup:" + self.zfs_node.backup_name
+        return True
 
     @property
     def holds(self):
@@ -341,30 +340,26 @@ class ZfsDataset:
 
     def is_hold(self):
         """did we hold this snapshot?"""
-        return self._hold_name in self.holds
+        return self.zfs_node.hold_name in self.holds
 
     def hold(self):
         """hold dataset"""
         self.debug("holding")
-        self.zfs_node.run(["zfs", "hold", self._hold_name, self.name], valid_exitcodes=[0, 1])
+        self.zfs_node.run(["zfs", "hold", self.zfs_node.hold_name, self.name], valid_exitcodes=[0, 1])
 
     def release(self):
         """release dataset"""
         if self.zfs_node.readonly or self.is_hold():
             self.debug("releasing")
-            self.zfs_node.run(["zfs", "release", self._hold_name, self.name], valid_exitcodes=[0, 1])
+            self.zfs_node.run(["zfs", "release", self.zfs_node.hold_name, self.name], valid_exitcodes=[0, 1])
 
     @property
     def timestamp(self):
         """get timestamp from snapshot name. Only works for our own snapshots
         with the correct format.
         """
-        time_str = re.findall("^.*-([0-9]*)$", self.snapshot_name)[0]
-        if len(time_str) != 14:
-            raise (Exception("Snapshot has invalid timestamp in name: {}".format(self.snapshot_name)))
 
-        # new format:
-        time_secs = time.mktime(time.strptime(time_str, "%Y%m%d%H%M%S"))
+        time_secs = time.mktime(time.strptime(self.snapshot_name, self.zfs_node.snapshot_time_format))
         return time_secs
 
     def from_names(self, names):

@@ -135,6 +135,13 @@ class ZfsAutobackup:
         parser.add_argument('--buffer', metavar='SIZE', default=None,
                             help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
 
+        parser.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
+                            help='Snapshot naming format. Default: %(default)s')
+        parser.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
+                            help='Select property naming format. Default: %(default)s')
+        parser.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
+                            help='Hold naming format. Default: %(default)s')
+
         parser.add_argument('--version', action='store_true',
                             help='Show version.')
 
@@ -464,6 +471,19 @@ class ZfsAutobackup:
             if self.args.test:
                 self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
+            #format all the names
+            property_name = self.args.property_format.format(self.args.backup_name)
+            snapshot_time_format = self.args.snapshot_format.format(self.args.backup_name)
+            hold_name = self.args.hold_format.format(self.args.backup_name)
+
+            self.verbose("")
+            self.verbose("Selecting dataset property : {}".format(property_name))
+            self.verbose("Snapshot format            : {}".format(snapshot_time_format))
+
+            if not self.args.no_holds:
+                self.verbose("Hold name                  : {}".format(hold_name))
+
+
             ################ create source zfsNode
             self.set_title("Source settings")
 
@@ -472,17 +492,9 @@ class ZfsAutobackup:
                 source_thinner = None
             else:
                 source_thinner = Thinner(self.args.keep_source)
-            source_node = ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config,
+            source_node = ZfsNode(snapshot_time_format=snapshot_time_format, hold_name=hold_name, logger=self, ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner)
-            source_node.verbose(
-                "Selecting dataset property: 'autobackup:{}'".format(
-                    self.args.backup_name, self.args.backup_name))
-
-            source_node.verbose("Snapshot prefix           : '{}-'".format(self.args.backup_name))
-
-            if not self.args.no_holds:
-                source_node.verbose("Hold name                 : '{}'".format("zfs_autobackup:" + self.args.backup_name))
 
 
             ################# select source datasets
@@ -503,7 +515,7 @@ class ZfsAutobackup:
                     self.warning("Source and target are on the same host, excluding received datasets from selection.")
                     exclude_received = True
 
-            source_datasets = source_node.selected_datasets(exclude_received=exclude_received,
+            source_datasets = source_node.selected_datasets(property_name=property_name,exclude_received=exclude_received,
                                                                      exclude_paths=exclude_paths,
                                                                      exclude_unchanged=self.args.exclude_unchanged,
                                                                      min_change=self.args.min_change)
@@ -517,7 +529,8 @@ class ZfsAutobackup:
             ################# snapshotting
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
-                source_node.consistent_snapshot(source_datasets, source_node.new_snapshotname(),
+                snapshot_name=time.strftime(snapshot_time_format)
+                source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
                                                 post_snapshot_cmds=self.args.post_snapshot_cmd)
@@ -532,7 +545,7 @@ class ZfsAutobackup:
                     target_thinner = None
                 else:
                     target_thinner = Thinner(self.args.keep_target)
-                target_node = ZfsNode(self.args.backup_name, self, ssh_config=self.args.ssh_config,
+                target_node = ZfsNode(snapshot_time_format=snapshot_time_format, hold_name=hold_name, logger=self, ssh_config=self.args.ssh_config,
                                       ssh_to=self.args.ssh_target,
                                       readonly=self.args.test, debug_output=self.args.debug_output,
                                       description="[Target]",

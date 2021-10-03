@@ -17,9 +17,13 @@ from .ExecuteNode import ExecuteError
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, backup_name, logger, ssh_config=None, ssh_to=None, readonly=False, description="",
+    def __init__(self, snapshot_time_format, hold_name, logger, ssh_config=None, ssh_to=None, readonly=False,
+                 description="",
                  debug_output=False, thinner=None):
-        self.backup_name = backup_name
+
+        self.snapshot_time_format = snapshot_time_format
+        self.hold_name = hold_name
+
         self.description = description
 
         self.logger = logger
@@ -54,7 +58,7 @@ class ZfsNode(ExecuteNode):
         if self.__thinner is not None:
             return self.__thinner.thin(objects, keep_objects)
         else:
-            return ( keep_objects, [] )
+            return (keep_objects, [])
 
     @CachedProperty
     def supported_send_options(self):
@@ -129,8 +133,9 @@ class ZfsNode(ExecuteNode):
                         bytes_left = self._progress_total_bytes - bytes_
                         minutes_left = int((bytes_left / (bytes_ / (time.time() - self._progress_start_time))) / 60)
 
-                        self.logger.progress("Transfer {}% {}MB/s (total {}MB, {} minutes left)".format(percentage, speed, int(
-                            self._progress_total_bytes / (1024 * 1024)), minutes_left))
+                        self.logger.progress(
+                            "Transfer {}% {}MB/s (total {}MB, {} minutes left)".format(percentage, speed, int(
+                                self._progress_total_bytes / (1024 * 1024)), minutes_left))
 
             return
 
@@ -158,11 +163,8 @@ class ZfsNode(ExecuteNode):
     def debug(self, txt):
         self.logger.debug("{} {}".format(self.description, txt))
 
-    def new_snapshotname(self):
-        """determine uniq new snapshotname"""
-        return self.backup_name + "-" + time.strftime("%Y%m%d%H%M%S")
-
-    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmds=[], post_snapshot_cmds=[]):
+    def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmds=[],
+                            post_snapshot_cmds=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
         """
 
@@ -214,7 +216,7 @@ class ZfsNode(ExecuteNode):
                 except Exception as e:
                     pass
 
-    def selected_datasets(self, exclude_received, exclude_paths, exclude_unchanged, min_change):
+    def selected_datasets(self, property_name, exclude_received, exclude_paths, exclude_unchanged, min_change):
         """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide
 
            returns: list of ZfsDataset
@@ -225,7 +227,7 @@ class ZfsNode(ExecuteNode):
         # get all source filesystems that have the backup property
         lines = self.run(tab_split=True, readonly=True, cmd=[
             "zfs", "get", "-t", "volume,filesystem", "-o", "name,value,source", "-H",
-            "autobackup:" + self.backup_name
+            property_name
         ])
 
         # The returnlist of selected ZfsDataset's:
@@ -249,7 +251,9 @@ class ZfsNode(ExecuteNode):
                 source = raw_source
 
             # determine it
-            if dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received, exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged, min_change=min_change):
+            if dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
+                                   exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged,
+                                   min_change=min_change):
                 selected_filesystems.append(dataset)
 
         return selected_filesystems

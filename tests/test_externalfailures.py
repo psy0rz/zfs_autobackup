@@ -32,7 +32,7 @@ class TestExternalFailures(unittest2.TestCase):
     def test_initial_resume(self):
 
         # inital backup, leaves resume token
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.generate_resume()
 
         # --test should resume and succeed
@@ -81,11 +81,11 @@ test_target1/test_source2/fs2/sub@test-20101111000000
     def test_incremental_resume(self):
 
         # initial backup
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         # incremental backup leaves resume token
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.generate_resume()
 
         # --test should resume and succeed
@@ -138,7 +138,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
             self.skipTest("Resume not supported in this ZFS userspace version")
 
         # inital backup, leaves resume token
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.generate_resume()
 
         # remove corresponding source snapshot, so it becomes invalid
@@ -148,11 +148,11 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         shelltest("zfs destroy test_target1/test_source1/fs1/sub; true")
 
         # --test try again, should abort old resume
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         # try again, should abort old resume
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
@@ -176,22 +176,22 @@ test_target1/test_source2/fs2/sub@test-20101111000000
             self.skipTest("Resume not supported in this ZFS userspace version")
 
         # initial backup
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         # icremental backup, leaves resume token
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.generate_resume()
 
         # remove corresponding source snapshot, so it becomes invalid
         shelltest("zfs destroy test_source1/fs1@test-20101111000001")
 
         # --test try again, should abort old resume
-        with patch('time.strftime', return_value="20101111000002"):
+        with patch('time.strftime', return_value="test-20101111000002"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         # try again, should abort old resume
-        with patch('time.strftime', return_value="20101111000002"):
+        with patch('time.strftime', return_value="test-20101111000002"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
@@ -215,17 +215,17 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         if "0.6.5" in ZFS_USERSPACE:
             self.skipTest("Resume not supported in this ZFS userspace version")
 
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         # generate resume
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.generate_resume()
 
         with OutputIO() as buf:
             with redirect_stdout(buf):
                 # incremental, doesnt want previous anymore
-                with patch('time.strftime', return_value="20101111000002"):
+                with patch('time.strftime', return_value="test-20101111000002"):
                     self.assertFalse(ZfsAutobackup(
                         "test test_target1 --no-progress --verbose --keep-target=0 --allow-empty".split(" ")).run())
 
@@ -253,11 +253,11 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         if "0.6.5" in ZFS_USERSPACE:
             self.skipTest("Resume not supported in this ZFS userspace version")
 
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         # generate resume
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.generate_resume()
 
         shelltest("zfs destroy test_source1/fs1@test-20101111000001")
@@ -265,7 +265,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         with OutputIO() as buf:
             with redirect_stdout(buf):
                 # incremental, doesnt want previous anymore
-                with patch('time.strftime', return_value="20101111000002"):
+                with patch('time.strftime', return_value="test-20101111000002"):
                     self.assertFalse(ZfsAutobackup(
                         "test test_target1 --no-progress --verbose --no-snapshot".split(
                             " ")).run())
@@ -277,14 +277,14 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
     def test_missing_common(self):
 
-        with patch('time.strftime', return_value="20101111000000"):
+        with patch('time.strftime', return_value="test-20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         # remove common snapshot and leave nothing
         shelltest("zfs release zfs_autobackup:test test_source1/fs1@test-20101111000000")
         shelltest("zfs destroy test_source1/fs1@test-20101111000000")
 
-        with patch('time.strftime', return_value="20101111000001"):
+        with patch('time.strftime', return_value="test-20101111000001"):
             self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
     #UPDATE: offcourse the one thing that wasn't tested had a bug :(  (in ExecuteNode.run()).
@@ -295,7 +295,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 #         #recreate target pool without any features
 #         # shelltest("zfs set compress=on test_source1; zpool destroy test_target1; zpool create test_target1 -o feature@project_quota=disabled /dev/ram2")
 #
-#         with patch('time.strftime', return_value="20101111000000"):
+#         with patch('time.strftime', return_value="test-20101111000000"):
 #             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --no-progress".split(" ")).run())
 #
 #         r = shelltest("zfs list -H -o name -r -t all test_target1")
