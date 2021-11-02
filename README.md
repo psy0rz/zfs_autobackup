@@ -398,7 +398,14 @@ Note 1: The --encrypt option will rely on inheriting encryption parameters from 
 
 Note 2: Decide what you want at an early stage: If you change the --encrypt or --decrypt parameter after the inital sync you might get weird and wonderfull errors. (nothing dangerous)
 
-I'll add some tips when the issues start to get in on github. :)
+**Some common errors while using zfs encryption:**
+
+```
+cannot receive incremental stream: kernel modules must be upgraded to receive this stream.
+```
+
+This happens if you forget to use --encrypt, while the target datasets are already encrypted. (Very strange error message indeed)
+
 
 ## Transfer buffering, compression and rate limiting.
 
