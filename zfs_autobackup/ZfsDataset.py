@@ -158,7 +158,8 @@ class ZfsDataset:
 
         # our path starts with one of the excluded paths?
         for exclude_path in exclude_paths:
-            if self.name.startswith(exclude_path):
+            # if self.name.startswith(exclude_path):
+            if (self.name + "/").startswith(exclude_path + "/"):
                 # too noisy for verbose
                 self.debug("Excluded (path in exclude list)")
                 return False
