@@ -506,17 +506,17 @@ class ZfsAutobackup:
 
             # Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanted to
             # replicate an existing backup to another host and use the same backupname/snapshots. However, exclude_received
-            # may still need to be used to explicitly exclude a backup with the 'received' source to avoid accidental
+            # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
             # recursive replication of a zvol that is currently being received in another session (as it will have changes).
             exclude_paths = []
             exclude_received = self.args.exclude_received
             if self.args.ssh_source == self.args.ssh_target:
                 if self.args.target_path:
                     # target and source are the same, make sure to exclude target_path
-                    self.warning("Source and target are on the same host, excluding target-path from selection.")
+                    self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
                     exclude_paths.append(self.args.target_path)
                 else:
-                    self.warning("Source and target are on the same host, excluding received datasets from selection.")
+                    self.verbose("NOTE: Source and target are on the same host, excluding received datasets from selection.")
                     exclude_received = True
 
             source_datasets = source_node.selected_datasets(property_name=property_name,exclude_received=exclude_received,
