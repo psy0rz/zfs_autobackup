@@ -372,9 +372,6 @@ class ZfsAutobackup:
         :type source_node: ZfsNode
         """
 
-        def make_target_name(source_dataset):
-            return self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
-
         send_pipes = self.get_send_pipes(source_node.verbose)
         recv_pipes = self.get_recv_pipes(target_node.verbose)
 
@@ -390,7 +387,7 @@ class ZfsAutobackup:
 
             try:
                 # determine corresponding target_dataset
-                target_name = make_target_name(source_dataset)
+                target_name = self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
                 target_dataset = ZfsDataset(target_node, target_name)
                 target_datasets.append(target_dataset)
 
@@ -417,8 +414,7 @@ class ZfsAutobackup:
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed,
-                                              make_target_name=make_target_name)
+                                              zfs_compressed=self.args.zfs_compressed)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))

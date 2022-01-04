@@ -1,6 +1,5 @@
 # python 2 compatibility
 from __future__ import print_function
-from operator import attrgetter
 import re
 import shlex
 import subprocess
@@ -220,15 +219,15 @@ class ZfsNode(ExecuteNode):
     def selected_datasets(self, property_name, exclude_received, exclude_paths, exclude_unchanged, min_change):
         """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide
 
-           returns: list of ZfsDataset sorted by creation time
+           returns: list of ZfsDataset
         """
 
         self.debug("Getting selected datasets")
 
         # get all source filesystems that have the backup property
         lines = self.run(tab_split=True, readonly=True, cmd=[
-            "zfs", "get", "-t", "volume,filesystem", "-Hp",
-            "{},creation".format(property_name)
+            "zfs", "get", "-t", "volume,filesystem", "-o", "name,value,source", "-H",
+            property_name
         ])
 
         # The returnlist of selected ZfsDataset's:
@@ -238,27 +237,23 @@ class ZfsNode(ExecuteNode):
         sources = {}
 
         for line in lines:
-            (name, prop_name, value, raw_source) = line
-            if prop_name == property_name:
-                dataset = ZfsDataset(self, name)
+            (name, value, raw_source) = line
+            dataset = ZfsDataset(self, name)
 
-                # "resolve" inherited sources
-                sources[name] = raw_source
-                if raw_source.find("inherited from ") == 0:
-                    inherited = True
-                    inherited_from = re.sub("^inherited from ", "", raw_source)
-                    source = sources[inherited_from]
-                else:
-                    inherited = False
-                    source = raw_source
+            # "resolve" inherited sources
+            sources[name] = raw_source
+            if raw_source.find("inherited from ") == 0:
+                inherited = True
+                inherited_from = re.sub("^inherited from ", "", raw_source)
+                source = sources[inherited_from]
+            else:
+                inherited = False
+                source = raw_source
 
-                # determine it
-                if dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
-                                       exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged,
-                                       min_change=min_change):
-                    selected_filesystems.append(dataset)
-            elif prop_name == "creation":
-                # creation date for the last dataset
-                if selected_filesystems and selected_filesystems[-1].name == name:
-                    selected_filesystems[-1].creation = int(value)
-        return sorted(selected_filesystems, key=attrgetter("creation"))
+            # determine it
+            if dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
+                                   exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged,
+                                   min_change=min_change):
+                selected_filesystems.append(dataset)
+
+        return selected_filesystems
