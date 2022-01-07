@@ -52,7 +52,7 @@ An important feature thats missing from other tools is a reliable `--test` optio
 
 ## Getting started
 
-Please look at our wiki to [Get started](wiki/Home).
+Please look at our wiki to [Get started](/wiki/Home).
 
 # Sponsor list
 
