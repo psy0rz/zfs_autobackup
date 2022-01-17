@@ -41,12 +41,6 @@ class ZfsAuto(object):
         if args.test:
             args.verbose = True
 
-        if args.allow_empty:
-            args.min_change = 0
-
-        if args.destroy_incompatible:
-            args.rollback = True
-
         self.log = LogConsole(show_debug=args.debug, show_verbose=args.verbose, color=sys.stdout.isatty())
 
         self.verbose(self.HEADER)
@@ -56,22 +50,9 @@ class ZfsAuto(object):
             self.log.error("Please specify BACKUP-NAME")
             sys.exit(255)
 
-        if args.resume:
-            self.warning("The --resume option isn't needed anymore (its autodetected now)")
-
-        if args.raw:
-            self.warning(
-                "The --raw option isn't needed anymore (its autodetected now). Also see --encrypt and --decrypt.")
-
         if args.target_path is not None and args.target_path[0] == "/":
             self.log.error("Target should not start with a /")
             sys.exit(255)
-
-        if args.compress and args.ssh_source is None and args.ssh_target is None:
-            self.warning("Using compression, but transfer is local.")
-
-        if args.compress and args.zfs_compressed:
-            self.warning("Using --compress with --zfs-compressed, might be inefficient.")
 
         if args.ignore_replicated:
             self.warning("--ignore-replicated has been renamed, using --exclude-unchanged")
@@ -117,6 +98,15 @@ class ZfsAuto(object):
                             help='Target host to push backup to.')
 
 
+        group=parser.add_argument_group("Selection options")
+        group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
+        group.add_argument('--exclude-unchanged', action='store_true',
+                            help='Exclude datasets that have no changes since any last snapshot. (Useful in combination with proxmox HA replication)')
+        group.add_argument('--exclude-received', action='store_true',
+                            help='Exclude datasets that have the origin of their autobackup: property as "received". '
+                                 'This can avoid recursive replication between two backup partners.')
+        group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
+                            help='Dataset selection string format. Default: %(default)s')
 
         return (parser)
 
