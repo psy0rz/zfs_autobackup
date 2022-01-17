@@ -15,12 +15,15 @@ class ZfsAuto(object):
 
     def __init__(self, argv, print_arguments=True):
 
+        self.hold_name = None
+        self.snapshot_time_format = None
+        self.property_name = None
+        self.exclude_paths = None
+
         # helps with investigating failed regression tests:
         if print_arguments:
             print("ARGUMENTS: " + " ".join(argv))
 
-
-        self.exclude_paths = []
         self.args = self.parse_args(argv)
 
     def parse_args(self, argv):
@@ -66,15 +69,30 @@ class ZfsAuto(object):
         # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
         # recursive replication of a zvol that is currently being received in another session (as it will have changes).
 
-        args.exclude_paths = [] # not an actual arg, but depending on args so whatever :)
+        self.exclude_paths = []
         if args.ssh_source == args.ssh_target:
             if args.target_path:
                 # target and source are the same, make sure to exclude target_path
                 self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
-                args.exclude_paths.append(args.target_path)
+                self.exclude_paths.append(args.target_path)
             else:
                 self.verbose("NOTE: Source and target are on the same host, excluding received datasets from selection.")
                 args.exclude_received = True
+
+        if args.test:
+            self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
+
+        #format all the names
+        self.property_name = args.property_format.format(args.backup_name)
+        self.snapshot_time_format = args.snapshot_format.format(args.backup_name)
+        self.hold_name = args.hold_format.format(args.backup_name)
+
+        self.verbose("")
+        self.verbose("Selecting dataset property : {}".format(self.property_name))
+        self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
+
+        if not args.no_holds:
+            self.verbose("Hold name                  : {}".format(self.hold_name))
 
         return args
 
@@ -116,6 +134,15 @@ class ZfsAuto(object):
                             help='Target host to push backup to.')
 
 
+        group=parser.add_argument_group("String formatting options")
+        group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
+                            help='Dataset selection string format. Default: %(default)s')
+        group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
+                            help='ZFS Snapshot string format. Default: %(default)s')
+        group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
+                            help='ZFS hold string format. Default: %(default)s')
+
+
         group=parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
         group.add_argument('--exclude-unchanged', action='store_true',
@@ -123,8 +150,6 @@ class ZfsAuto(object):
         group.add_argument('--exclude-received', action='store_true',
                             help='Exclude datasets that have the origin of their autobackup: property as "received". '
                                  'This can avoid recursive replication between two backup partners.')
-        group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
-                            help='Dataset selection string format. Default: %(default)s')
 
         return (parser)
 

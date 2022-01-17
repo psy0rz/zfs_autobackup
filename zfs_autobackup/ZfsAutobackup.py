@@ -14,7 +14,6 @@ from .ThinnerRule import ThinnerRule
 class ZfsAutobackup(ZfsAuto):
     """The main zfs-autobackup class. Start here, at run() :)"""
 
-
     def __init__(self, argv, print_arguments=True):
 
         # NOTE: common options and parameters are in ZfsAuto
@@ -23,7 +22,7 @@ class ZfsAutobackup(ZfsAuto):
     def parse_args(self, argv):
         """do extra checks on common args"""
 
-        args=super(ZfsAutobackup, self).parse_args(argv)
+        args = super(ZfsAutobackup, self).parse_args(argv)
 
         if args.allow_empty:
             args.min_change = 0
@@ -49,100 +48,89 @@ class ZfsAutobackup(ZfsAuto):
     def get_parser(self):
         """extend common parser with  extra stuff needed for zfs-autobackup"""
 
-        parser=super(ZfsAutobackup, self).get_parser()
+        parser = super(ZfsAutobackup, self).get_parser()
 
-        group=parser.add_argument_group("Snapshot options")
+        group = parser.add_argument_group("Snapshot options")
         group.add_argument('--no-snapshot', action='store_true',
-                            help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
+                           help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
         group.add_argument('--pre-snapshot-cmd', metavar="COMMAND", default=[], action='append',
-                            help='Run COMMAND before snapshotting (can be used multiple times.')
+                           help='Run COMMAND before snapshotting (can be used multiple times.')
         group.add_argument('--post-snapshot-cmd', metavar="COMMAND", default=[], action='append',
-                            help='Run COMMAND after snapshotting (can be used multiple times.')
+                           help='Run COMMAND after snapshotting (can be used multiple times.')
         group.add_argument('--min-change', metavar='BYTES', type=int, default=1,
-                            help='Only create snapshot if enough bytes are changed. (default %('
-                                 'default)s)')
+                           help='Only create snapshot if enough bytes are changed. (default %('
+                                'default)s)')
         group.add_argument('--allow-empty', action='store_true',
-                            help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
+                           help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
         group.add_argument('--other-snapshots', action='store_true',
-                            help='Send over other snapshots as well, not just the ones created by this tool.')
-        group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
-                            help='ZFS Snapshot string format. Default: %(default)s')
+                           help='Send over other snapshots as well, not just the ones created by this tool.')
 
-        group=parser.add_argument_group("Transfer options")
+        group = parser.add_argument_group("Transfer options")
         group.add_argument('--no-send', action='store_true',
-                            help='Don\'t transfer snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
+                           help='Don\'t transfer snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
         group.add_argument('--no-holds', action='store_true',
-                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
+                           help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
-                            help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
-                                 'SmartOS machines)')
+                           help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
+                                'SmartOS machines)')
         group.add_argument('--clear-refreservation', action='store_true',
-                            help='Filter "refreservation" property. (recommended, safes space. same as '
-                                 '--filter-properties refreservation)')
+                           help='Filter "refreservation" property. (recommended, safes space. same as '
+                                '--filter-properties refreservation)')
         group.add_argument('--clear-mountpoint', action='store_true',
-                            help='Set property canmount=noauto for new datasets. (recommended, prevents mount '
-                                 'conflicts. same as --set-properties canmount=noauto)')
+                           help='Set property canmount=noauto for new datasets. (recommended, prevents mount '
+                                'conflicts. same as --set-properties canmount=noauto)')
         group.add_argument('--filter-properties', metavar='PROPERTY,...', type=str,
-                            help='List of properties to "filter" when receiving filesystems. (you can still restore '
-                                 'them with zfs inherit -S)')
+                           help='List of properties to "filter" when receiving filesystems. (you can still restore '
+                                'them with zfs inherit -S)')
         group.add_argument('--set-properties', metavar='PROPERTY=VALUE,...', type=str,
-                            help='List of propererties to override when receiving filesystems. (you can still restore '
-                                 'them with zfs inherit -S)')
+                           help='List of propererties to override when receiving filesystems. (you can still restore '
+                                'them with zfs inherit -S)')
         group.add_argument('--rollback', action='store_true',
-                            help='Rollback changes to the latest target snapshot before starting. (normally you can '
-                                 'prevent changes by setting the readonly property on the target_path to on)')
+                           help='Rollback changes to the latest target snapshot before starting. (normally you can '
+                                'prevent changes by setting the readonly property on the target_path to on)')
         group.add_argument('--destroy-incompatible', action='store_true',
-                            help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
+                           help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
         group.add_argument('--ignore-transfer-errors', action='store_true',
-                            help='Ignore transfer errors (still checks if received filesystem exists. useful for '
-                                 'acltype errors)')
+                           help='Ignore transfer errors (still checks if received filesystem exists. useful for '
+                                'acltype errors)')
 
         group.add_argument('--decrypt', action='store_true',
-                            help='Decrypt data before sending it over.')
+                           help='Decrypt data before sending it over.')
         group.add_argument('--encrypt', action='store_true',
-                            help='Encrypt data after receiving it.')
+                           help='Encrypt data after receiving it.')
 
         group.add_argument('--zfs-compressed', action='store_true',
-                            help='Transfer blocks that already have zfs-compression as-is.')
-        group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
-                            help='ZFS hold string format. Default: %(default)s')
+                           help='Transfer blocks that already have zfs-compression as-is.')
 
-
-
-        group=parser.add_argument_group("ZFS send/recv pipes")
+        group = parser.add_argument_group("ZFS send/recv pipes")
         group.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-fast',
-                            choices=compressors.choices(),
-                            help='Use compression during transfer, defaults to zstd-fast if TYPE is not specified. ({})'.format(
-                                ", ".join(compressors.choices())))
+                           choices=compressors.choices(),
+                           help='Use compression during transfer, defaults to zstd-fast if TYPE is not specified. ({})'.format(
+                               ", ".join(compressors.choices())))
         group.add_argument('--rate', metavar='DATARATE', default=None,
-                            help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
+                           help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
         group.add_argument('--buffer', metavar='SIZE', default=None,
-                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
+                           help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
         group.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
-                            help='pipe zfs send output through COMMAND (can be used multiple times)')
+                           help='pipe zfs send output through COMMAND (can be used multiple times)')
         group.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
-                            help='pipe zfs recv input through COMMAND (can be used multiple times)')
+                           help='pipe zfs recv input through COMMAND (can be used multiple times)')
 
-
-        group=parser.add_argument_group("Thinner options")
+        group = parser.add_argument_group("Thinner options")
         group.add_argument('--no-thinning', action='store_true', help="Do not destroy any snapshots.")
         group.add_argument('--keep-source', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
-                            help='Thinning schedule for old source snapshots. Default: %(default)s')
+                           help='Thinning schedule for old source snapshots. Default: %(default)s')
         group.add_argument('--keep-target', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
-                            help='Thinning schedule for old target snapshots. Default: %(default)s')
+                           help='Thinning schedule for old target snapshots. Default: %(default)s')
         group.add_argument('--destroy-missing', metavar="SCHEDULE", type=str, default=None,
-                            help='Destroy datasets on target that are missing on the source. Specify the time since '
-                                 'the last snapshot, e.g: --destroy-missing 30d')
+                           help='Destroy datasets on target that are missing on the source. Specify the time since '
+                                'the last snapshot, e.g: --destroy-missing 30d')
 
-
-        #obsolete
+        # obsolete
         parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
 
-
-
-
-        return (parser)
+        return parser
 
     def progress(self, txt):
         self.log.progress(txt)
@@ -397,22 +385,6 @@ class ZfsAutobackup(ZfsAuto):
 
         try:
 
-            if self.args.test:
-                self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
-
-            #format all the names
-            property_name = self.args.property_format.format(self.args.backup_name)
-            snapshot_time_format = self.args.snapshot_format.format(self.args.backup_name)
-            hold_name = self.args.hold_format.format(self.args.backup_name)
-
-            self.verbose("")
-            self.verbose("Selecting dataset property : {}".format(property_name))
-            self.verbose("Snapshot format            : {}".format(snapshot_time_format))
-
-            if not self.args.no_holds:
-                self.verbose("Hold name                  : {}".format(hold_name))
-
-
             ################ create source zfsNode
             self.set_title("Source settings")
 
@@ -421,17 +393,18 @@ class ZfsAutobackup(ZfsAuto):
                 source_thinner = None
             else:
                 source_thinner = Thinner(self.args.keep_source)
-            source_node = ZfsNode(snapshot_time_format=snapshot_time_format, hold_name=hold_name, logger=self, ssh_config=self.args.ssh_config,
+            source_node = ZfsNode(snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name, logger=self,
+                                  ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner)
 
-
             ################# select source datasets
             self.set_title("Selecting")
-            source_datasets = source_node.selected_datasets(property_name=property_name,exclude_received=self.args.exclude_received,
-                                                                     exclude_paths=self.args.exclude_paths,
-                                                                     exclude_unchanged=self.args.exclude_unchanged,
-                                                                     min_change=self.args.min_change)
+            source_datasets = source_node.selected_datasets(property_name=self.property_name,
+                                                            exclude_received=self.args.exclude_received,
+                                                            exclude_paths=self.exclude_paths,
+                                                            exclude_unchanged=self.args.exclude_unchanged,
+                                                            min_change=self.args.min_change)
             if not source_datasets:
                 self.error(
                     "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
@@ -442,7 +415,7 @@ class ZfsAutobackup(ZfsAuto):
             ################# snapshotting
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
-                snapshot_name=time.strftime(snapshot_time_format)
+                snapshot_name = time.strftime(self.snapshot_time_format)
                 source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
@@ -458,7 +431,8 @@ class ZfsAutobackup(ZfsAuto):
                     target_thinner = None
                 else:
                     target_thinner = Thinner(self.args.keep_target)
-                target_node = ZfsNode(snapshot_time_format=snapshot_time_format, hold_name=hold_name, logger=self, ssh_config=self.args.ssh_config,
+                target_node = ZfsNode(snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name,
+                                      logger=self, ssh_config=self.args.ssh_config,
                                       ssh_to=self.args.ssh_target,
                                       readonly=self.args.test, debug_output=self.args.debug_output,
                                       description="[Target]",
