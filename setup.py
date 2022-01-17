@@ -18,7 +18,8 @@ setuptools.setup(
     entry_points={
         'console_scripts':
             [
-                'zfs-autobackup = zfs_autobackup:cli',
+                'zfs-autobackup = zfs_autobackup.ZfsAutobackup:cli',
+                'zfs-autoverify = zfs_autobackup.ZfsAutoverify:cli',
             ]
     },
     packages=setuptools.find_packages(),

@@ -3,7 +3,6 @@ import os.path
 import sys
 
 from .LogConsole import LogConsole
-from . import compressors
 
 
 class ZfsAuto(object):
@@ -91,8 +90,6 @@ class ZfsAuto(object):
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
 
-        if not args.no_holds:
-            self.verbose("Hold name                  : {}".format(self.hold_name))
 
         return args
 
@@ -151,7 +148,7 @@ class ZfsAuto(object):
                             help='Exclude datasets that have the origin of their autobackup: property as "received". '
                                  'This can avoid recursive replication between two backup partners.')
 
-        return (parser)
+        return parser
 
     def verbose(self, txt):
         self.log.verbose(txt)

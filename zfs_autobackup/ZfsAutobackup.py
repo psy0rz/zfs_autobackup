@@ -24,6 +24,9 @@ class ZfsAutobackup(ZfsAuto):
 
         args = super(ZfsAutobackup, self).parse_args(argv)
 
+        if not args.no_holds:
+            self.verbose("Hold name                  : {}".format(self.hold_name))
+
         if args.allow_empty:
             args.min_change = 0
 
@@ -486,3 +489,13 @@ class ZfsAutobackup(ZfsAuto):
         except KeyboardInterrupt:
             self.error("Aborted")
             return 255
+
+
+def cli():
+    import sys
+
+    sys.exit(ZfsAutobackup(sys.argv[1:], False).run())
+
+
+if __name__ == "__main__":
+    cli()
