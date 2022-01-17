@@ -1,4 +1,4 @@
-import zfs_autobackup.LogConsole
+from zfs_autobackup.LogConsole import LogConsole
 from basetest import *
 
 
@@ -8,7 +8,7 @@ class TestLog(unittest2.TestCase):
         """test with color output"""
         with OutputIO() as buf:
             with redirect_stdout(buf):
-                l=LogConsole(show_verbose=False, show_debug=False, color=True)
+                l= LogConsole(show_verbose=False, show_debug=False, color=True)
                 l.verbose("verbose")
                 l.debug("debug")
 
@@ -46,7 +46,7 @@ class TestLog(unittest2.TestCase):
             self.assertEqual(list(buf.getvalue()), [' ', ' ', 'v', 'e', 'r', 'b', 'o', 's', 'e', '\n', '#', ' ', 'd', 'e', 'b', 'u', 'g', '\n', '!', ' ', 'e', 'r', 'r', 'o', 'r', '\n'])
 
 
-        zfs_autobackup.LogConsole.colorama=False
+        # zfs_autobackup.LogConsole.colorama=False
 
 
 
