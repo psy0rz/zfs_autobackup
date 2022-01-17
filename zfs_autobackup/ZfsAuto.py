@@ -52,7 +52,7 @@ class ZfsAuto(object):
         self.verbose(self.HEADER)
 
         if args.backup_name == None:
-            self.__parser.print_usage()
+            parser.print_usage()
             self.log.error("Please specify BACKUP-NAME")
             sys.exit(255)
 

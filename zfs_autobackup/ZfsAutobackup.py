@@ -42,13 +42,13 @@ class ZfsAutobackup(ZfsAuto):
                             help='Run COMMAND before snapshotting (can be used multiple times.')
         group.add_argument('--post-snapshot-cmd', metavar="COMMAND", default=[], action='append',
                             help='Run COMMAND after snapshotting (can be used multiple times.')
-        group.add_argument('--other-snapshots', action='store_true',
-                            help='Send over other snapshots as well, not just the ones created by this tool.')
         group.add_argument('--min-change', metavar='BYTES', type=int, default=1,
-                            help='Number of bytes written after which we consider a dataset changed (default %('
+                            help='Only create snapshot if enough bytes are changed. (default %('
                                  'default)s)')
         group.add_argument('--allow-empty', action='store_true',
                             help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
+        group.add_argument('--other-snapshots', action='store_true',
+                            help='Send over other snapshots as well, not just the ones created by this tool.')
         group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
                             help='ZFS Snapshot string format. Default: %(default)s')
 
