@@ -19,6 +19,8 @@ class ZfsAuto(object):
         if print_arguments:
             print("ARGUMENTS: " + " ".join(argv))
 
+
+        self.exclude_paths = []
         self.args = self.parse_args(argv)
 
     def parse_args(self, argv):
@@ -44,6 +46,7 @@ class ZfsAuto(object):
         self.log = LogConsole(show_debug=args.debug, show_verbose=args.verbose, color=sys.stdout.isatty())
 
         self.verbose(self.HEADER)
+        self.verbose("")
 
         if args.backup_name == None:
             parser.print_usage()
@@ -57,6 +60,21 @@ class ZfsAuto(object):
         if args.ignore_replicated:
             self.warning("--ignore-replicated has been renamed, using --exclude-unchanged")
             args.exclude_unchanged = True
+
+        # Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanted to
+        # replicate an existing backup to another host and use the same backupname/snapshots. However, exclude_received
+        # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
+        # recursive replication of a zvol that is currently being received in another session (as it will have changes).
+
+        args.exclude_paths = [] # not an actual arg, but depending on args so whatever :)
+        if args.ssh_source == args.ssh_target:
+            if args.target_path:
+                # target and source are the same, make sure to exclude target_path
+                self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
+                args.exclude_paths.append(args.target_path)
+            else:
+                self.verbose("NOTE: Source and target are on the same host, excluding received datasets from selection.")
+                args.exclude_received = True
 
         return args
 

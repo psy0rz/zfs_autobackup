@@ -16,9 +16,13 @@ class ZfsAutobackup(ZfsAuto):
 
 
     def __init__(self, argv, print_arguments=True):
+
+        # NOTE: common options and parameters are in ZfsAuto
         super(ZfsAutobackup, self).__init__(argv, print_arguments)
 
     def parse_args(self, argv):
+        """do extra checks on common args"""
+
         args=super(ZfsAutobackup, self).parse_args(argv)
 
         if args.allow_empty:
@@ -424,24 +428,8 @@ class ZfsAutobackup(ZfsAuto):
 
             ################# select source datasets
             self.set_title("Selecting")
-
-            # Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanted to
-            # replicate an existing backup to another host and use the same backupname/snapshots. However, exclude_received
-            # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
-            # recursive replication of a zvol that is currently being received in another session (as it will have changes).
-            exclude_paths = []
-            exclude_received = self.args.exclude_received
-            if self.args.ssh_source == self.args.ssh_target:
-                if self.args.target_path:
-                    # target and source are the same, make sure to exclude target_path
-                    self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
-                    exclude_paths.append(self.args.target_path)
-                else:
-                    self.verbose("NOTE: Source and target are on the same host, excluding received datasets from selection.")
-                    exclude_received = True
-
-            source_datasets = source_node.selected_datasets(property_name=property_name,exclude_received=exclude_received,
-                                                                     exclude_paths=exclude_paths,
+            source_datasets = source_node.selected_datasets(property_name=property_name,exclude_received=self.args.exclude_received,
+                                                                     exclude_paths=self.args.exclude_paths,
                                                                      exclude_unchanged=self.args.exclude_unchanged,
                                                                      min_change=self.args.min_change)
             if not source_datasets:
