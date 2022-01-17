@@ -55,6 +55,7 @@ class ZfsNode(ExecuteNode):
         ExecuteNode.__init__(self, ssh_config=ssh_config, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
     def thin(self, objects, keep_objects):
+        # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
         if self.__thinner is not None:
             return self.__thinner.thin(objects, keep_objects)
         else:

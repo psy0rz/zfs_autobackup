@@ -1,5 +1,6 @@
 import time
 
+import argparse
 from .ZfsAuto import ZfsAuto
 
 from . import compressors
@@ -17,6 +18,115 @@ class ZfsAutobackup(ZfsAuto):
     def __init__(self, argv, print_arguments=True):
         super(ZfsAutobackup, self).__init__(argv, print_arguments)
 
+
+    def get_parser(self):
+        """extend common parser with  extra stuff needed for zfs-autobackup"""
+
+        parser=super(ZfsAutobackup, self).get_parser()
+
+
+        group=parser.add_argument_group("Selection options")
+        group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
+        group.add_argument('--exclude-unchanged', action='store_true',
+                            help='Exclude datasets that have no changes since any last snapshot. (Useful in combination with proxmox HA replication)')
+        group.add_argument('--exclude-received', action='store_true',
+                            help='Exclude datasets that have the origin of their autobackup: property as "received". '
+                                 'This can avoid recursive replication between two backup partners.')
+        group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
+                            help='Dataset selection string format. Default: %(default)s')
+
+        group=parser.add_argument_group("Snapshot options")
+        group.add_argument('--no-snapshot', action='store_true',
+                            help='Don\'t create new snapshots (useful for finishing uncompleted backups, or cleanups)')
+        group.add_argument('--pre-snapshot-cmd', metavar="COMMAND", default=[], action='append',
+                            help='Run COMMAND before snapshotting (can be used multiple times.')
+        group.add_argument('--post-snapshot-cmd', metavar="COMMAND", default=[], action='append',
+                            help='Run COMMAND after snapshotting (can be used multiple times.')
+        group.add_argument('--other-snapshots', action='store_true',
+                            help='Send over other snapshots as well, not just the ones created by this tool.')
+        group.add_argument('--min-change', metavar='BYTES', type=int, default=1,
+                            help='Number of bytes written after which we consider a dataset changed (default %('
+                                 'default)s)')
+        group.add_argument('--allow-empty', action='store_true',
+                            help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
+        group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
+                            help='ZFS Snapshot string format. Default: %(default)s')
+
+        group=parser.add_argument_group("Transfer options")
+        group.add_argument('--no-send', action='store_true',
+                            help='Don\'t transfer snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
+        group.add_argument('--no-holds', action='store_true',
+                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
+        group.add_argument('--strip-path', metavar='N', default=0, type=int,
+                            help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
+                                 'SmartOS machines)')
+        group.add_argument('--clear-refreservation', action='store_true',
+                            help='Filter "refreservation" property. (recommended, safes space. same as '
+                                 '--filter-properties refreservation)')
+        group.add_argument('--clear-mountpoint', action='store_true',
+                            help='Set property canmount=noauto for new datasets. (recommended, prevents mount '
+                                 'conflicts. same as --set-properties canmount=noauto)')
+        group.add_argument('--filter-properties', metavar='PROPERTY,...', type=str,
+                            help='List of properties to "filter" when receiving filesystems. (you can still restore '
+                                 'them with zfs inherit -S)')
+        group.add_argument('--set-properties', metavar='PROPERTY=VALUE,...', type=str,
+                            help='List of propererties to override when receiving filesystems. (you can still restore '
+                                 'them with zfs inherit -S)')
+        group.add_argument('--rollback', action='store_true',
+                            help='Rollback changes to the latest target snapshot before starting. (normally you can '
+                                 'prevent changes by setting the readonly property on the target_path to on)')
+        group.add_argument('--destroy-incompatible', action='store_true',
+                            help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
+        group.add_argument('--ignore-transfer-errors', action='store_true',
+                            help='Ignore transfer errors (still checks if received filesystem exists. useful for '
+                                 'acltype errors)')
+
+        group.add_argument('--decrypt', action='store_true',
+                            help='Decrypt data before sending it over.')
+        group.add_argument('--encrypt', action='store_true',
+                            help='Encrypt data after receiving it.')
+
+        group.add_argument('--zfs-compressed', action='store_true',
+                            help='Transfer blocks that already have zfs-compression as-is.')
+        group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
+                            help='ZFS hold string format. Default: %(default)s')
+
+
+
+        group=parser.add_argument_group("ZFS send/recv pipes")
+        group.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-fast',
+                            choices=compressors.choices(),
+                            help='Use compression during transfer, defaults to zstd-fast if TYPE is not specified. ({})'.format(
+                                ", ".join(compressors.choices())))
+        group.add_argument('--rate', metavar='DATARATE', default=None,
+                            help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
+        group.add_argument('--buffer', metavar='SIZE', default=None,
+                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
+        group.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
+                            help='pipe zfs send output through COMMAND (can be used multiple times)')
+        group.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
+                            help='pipe zfs recv input through COMMAND (can be used multiple times)')
+
+
+        group=parser.add_argument_group("Thinner options")
+        group.add_argument('--no-thinning', action='store_true', help="Do not destroy any snapshots.")
+        group.add_argument('--keep-source', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
+                            help='Thinning schedule for old source snapshots. Default: %(default)s')
+        group.add_argument('--keep-target', metavar='SCHEDULE', type=str, default="10,1d1w,1w1m,1m1y",
+                            help='Thinning schedule for old target snapshots. Default: %(default)s')
+        group.add_argument('--destroy-missing', metavar="SCHEDULE", type=str, default=None,
+                            help='Destroy datasets on target that are missing on the source. Specify the time since '
+                                 'the last snapshot, e.g: --destroy-missing 30d')
+
+
+        #obsolete
+        parser.add_argument('--resume', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
+
+
+
+
+        return (parser)
 
     def progress(self, txt):
         self.log.progress(txt)
