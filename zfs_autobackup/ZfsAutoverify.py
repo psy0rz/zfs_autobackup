@@ -34,9 +34,9 @@ class ZfsAutoverify(ZfsAuto):
 
         return (parser)
 
+    def verify_filesystem(self, source_snapshot, source_mnt, target_snapshot, target_mnt):
 
-    def verify_filesystem(self, source_dataset, source_mnt, target_dataset, target_mnt):
-
+        # XXX create proper rsync command that also support pull/push mode somehow.
 
         pass
 
@@ -59,8 +59,12 @@ class ZfsAutoverify(ZfsAuto):
                 target_name = self.make_target_name(source_dataset)
                 target_dataset = ZfsDataset(target_node, target_name)
 
+                # find common snapshots to operate on
+                source_snapshot = source_dataset.find_common_snapshot(target_dataset)
+                target_snapshot = target_dataset.find_snapshot(source_snapshot)
+
                 if source_dataset.properties['type']=="filesystem":
-                    self.verify_filesystem(source_dataset, source_mnt, target_dataset, target_mnt)
+                    self.verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt)
                 elif source_dataset.properties['type']=="volume":
                     self.verify_volume(source_dataset, target_dataset)
                 else:
@@ -76,16 +80,18 @@ class ZfsAutoverify(ZfsAuto):
     def create_mountpoints(self, source_node, target_node):
 
         # prepare mount points
-
+        source_node.debug("Create temporary mount point")
         source_mnt = "/tmp/zfs-autoverify_source_{}_{}".format(platform.node(), os.getpid())
         source_node.run(["mkdir", source_mnt])
 
+        target_node.debug("Create temporary mount point")
         target_mnt = "/tmp/zfs-autoverify_target_{}_{}".format(platform.node(), os.getpid())
         target_node.run(["mkdir", target_mnt])
 
         return source_mnt, target_mnt
 
     def cleanup_mountpoint(self, node, mnt):
+        node.debug("Cleaning up temporary mount point")
         node.run([ "umount", mnt ], hide_errors=True, valid_exitcodes=[] )
         node.run([ "rmdir", mnt ], hide_errors=True, valid_exitcodes=[] )
 

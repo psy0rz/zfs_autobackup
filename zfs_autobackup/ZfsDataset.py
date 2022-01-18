@@ -778,10 +778,6 @@ class ZfsDataset:
             # target has nothing yet
             return None
         else:
-            # snapshot=self.find_snapshot(target_dataset.snapshots[-1].snapshot_name)
-
-            # if not snapshot:
-            # try to common snapshot
             for source_snapshot in reversed(self.snapshots):
                 if target_dataset.find_snapshot(source_snapshot):
                     source_snapshot.debug("common snapshot")
