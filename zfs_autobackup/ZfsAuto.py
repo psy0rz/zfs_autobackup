@@ -6,7 +6,7 @@ from .LogConsole import LogConsole
 
 
 class ZfsAuto(object):
-    """Common Base class for zfs-auto... tools """
+    """Common Base class, this class is always used subclassed. Look at ZfsAutobackup and ZfsAutoverify ."""
 
     # also used by setup.py
     VERSION = "3.2-dev1"
@@ -120,6 +120,9 @@ class ZfsAuto(object):
                             help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
         parser.add_argument('--version', action='store_true',
                             help='Show version.')
+        parser.add_argument('--strip-path', metavar='N', default=0, type=int,
+                           help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
+                                'SmartOS machines)')
 
 
         # SSH options
@@ -162,6 +165,22 @@ class ZfsAuto(object):
     def debug(self, txt):
         self.log.debug(txt)
 
+    def progress(self, txt):
+        self.log.progress(txt)
+
+    def clear_progress(self):
+        self.log.clear_progress()
+
     def set_title(self, title):
         self.log.verbose("")
         self.log.verbose("#### " + title)
+
+    def print_error_sources(self):
+        self.error(
+            "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
+            "you want to select.".format(
+                self.args.backup_name))
+
+    def make_target_name(self, source_dataset):
+        """make target_name from a source_dataset"""
+        return self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)

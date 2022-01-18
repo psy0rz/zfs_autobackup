@@ -73,9 +73,6 @@ class ZfsAutobackup(ZfsAuto):
                            help='Don\'t transfer snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
         group.add_argument('--no-holds', action='store_true',
                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
-        group.add_argument('--strip-path', metavar='N', default=0, type=int,
-                           help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
-                                'SmartOS machines)')
         group.add_argument('--clear-refreservation', action='store_true',
                            help='Filter "refreservation" property. (recommended, safes space. same as '
                                 '--filter-properties refreservation)')
@@ -134,12 +131,6 @@ class ZfsAutobackup(ZfsAuto):
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
 
         return parser
-
-    def progress(self, txt):
-        self.log.progress(txt)
-
-    def clear_progress(self):
-        self.log.clear_progress()
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def thin_missing_targets(self, target_dataset, used_target_datasets):
@@ -307,7 +298,7 @@ class ZfsAutobackup(ZfsAuto):
 
             try:
                 # determine corresponding target_dataset
-                target_name = self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
+                target_name = self.make_target_name(source_dataset)
                 target_dataset = ZfsDataset(target_node, target_name)
                 target_datasets.append(target_dataset)
 
@@ -409,10 +400,7 @@ class ZfsAutobackup(ZfsAuto):
                                                             exclude_unchanged=self.args.exclude_unchanged,
                                                             min_change=self.args.min_change)
             if not source_datasets:
-                self.error(
-                    "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
-                    "you want to select.".format(
-                        self.args.backup_name))
+                self.print_error_sources()
                 return 255
 
             ################# snapshotting
