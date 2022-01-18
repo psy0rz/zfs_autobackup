@@ -1,17 +1,16 @@
-from zfs_autobackup.CmdPipe import CmdPipe
+
 from basetest import *
-import time
+
 
 # test zfs-verify:
 # - when there is no common snapshot at all
 # - when encryption key not loaded
-# - on datasets:
+# - test mode
+# - on snapshots of datasets:
 #   - that are correct
 #   - that are different
-#   - that are not mounted
-#   - that are mounted
-#   - that are mounted on the "wrong" place
-# - on zvols
+#   - because of rsync: test local/local, local remote etc
+# - on snapshots of zvols
 #  - that are correct
 #  - that are different
 #
@@ -36,28 +35,7 @@ class TestZfsEncryption(unittest2.TestCase):
 
     def test_verify(self):
 
-        return
+        self.assertFalse(ZfsAutoverify("test test_target1 --verbose --test".split(" ")).run())
 
-        r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
-        self.assertMultiLineEqual(r,"""
-NAME                                                                  PROPERTY        VALUE                                                                 SOURCE
-test_target1                                                          encryptionroot  -                                                                     -
-test_target1/encryptedtarget                                          encryptionroot  test_target1/encryptedtarget                                          -
-test_target1/encryptedtarget/test_source1                             encryptionroot  test_target1/encryptedtarget                                          -
-test_target1/encryptedtarget/test_source1/fs1                         encryptionroot  -                                                                     -
-test_target1/encryptedtarget/test_source1/fs1/encryptedsource         encryptionroot  test_target1/encryptedtarget/test_source1/fs1/encryptedsource         -
-test_target1/encryptedtarget/test_source1/fs1/encryptedsourcekeyless  encryptionroot  test_target1/encryptedtarget/test_source1/fs1/encryptedsourcekeyless  -
-test_target1/encryptedtarget/test_source1/fs1/sub                     encryptionroot  -                                                                     -
-test_target1/encryptedtarget/test_source2                             encryptionroot  test_target1/encryptedtarget                                          -
-test_target1/encryptedtarget/test_source2/fs2                         encryptionroot  test_target1/encryptedtarget                                          -
-test_target1/encryptedtarget/test_source2/fs2/sub                     encryptionroot  -                                                                     -
-test_target1/test_source1                                             encryptionroot  -                                                                     -
-test_target1/test_source1/fs1                                         encryptionroot  -                                                                     -
-test_target1/test_source1/fs1/encryptedsource                         encryptionroot  test_target1/test_source1/fs1/encryptedsource                         -
-test_target1/test_source1/fs1/encryptedsourcekeyless                  encryptionroot  test_target1/test_source1/fs1/encryptedsourcekeyless                  -
-test_target1/test_source1/fs1/sub                                     encryptionroot  -                                                                     -
-test_target1/test_source2                                             encryptionroot  -                                                                     -
-test_target1/test_source2/fs2                                         encryptionroot  -                                                                     -
-test_target1/test_source2/fs2/sub                                     encryptionroot  -                                                                     -
-""")
+        self.assertFalse(ZfsAutoverify("test test_target1 --verbose --debug".split(" ")).run())
 
