@@ -1103,3 +1103,21 @@ class ZfsDataset:
                     resume_token = None
 
             source_snapshot = self.find_next_snapshot(source_snapshot, also_other_snapshots)
+
+    def mount(self, mount_point):
+
+        cmd = [
+            "mount", "-t zfs", "-o zfsutil", self.name, mount_point
+        ]
+
+        self.debug("Mounting to {}".format(mount_point))
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+    def unmount(self):
+
+        cmd = [
+            "umount", self.name
+        ]
+
+        self.debug("Unmounting")
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])

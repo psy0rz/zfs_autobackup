@@ -62,6 +62,7 @@ def shelltest(cmd):
     """execute and print result as nice copypastable string for unit tests (adds extra newlines on top/bottom)"""
 
     ret=(subprocess.check_output("SUDO_ASKPASS=./password.sh sudo -A "+cmd , shell=True).decode('utf-8'))
+
     print("######### result of: {}".format(cmd))
     print(ret)
     print("#########")

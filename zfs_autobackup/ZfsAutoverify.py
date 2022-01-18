@@ -46,7 +46,8 @@ class ZfsAutoverify(ZfsAuto):
                 target_name = self.make_target_name(source_dataset)
                 target_dataset = ZfsDataset(target_node, target_name)
 
-                XXX
+                if source_dataset.properties['type']=="filesystem":
+                    print("JOOO")
 
             except Exception as e:
                 fail_count = fail_count + 1

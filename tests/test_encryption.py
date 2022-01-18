@@ -32,6 +32,7 @@ class TestZfsEncryption(unittest2.TestCase):
     def prepare_encrypted_dataset(self, key, path, unload_key=False):
 
         # create encrypted source dataset
+        shelltest("rm /tmp/zfstest.key 2>/dev/null;true")
         shelltest("echo {} > /tmp/zfstest.key".format(key))
         shelltest("zfs create -o keylocation=file:///tmp/zfstest.key -o keyformat=passphrase -o encryption=on {}".format(path))
 
