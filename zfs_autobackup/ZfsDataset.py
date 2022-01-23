@@ -1102,6 +1102,8 @@ class ZfsDataset:
 
     def mount(self, mount_point):
 
+        self.debug("Mounting")
+
         cmd = [
             "mount", "-tzfs", self.name, mount_point
         ]
@@ -1109,6 +1111,8 @@ class ZfsDataset:
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
     def unmount(self):
+
+        self.debug("Unmounting")
 
         cmd = [
             "umount", self.name

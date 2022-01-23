@@ -30,14 +30,19 @@ class ZfsAutoverify(ZfsAuto):
         """extend common parser with  extra stuff needed for zfs-autobackup"""
 
         parser=super(ZfsAutoverify, self).get_parser()
+
+        group=parser.add_argument_group("Verify options")
+        group.add_argument('--fs-compare', metavar='METHOD', default="tar", choices=["tar", "rsync"],
+                            help='Compare method to use for filesystems. (tar, rsync) Default: %(default)s ')
+
         return parser
 
-    def compare_trees(self , source_node, source_path, target_node, target_path):
-        """recursively compare checksums in both trees"""
-
-        #NOTE: perhaps support multiple compare methods/commands?
+    def compare_trees_rsync(self , source_node, source_path, target_node, target_path):
+        """recursively compare checksums in both directory trees"""
 
         #currently we use rsync for this.
+        #NOTE: perhaps support multiple compare implementations?
+
 
         cmd = ["rsync", "-rcn", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
 
@@ -45,44 +50,50 @@ class ZfsAutoverify(ZfsAuto):
         if source_node.ssh_to is None and target_node.ssh_to is None:
             cmd.append("{}/".format(source_path))
             cmd.append("{}/".format(target_path))
+            source_node.debug("Running rsync locally, on source.")
             stdout, stderr = source_node.run(cmd, return_stderr=True)
 
         #source is local
         elif source_node.ssh_to is None and target_node.ssh_to is not None:
             cmd.append("{}/".format(source_path))
             cmd.append("{}:{}/".format(target_node.ssh_to, target_path))
+            source_node.debug("Running rsync locally, on source.")
             stdout, stderr = source_node.run(cmd, return_stderr=True)
 
         #target is local
         elif source_node.ssh_to is not None and target_node.ssh_to is None:
             cmd.append("{}:{}/".format(source_node.ssh_to, source_path))
             cmd.append("{}/".format(target_path))
-
+            source_node.debug("Running rsync locally, on target.")
             stdout, stderr=target_node.run(cmd, return_stderr=True)
 
         else:
-            raise Exception("Source and target cant both be remote when using rsync to verify datasets")
+            raise Exception("Source and target cant both be remote when verifying. (rsync limitation)")
 
         if stderr:
             raise Exception("Dataset verify failed, see above list for differences")
 
     def verify_filesystem(self, source_snapshot, source_mnt, target_snapshot, target_mnt):
+        """Compare the contents of two zfs filesystem snapshots """
 
         try:
+
+
+            #mount the snapshots
             source_snapshot.mount(source_mnt)
             target_snapshot.mount(target_mnt)
 
-            self.compare_trees(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
-
+            self.compare_trees_rsync(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
 
         finally:
             source_snapshot.unmount()
             target_snapshot.unmount()
 
     def verify_volume(self, source_dataset, target_dataset):
+        target_dataset.error("XXX implement me")
         pass
 
-    def verify_datasets(self, source_node, source_mnt, source_datasets, target_node, target_mnt):
+    def verify_datasets(self, source_mnt, source_datasets, target_node, target_mnt):
 
         fail_count=0
         count = 0
@@ -101,6 +112,9 @@ class ZfsAutoverify(ZfsAuto):
                 # find common snapshots to  verify
                 source_snapshot = source_dataset.find_common_snapshot(target_dataset)
                 target_snapshot = target_dataset.find_snapshot(source_snapshot)
+
+                if source_snapshot is None or target_snapshot is None:
+                    raise(Exception("Cant find common snapshot"))
 
                 target_snapshot.verbose("Verifying...")
 
@@ -183,7 +197,6 @@ class ZfsAutoverify(ZfsAuto):
             source_mnt, target_mnt=self.create_mountpoints(source_node, target_node)
 
             fail_count = self.verify_datasets(
-                source_node=source_node,
                 source_mnt=source_mnt,
                 source_datasets=source_datasets,
                 target_mnt=target_mnt,
