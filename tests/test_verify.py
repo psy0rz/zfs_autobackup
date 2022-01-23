@@ -32,6 +32,8 @@ class TestZfsEncryption(unittest2.TestCase):
         shelltest("zfs create -V 1M test_source1/fs1/ok_zvol")
         shelltest("dd if=/dev/urandom of=/dev/zvol/test_source1/fs1/ok_zvol count=1 bs=512k")
 
+        shelltest("zfs create -V 1M test_source1/fs1/bad_zvol")
+        shelltest("dd if=/dev/urandom of=/dev/zvol/test_source1/fs1/bad_zvol count=1 bs=512k")
 
         #create backup
         with patch('time.strftime', return_value="test-20101111000000"):
@@ -44,10 +46,15 @@ class TestZfsEncryption(unittest2.TestCase):
         shelltest("echo >> /test_target1/test_source1/fs1/bad_filesystem/test_verify.py")
         shelltest("zfs snapshot test_target1/test_source1/fs1/bad_filesystem@test-20101111000000")
 
+        #do the same hack for the bad zvol
+        shelltest("zfs destroy test_target1/test_source1/fs1/bad_zvol@test-20101111000000")
+        shelltest("dd if=/dev/urandom of=/dev/zvol/test_target1/test_source1/fs1/bad_zvol count=1 bs=1")
+        shelltest("zfs snapshot test_target1/test_source1/fs1/bad_zvol@test-20101111000000")
+
+
         # make sure we cant accidently compare current data
         shelltest("zfs mount test_target1/test_source1/fs1/ok_filesystem")
         shelltest("rm /test_source1/fs1/ok_filesystem/*")
-        # shelltest("zfs mount /test_target1/test_source1/fs1/bad_filesystem")
         shelltest("rm /test_source1/fs1/bad_filesystem/*")
         shelltest("dd if=/dev/zero of=/dev/zvol/test_source1/fs1/ok_zvol count=1 bs=512k")
 
@@ -56,7 +63,7 @@ class TestZfsEncryption(unittest2.TestCase):
         self.assertFalse(ZfsAutoverify("test test_target1 --verbose --test".split(" ")).run())
 
         #rsync mode
-        self.assertEqual(1, ZfsAutoverify("test test_target1 --verbose".split(" ")).run())
-        self.assertEqual(1, ZfsAutoverify("test test_target1 --ssh-source=localhost --verbose --exclude-received".split(" ")).run())
-        self.assertEqual(1, ZfsAutoverify("test test_target1 --ssh-target=localhost --verbose --exclude-received".split(" ")).run())
+        self.assertEqual(2, ZfsAutoverify("test test_target1 --verbose".split(" ")).run())
+        self.assertEqual(2, ZfsAutoverify("test test_target1 --ssh-source=localhost --verbose --exclude-received".split(" ")).run())
+        self.assertEqual(2, ZfsAutoverify("test test_target1 --ssh-target=localhost --verbose --exclude-received".split(" ")).run())
 

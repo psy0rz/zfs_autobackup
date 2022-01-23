@@ -37,12 +37,17 @@ class ZfsAutoverify(ZfsAuto):
 
         return parser
 
+    def compare_trees_tar(self , source_node, source_path, target_node, target_path):
+        """compare two trees using tar. compatible and simple"""
+
+        self.error("XXX implement")
+        pass
+
+
     def compare_trees_rsync(self , source_node, source_path, target_node, target_path):
-        """recursively compare checksums in both directory trees"""
-
-        #currently we use rsync for this.
-        #NOTE: perhaps support multiple compare implementations?
-
+        """use rsync to compare two trees.
+         Advantage is that we can see which individual files differ.
+         But requires rsync and cant do remote to remote."""
 
         cmd = ["rsync", "-rcn", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
 
@@ -78,8 +83,7 @@ class ZfsAutoverify(ZfsAuto):
 
         try:
 
-
-            #mount the snapshots
+            # mount the snapshots
             source_snapshot.mount(source_mnt)
             target_snapshot.mount(target_mnt)
 
@@ -89,9 +93,42 @@ class ZfsAutoverify(ZfsAuto):
             source_snapshot.unmount()
             target_snapshot.unmount()
 
-    def verify_volume(self, source_dataset, target_dataset):
-        target_dataset.error("XXX implement me")
-        pass
+    def hash_dev(self, node, dev):
+        """calculate md5sum of a device on a node"""
+
+        node.debug("Hashing {} ".format(dev))
+
+        cmd = [ "md5sum", dev ]
+
+        stdout = node.run(cmd)
+
+        if node.readonly:
+            hashed=None
+        else:
+            hashed = stdout[0].split(" ")[0]
+
+        node.debug("Hash of {} is {}".format(dev, hashed))
+
+        return hashed
+
+    def verify_volume(self, source_dataset, source_snapshot, target_dataset, target_snapshot):
+        """compare the contents of two zfs volume snapshots"""
+
+        try:
+            #make sure the volume snapshot is visible in /dev
+            source_dataset.set("snapdev", "visible")
+            target_dataset.set("snapdev", "visible")
+
+            source_hash=self.hash_dev(source_snapshot.zfs_node, "/dev/zvol/"+source_snapshot.name)
+            target_hash=self.hash_dev(target_snapshot.zfs_node, "/dev/zvol/"+target_snapshot.name)
+
+            if source_hash!=target_hash:
+                raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
+
+        finally:
+            source_dataset.inherit("snapdev")
+            target_dataset.inherit("snapdev")
+
 
     def verify_datasets(self, source_mnt, source_datasets, target_node, target_mnt):
 
@@ -121,7 +158,7 @@ class ZfsAutoverify(ZfsAuto):
                 if source_dataset.properties['type']=="filesystem":
                     self.verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt)
                 elif source_dataset.properties['type']=="volume":
-                    self.verify_volume(source_dataset, target_dataset)
+                    self.verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot)
                 else:
                     raise(Exception("{} has unknown type {}".format(source_dataset, source_dataset.properties['type'])))
 

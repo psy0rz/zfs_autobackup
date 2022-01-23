@@ -1119,3 +1119,44 @@ class ZfsDataset:
         ]
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+    # unused/untested for now
+    # def clone(self, name):
+    #     """clones this snapshot and returns ZfsDataset of the clone"""
+    #
+    #     self.debug("Cloning to {}".format(name))
+    #
+    #     cmd = [
+    #         "zfs", "clone", self.name, name
+    #     ]
+    #
+    #     self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+    #
+    #     return ZfsDataset(self.zfs_node, name, force_exists=True)
+
+    def set(self, prop, value):
+        """set a zfs property"""
+
+        self.debug("Setting {}={}".format(prop, value))
+
+        cmd = [
+            "zfs", "set", "{}={}".format(prop, value), self.name
+        ]
+
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+        self.invalidate()
+
+    def inherit(self, prop):
+        """inherit zfs property"""
+
+        self.debug("Inheriting property {}".format(prop))
+
+        cmd = [
+            "zfs", "inherit", prop, self.name
+        ]
+
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+        self.invalidate()
+
