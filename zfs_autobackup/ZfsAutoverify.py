@@ -30,15 +30,54 @@ class ZfsAutoverify(ZfsAuto):
         """extend common parser with  extra stuff needed for zfs-autobackup"""
 
         parser=super(ZfsAutoverify, self).get_parser()
+        return parser
 
+    def compare_trees(self , source_node, source_path, target_node, target_path):
+        """recursively compare checksums in both trees"""
 
-        return (parser)
+        #NOTE: perhaps support multiple compare methods/commands?
+
+        #currently we use rsync for this.
+
+        cmd = ["rsync", "-rcn", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
+
+        #local
+        if source_node.ssh_to is None and target_node.ssh_to is None:
+            cmd.append("{}/".format(source_path))
+            cmd.append("{}/".format(target_path))
+            stdout, stderr = source_node.run(cmd, return_stderr=True)
+
+        #source is local
+        elif source_node.ssh_to is None and target_node.ssh_to is not None:
+            cmd.append("{}/".format(source_path))
+            cmd.append("{}:{}/".format(target_node.ssh_to, target_path))
+            stdout, stderr = source_node.run(cmd, return_stderr=True)
+
+        #target is local
+        elif source_node.ssh_to is not None and target_node.ssh_to is None:
+            cmd.append("{}:{}/".format(source_node.ssh_to, source_path))
+            cmd.append("{}/".format(target_path))
+
+            stdout, stderr=target_node.run(cmd, return_stderr=True)
+
+        else:
+            raise Exception("Source and target cant both be remote when using rsync to verify datasets")
+
+        if stderr:
+            raise Exception("Dataset verify failed, see above list for differences")
 
     def verify_filesystem(self, source_snapshot, source_mnt, target_snapshot, target_mnt):
 
-        # XXX create proper rsync command that also support pull/push mode somehow.
+        try:
+            source_snapshot.mount(source_mnt)
+            target_snapshot.mount(target_mnt)
 
-        pass
+            self.compare_trees(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
+
+
+        finally:
+            source_snapshot.unmount()
+            target_snapshot.unmount()
 
     def verify_volume(self, source_dataset, target_dataset):
         pass
@@ -59,9 +98,11 @@ class ZfsAutoverify(ZfsAuto):
                 target_name = self.make_target_name(source_dataset)
                 target_dataset = ZfsDataset(target_node, target_name)
 
-                # find common snapshots to operate on
+                # find common snapshots to  verify
                 source_snapshot = source_dataset.find_common_snapshot(target_dataset)
                 target_snapshot = target_dataset.find_snapshot(source_snapshot)
+
+                target_snapshot.verbose("Verifying...")
 
                 if source_dataset.properties['type']=="filesystem":
                     self.verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt)
@@ -73,9 +114,12 @@ class ZfsAutoverify(ZfsAuto):
 
             except Exception as e:
                 fail_count = fail_count + 1
-                source_dataset.error("FAILED: " + str(e))
+                target_dataset.error("FAILED: " + str(e))
                 if self.args.debug:
+                    self.verbose("Debug mode, aborting on first error")
                     raise
+
+        return fail_count
 
     def create_mountpoints(self, source_node, target_node):
 
@@ -92,7 +136,6 @@ class ZfsAutoverify(ZfsAuto):
 
     def cleanup_mountpoint(self, node, mnt):
         node.debug("Cleaning up temporary mount point")
-        node.run([ "umount", mnt ], hide_errors=True, valid_exitcodes=[] )
         node.run([ "rmdir", mnt ], hide_errors=True, valid_exitcodes=[] )
 
 
@@ -135,6 +178,7 @@ class ZfsAutoverify(ZfsAuto):
                                   description="[Target]")
             target_node.verbose("Verify datasets under: {}".format(self.args.target_path))
 
+            self.set_title("Verifying")
 
             source_mnt, target_mnt=self.create_mountpoints(source_node, target_node)
 

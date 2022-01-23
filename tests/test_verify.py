@@ -37,5 +37,5 @@ class TestZfsEncryption(unittest2.TestCase):
 
         self.assertFalse(ZfsAutoverify("test test_target1 --verbose --test".split(" ")).run())
 
-        self.assertFalse(ZfsAutoverify("test test_target1 --verbose --debug".split(" ")).run())
+        self.assertFalse(ZfsAutoverify("test test_target1 --verbose".split(" ")).run())
 
