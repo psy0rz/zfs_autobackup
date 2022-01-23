@@ -45,6 +45,9 @@ class ZfsAuto(object):
         if args.test:
             args.verbose = True
 
+        if args.debug:
+            args.verbose = True
+
         self.log = LogConsole(show_debug=args.debug, show_verbose=args.verbose, color=sys.stdout.isatty())
 
         self.verbose(self.HEADER)

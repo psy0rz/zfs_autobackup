@@ -330,6 +330,7 @@ class ZfsAutobackup(ZfsAuto):
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
                 if self.args.debug:
+                    self.verbose("Debug mode, aborting on first error")
                     raise
 
         if self.args.progress:
