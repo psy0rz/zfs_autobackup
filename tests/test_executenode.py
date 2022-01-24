@@ -144,5 +144,23 @@ class TestExecuteNode(unittest2.TestCase):
         self.pipe(nodea, nodeb)
 
 
+    def test_cwd(self):
+
+        nodea=ExecuteNode(ssh_to="localhost", debug_output=True)
+        nodeb=ExecuteNode(debug_output=True)
+
+        #change to a directory with a space and execute a system pipe, check if all piped commands are executed in correct directory.
+        shelltest("mkdir '/tmp/space test' 2>/dev/null; true")
+        self.assertEqual(nodea.run(cmd=["pwd", ExecuteNode.PIPE, "cat"], cwd="/tmp/space test"), ["/tmp/space test"])
+        self.assertEqual(nodea.run(cmd=["cat", ExecuteNode.PIPE, "pwd"], cwd="/tmp/space test"), ["/tmp/space test"])
+        self.assertEqual(nodeb.run(cmd=["pwd", ExecuteNode.PIPE, "cat"], cwd="/tmp/space test"), ["/tmp/space test"])
+        self.assertEqual(nodeb.run(cmd=["cat", ExecuteNode.PIPE, "pwd"], cwd="/tmp/space test"), ["/tmp/space test"])
+
+
+
+
+
+
+
 if __name__ == '__main__':
     unittest.main()

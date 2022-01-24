@@ -54,15 +54,16 @@ class ExecuteNode(LogStub):
         if cmd==self.PIPE:
             return('|')
         else:
-            return(cmd_quote(cmd))
+            return cmd_quote(cmd)
 
-    def _shell_cmd(self, cmd):
+    def _shell_cmd(self, cmd, cwd):
         """prefix specified ssh shell to command and escape shell characters"""
 
         ret=[]
 
         #add remote shell
         if not self.is_local():
+            #note: dont escape this part (executed directly without shell)
             ret=["ssh"]
 
             if self.ssh_config is not None:
@@ -70,7 +71,17 @@ class ExecuteNode(LogStub):
 
             ret.append(self.ssh_to)
 
-        ret.append(" ".join(map(self._quote, cmd)))
+        #note: DO escape from here, executed in either local or remote shell.
+
+        shell_str=""
+
+        #add cwd change?
+        if cwd is not None:
+            shell_str=shell_str + "cd " + self._quote(cwd) + "; "
+
+        shell_str=shell_str + " ".join(map(self._quote, cmd))
+
+        ret.append(shell_str)
 
         return ret
 
@@ -78,7 +89,7 @@ class ExecuteNode(LogStub):
         return self.ssh_to is None
 
     def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False,
-            return_stderr=False, pipe=False, return_all=False):
+            return_stderr=False, pipe=False, return_all=False, cwd=None):
         """run a command on the node , checks output and parses/handle output and returns it
 
         Either uses a local shell (sh -c) or remote shell (ssh) to execute the command.
@@ -96,6 +107,7 @@ class ExecuteNode(LogStub):
         :param hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
         :param return_stderr: return both stdout and stderr as a tuple. (normally only returns stdout)
         :param return_all: return both stdout and stderr and exit_code as a tuple. (normally only returns stdout)
+        :param cwd: Change current working directory before executing command.
 
         """
 
@@ -132,7 +144,7 @@ class ExecuteNode(LogStub):
             return True
 
         # add shell command and handlers to pipe
-        cmd_item=CmdItem(cmd=self._shell_cmd(cmd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
+        cmd_item=CmdItem(cmd=self._shell_cmd(cmd, cwd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
         cmd_pipe.add(cmd_item)
 
         # return pipe instead of executing?
