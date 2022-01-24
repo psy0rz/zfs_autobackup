@@ -48,6 +48,7 @@ class ZfsNode(ExecuteNode):
 
         # list of ZfsPools
         self.__pools = {}
+        self.__datasets = {}
 
         self._progress_total_bytes = 0
         self._progress_start_time = time.time()
@@ -93,12 +94,23 @@ class ZfsNode(ExecuteNode):
 
         return True
 
-    # TODO: also create a get_zfs_dataset() function that stores all the objects in a dict. This should optimize
-    #  caching a bit and is more consistent.
-    def get_zfs_pool(self, name):
-        """get a ZfsPool() object from specified name. stores objects internally to enable caching"""
+    def get_pool(self, dataset):
+        """get a ZfsPool() object from dataset. stores objects internally to enable caching"""
 
-        return self.__pools.setdefault(name, ZfsPool(self, name))
+        if not isinstance(dataset, ZfsDataset):
+            raise (Exception("{} is not a ZfsDataset".format(dataset)))
+
+        zpool_name = dataset.name.split("/")[0]
+
+        return self.__pools.setdefault(zpool_name, ZfsPool(self, zpool_name))
+
+    def get_dataset(self, name, force_exists=None):
+        """get a ZfsDataset() object from name. stores objects internally to enable caching"""
+
+        if not isinstance(name, str):
+            raise (Exception("{} is not a str".format(name)))
+
+        return self.__datasets.setdefault(name, ZfsDataset(self, name))
 
     def reset_progress(self):
         """reset progress output counters"""
@@ -179,7 +191,7 @@ class ZfsNode(ExecuteNode):
                 continue
 
             # force_exist, since we're making it
-            snapshot = ZfsDataset(dataset.zfs_node, dataset.name + "@" + snapshot_name, force_exists=True)
+            snapshot = self.get_dataset(dataset.name + "@" + snapshot_name, force_exists=True)
 
             pool = dataset.split_path()[0]
             if pool not in pools:
@@ -239,7 +251,7 @@ class ZfsNode(ExecuteNode):
 
         for line in lines:
             (name, value, raw_source) = line
-            dataset = ZfsDataset(self, name)
+            dataset = self.get_dataset(name, force_exists=True)
 
             # "resolve" inherited sources
             sources[name] = raw_source

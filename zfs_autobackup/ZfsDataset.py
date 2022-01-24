@@ -186,9 +186,9 @@ class ZfsDataset:
         we cache this so everything in the parent that is cached also stays.
         """
         if self.is_snapshot:
-            return ZfsDataset(self.zfs_node, self.filesystem_name)
+            return self.zfs_node.get_dataset(self.filesystem_name)
         else:
-            return ZfsDataset(self.zfs_node, self.rstrip_path(1))
+            return self.zfs_node.get_dataset(self.rstrip_path(1))
 
     # NOTE: unused for now
     # def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
@@ -370,7 +370,7 @@ class ZfsDataset:
         """
         ret = []
         for name in names:
-            ret.append(ZfsDataset(self.zfs_node, name))
+            ret.append(self.zfs_node.get_dataset(name))
 
         return ret
 
@@ -724,7 +724,7 @@ class ZfsDataset:
             matches = re.findall("toname = .*@(.*)", line)
             if matches:
                 snapshot_name = matches[0]
-                snapshot = ZfsDataset(self.zfs_node, self.filesystem_name + "@" + snapshot_name)
+                snapshot = self.zfs_node.get_dataset(self.filesystem_name + "@" + snapshot_name)
                 snapshot.debug("resume token belongs to this snapshot")
                 return snapshot
 
@@ -867,9 +867,7 @@ class ZfsDataset:
         while snapshot:
             # create virtual target snapsho
             # NOTE: with force_exist we're telling the dataset it doesnt exist yet. (e.g. its virtual)
-            virtual_snapshot = ZfsDataset(self.zfs_node,
-                                          self.filesystem_name + "@" + snapshot.snapshot_name,
-                                          force_exists=False)
+            virtual_snapshot = self.zfs_node.get_dataset(self.filesystem_name + "@" + snapshot.snapshot_name, force_exists=False)
             self.snapshots.append(virtual_snapshot)
             snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
@@ -1120,19 +1118,18 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-    # unused/untested for now
-    # def clone(self, name):
-    #     """clones this snapshot and returns ZfsDataset of the clone"""
-    #
-    #     self.debug("Cloning to {}".format(name))
-    #
-    #     cmd = [
-    #         "zfs", "clone", self.name, name
-    #     ]
-    #
-    #     self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
-    #
-    #     return ZfsDataset(self.zfs_node, name, force_exists=True)
+    def clone(self, name):
+        """clones this snapshot and returns ZfsDataset of the clone"""
+
+        self.debug("Cloning to {}".format(name))
+
+        cmd = [
+            "zfs", "clone", self.name, name
+        ]
+
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+        return self.zfs_node.get_dataset(name, force_exists=True)
 
     def set(self, prop, value):
         """set a zfs property"""

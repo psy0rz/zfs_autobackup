@@ -299,7 +299,7 @@ class ZfsAutobackup(ZfsAuto):
             try:
                 # determine corresponding target_dataset
                 target_name = self.make_target_name(source_dataset)
-                target_dataset = ZfsDataset(target_node, target_name)
+                target_dataset = target_node.get_dataset(target_name)
                 target_datasets.append(target_dataset)
 
                 # ensure parents exists
@@ -310,8 +310,8 @@ class ZfsAutobackup(ZfsAuto):
                     target_dataset.parent.create_filesystem(parents=True)
 
                 # determine common zpool features (cached, so no problem we call it often)
-                source_features = source_node.get_zfs_pool(source_dataset.split_path()[0]).features
-                target_features = target_node.get_zfs_pool(target_dataset.split_path()[0]).features
+                source_features = source_node.get_pool(source_dataset).features
+                target_features = target_node.get_pool(target_dataset).features
                 common_features = source_features and target_features
 
                 # sync the snapshots of this dataset
@@ -336,7 +336,7 @@ class ZfsAutobackup(ZfsAuto):
         if self.args.progress:
             self.clear_progress()
 
-        target_path_dataset = ZfsDataset(target_node, self.args.target_path)
+        target_path_dataset = target_node.get_dataset(self.args.target_path)
         if not self.args.no_thinning:
             self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
@@ -434,7 +434,7 @@ class ZfsAutobackup(ZfsAuto):
                 self.set_title("Synchronising")
 
                 # check if exists, to prevent vague errors
-                target_dataset = ZfsDataset(target_node, self.args.target_path)
+                target_dataset = target_node.get_dataset(self.args.target_path)
                 if not target_dataset.exists:
                     raise (Exception(
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
