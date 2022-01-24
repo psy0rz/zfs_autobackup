@@ -214,6 +214,9 @@ class ZfsAutobackup(ZfsAuto):
                                 dataset.destroy(fail_exception=True)
 
             except Exception as e:
+                if self.args.progress:
+                    self.clear_progress()
+
                 dataset.error("Error during --destroy-missing: {}".format(str(e)))
 
         if self.args.progress:
@@ -327,6 +330,9 @@ class ZfsAutobackup(ZfsAuto):
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed)
             except Exception as e:
+                if self.args.progress:
+                    self.clear_progress()
+
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
                 if self.args.debug:

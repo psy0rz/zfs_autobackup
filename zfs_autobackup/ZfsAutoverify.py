@@ -8,6 +8,14 @@ from .ZfsNode import ZfsNode
 import sys
 import platform
 
+def tmp_name(suffix=""):
+    """create temporary name unique to this process and node"""
+
+    #we could use uuids but those are ugly and confusing
+    name="zfstmp_{}_{}".format(platform.node(), os.getpid())
+    name=name+suffix
+    return name
+
 def hash_tree_tar(node, path):
     """calculate md5sum of a directory tree, using tar"""
 
@@ -112,26 +120,66 @@ def hash_dev(node, dev):
 
     return hashed
 
-def activate_volume_snapshot(dataset, snapshot):
-    """enables snapdev, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
+# def activate_volume_snapshot(dataset, snapshot):
+#     """enables snapdev, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
+#
+#     dataset.set("snapdev", "visible")
+#
+#     #NOTE: add smartos location to this list as well
+#     locations=[
+#         "/dev/zvol/" + snapshot.name
+#     ]
+#
+#     dataset.debug("Waiting for /dev entry to appear...")
+#     time.sleep(0.1)
+#
+#     start_time=time.time()
+#     while time.time()-start_time<10:
+#         for location in locations:
+#             stdout, stderr, exit_code=dataset.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
+#
+#             #fake it in testmode
+#             if dataset.zfs_node.readonly:
+#                 return location
+#
+#             if exit_code==0:
+#                 return location
+#         time.sleep(1)
+#
+#     raise(Exception("Timeout while waiting for {} entry to appear.".format(locations)))
+#
+# def deacitvate_volume_snapshot(dataset):
+#     dataset.inherit("snapdev")
 
-    dataset.set("snapdev", "visible")
+#NOTE: https://www.google.com/search?q=Mount+Path+Limit+freebsd
+#Freebsd has limitations regarding path length, so we cant use the above method.
+#Instead we create a temporary clone
+
+def get_tmp_clone_name(snapshot):
+    pool=snapshot.zfs_node.get_pool(snapshot)
+    return pool.name+"/"+tmp_name()
+
+def activate_volume_snapshot(snapshot):
+    """clone volume, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
+
+    clone_name=get_tmp_clone_name(snapshot)
+    clone=snapshot.clone(clone_name)
 
     #NOTE: add smartos location to this list as well
     locations=[
-        "/dev/zvol/" + snapshot.name
+        "/dev/zvol/" + clone_name
     ]
 
-    dataset.debug("Waiting for /dev entry to appear...")
+    clone.debug("Waiting for /dev entry to appear...")
     time.sleep(0.1)
 
     start_time=time.time()
     while time.time()-start_time<10:
         for location in locations:
-            stdout, stderr, exit_code=dataset.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
+            stdout, stderr, exit_code=clone.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
 
             #fake it in testmode
-            if dataset.zfs_node.readonly:
+            if clone.zfs_node.readonly:
                 return location
 
             if exit_code==0:
@@ -140,16 +188,17 @@ def activate_volume_snapshot(dataset, snapshot):
 
     raise(Exception("Timeout while waiting for {} entry to appear.".format(locations)))
 
-def deacitvate_volume_snapshot(dataset):
-    dataset.inherit("snapdev")
-
+def deacitvate_volume_snapshot(snapshot):
+    clone_name=get_tmp_clone_name(snapshot)
+    clone=snapshot.zfs_node.get_dataset(clone_name)
+    clone.destroy()
 
 def verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot):
     """compare the contents of two zfs volume snapshots"""
 
     try:
-        source_dev= activate_volume_snapshot(source_dataset, source_snapshot)
-        target_dev= activate_volume_snapshot(target_dataset, target_snapshot)
+        source_dev= activate_volume_snapshot(source_snapshot)
+        target_dev= activate_volume_snapshot(target_snapshot)
 
         source_hash= hash_dev(source_snapshot.zfs_node, source_dev)
         target_hash= hash_dev(target_snapshot.zfs_node, target_dev)
@@ -158,19 +207,18 @@ def verify_volume(source_dataset, source_snapshot, target_dataset, target_snapsh
             raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
 
     finally:
-        deacitvate_volume_snapshot(source_dataset)
-        deacitvate_volume_snapshot(target_dataset)
-
+        deacitvate_volume_snapshot(source_snapshot)
+        deacitvate_volume_snapshot(target_snapshot)
 
 def create_mountpoints(source_node, target_node):
 
     # prepare mount points
     source_node.debug("Create temporary mount point")
-    source_mnt = "/tmp/zfs-autoverify_source_{}_{}".format(platform.node(), os.getpid())
+    source_mnt = "/tmp/"+tmp_name("source")
     source_node.run(["mkdir", source_mnt])
 
     target_node.debug("Create temporary mount point")
-    target_mnt = "/tmp/zfs-autoverify_target_{}_{}".format(platform.node(), os.getpid())
+    target_mnt = "/tmp/"+tmp_name("target")
     target_node.run(["mkdir", target_mnt])
 
     return source_mnt, target_mnt
@@ -225,7 +273,7 @@ class ZfsAutoverify(ZfsAuto):
             try:
                 # determine corresponding target_dataset
                 target_name = self.make_target_name(source_dataset)
-                target_dataset = ZfsDataset(target_node, target_name)
+                target_dataset = target_node.get_dataset(target_name)
 
                 # find common snapshots to  verify
                 source_snapshot = source_dataset.find_common_snapshot(target_dataset)
@@ -245,11 +293,17 @@ class ZfsAutoverify(ZfsAuto):
 
 
             except Exception as e:
+                if self.args.progress:
+                    self.clear_progress()
+
                 fail_count = fail_count + 1
                 target_dataset.error("FAILED: " + str(e))
                 if self.args.debug:
                     self.verbose("Debug mode, aborting on first error")
                     raise
+
+        if self.args.progress:
+            self.clear_progress()
 
         return fail_count
 

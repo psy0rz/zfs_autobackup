@@ -107,9 +107,6 @@ class ZfsNode(ExecuteNode):
     def get_dataset(self, name, force_exists=None):
         """get a ZfsDataset() object from name. stores objects internally to enable caching"""
 
-        if not isinstance(name, str):
-            raise (Exception("{} is not a str".format(name)))
-
         return self.__datasets.setdefault(name, ZfsDataset(self, name))
 
     def reset_progress(self):
