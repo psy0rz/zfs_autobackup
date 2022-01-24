@@ -119,8 +119,14 @@ class ZfsAutoverify(ZfsAuto):
             source_dataset.set("snapdev", "visible")
             target_dataset.set("snapdev", "visible")
 
-            source_hash=self.hash_dev(source_snapshot.zfs_node, "/dev/zvol/"+source_snapshot.name)
-            target_hash=self.hash_dev(target_snapshot.zfs_node, "/dev/zvol/"+target_snapshot.name)
+            # fixme: not compatible with freebsd and others.
+            source_dev="/dev/zvol/"+source_snapshot.name
+            target_dev="/dev/zvol/"+target_snapshot.name
+            source_dataset.zfs_node.run(["udevadm", "trigger", source_dev])
+            target_dataset.zfs_node.run(["udevadm", "trigger", target_dev])
+
+            source_hash=self.hash_dev(source_snapshot.zfs_node, source_dev)
+            target_hash=self.hash_dev(target_snapshot.zfs_node, target_dev)
 
             if source_hash!=target_hash:
                 raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
