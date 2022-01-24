@@ -78,10 +78,11 @@ class ExecuteNode(LogStub):
         return self.ssh_to is None
 
     def run(self, cmd, inp=None, tab_split=False, valid_exitcodes=None, readonly=False, hide_errors=False,
-            return_stderr=False, pipe=False):
+            return_stderr=False, pipe=False, return_all=False):
         """run a command on the node , checks output and parses/handle output and returns it
 
-        Either uses a local shell (sh -c) or remote shell (ssh) to execute the command. Therefore the command can have stuff like actual pipes in it, if you dont want to use pipe=True to pipe stuff.
+        Either uses a local shell (sh -c) or remote shell (ssh) to execute the command.
+        Therefore the command can have stuff like actual pipes in it, if you dont want to use pipe=True to pipe stuff.
 
         :param cmd: the actual command, should be a list, where the first item is the command
                     and the rest are parameters. use ExecuteNode.PIPE to add an unescaped |
@@ -94,6 +95,7 @@ class ExecuteNode(LogStub):
         :param readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
         :param hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
         :param return_stderr: return both stdout and stderr as a tuple. (normally only returns stdout)
+        :param return_all: return both stdout and stderr and exit_code as a tuple. (normally only returns stdout)
 
         """
 
@@ -106,6 +108,7 @@ class ExecuteNode(LogStub):
 
         # stderr parser
         error_lines = []
+        returned_exit_code=None
 
         def stderr_handler(line):
             if tab_split:
@@ -155,7 +158,9 @@ class ExecuteNode(LogStub):
         if not cmd_pipe.execute(stdout_handler=stdout_handler):
             raise(ExecuteError("Last command returned error"))
 
-        if return_stderr:
+        if return_all:
+            return output_lines, error_lines, cmd_item.process and cmd_item.process.returncode
+        elif return_stderr:
             return output_lines, error_lines
         else:
             return output_lines

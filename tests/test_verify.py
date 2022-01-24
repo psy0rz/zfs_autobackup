@@ -67,7 +67,7 @@ class TestZfsEncryption(unittest2.TestCase):
             self.assertFalse(ZfsAutoverify("test test_target1 --verbose --test".split(" ")).run())
 
         with self.subTest("rsync, remote source and target. (not supported, all 6 fail)"):
-            self.assertEqual(6, ZfsAutoverify("test test_target1 --ssh-source=localhost --ssh-target=localhost --verbose --exclude-received".split(" ")).run())
+            self.assertEqual(6, ZfsAutoverify("test test_target1 --ssh-source=localhost --ssh-target=localhost --verbose --exclude-received --fs-compare=rsync".split(" ")).run())
 
         def runchecked(testname, command):
             with self.subTest(testname):
@@ -81,10 +81,17 @@ class TestZfsEncryption(unittest2.TestCase):
                     self.assertRegex(buf.getvalue(), "bad_filesystem: FAILED:")
                     self.assertRegex(buf.getvalue(), "bad_zvol: FAILED:")
 
-        runchecked("rsync, remote source", "test test_target1 --ssh-source=localhost --verbose --exclude-received")
-        runchecked("rsync, remote target", "test test_target1 --ssh-target=localhost --verbose --exclude-received")
-        runchecked("rsync, local", "test test_target1 --verbose --exclude-received")
+        runchecked("rsync, remote source", "test test_target1 --ssh-source=localhost --verbose --exclude-received --fs-compare=rsync")
+        runchecked("rsync, remote target", "test test_target1 --ssh-target=localhost --verbose --exclude-received --fs-compare=rsync")
+        runchecked("rsync, local", "test test_target1 --verbose --exclude-received --fs-compare=rsync")
 
+        runchecked("tar, remote source and remote target",
+                   "test test_target1 --ssh-source=localhost --ssh-target=localhost --verbose --exclude-received --fs-compare=tar")
+        runchecked("tar, remote source",
+                   "test test_target1 --ssh-source=localhost --verbose --exclude-received --fs-compare=tar")
+        runchecked("tar, remote target",
+                   "test test_target1 --ssh-target=localhost --verbose --exclude-received --fs-compare=tar")
+        runchecked("tar, local", "test test_target1 --verbose --exclude-received --fs-compare=tar")
 
         with self.subTest("no common snapshot"):
             #destroy common snapshot, now 3 should fail

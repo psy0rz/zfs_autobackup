@@ -1,10 +1,184 @@
 import os
+import time
 
+from .ExecuteNode import ExecuteNode
 from .ZfsAuto import ZfsAuto
 from .ZfsDataset import ZfsDataset
 from .ZfsNode import ZfsNode
 import sys
 import platform
+
+def hash_tree_tar(node, path):
+    """calculate md5sum of a directory tree, using tar"""
+
+    node.debug("Hashing filesystem {} ".format(path))
+
+    cmd=[ "tar", "-cf", "-", "-C", path, ".",
+          ExecuteNode.PIPE, "md5sum"]
+
+    stdout = node.run(cmd)
+
+    if node.readonly:
+        hashed=None
+    else:
+        hashed = stdout[0].split(" ")[0]
+
+    node.debug("Hash of {} filesytem is {}".format(path, hashed))
+
+    return hashed
+
+
+def compare_trees_tar(source_node, source_path, target_node, target_path):
+    """compare two trees using tar. compatible and simple"""
+
+    source_hash= hash_tree_tar(source_node, source_path)
+    target_hash= hash_tree_tar(target_node, target_path)
+
+    if source_hash != target_hash:
+        raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
+
+
+def compare_trees_rsync(source_node, source_path, target_node, target_path):
+    """use rsync to compare two trees.
+     Advantage is that we can see which individual files differ.
+     But requires rsync and cant do remote to remote."""
+
+    cmd = ["rsync", "-rcn", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
+
+    #local
+    if source_node.ssh_to is None and target_node.ssh_to is None:
+        cmd.append("{}/".format(source_path))
+        cmd.append("{}/".format(target_path))
+        source_node.debug("Running rsync locally, on source.")
+        stdout, stderr = source_node.run(cmd, return_stderr=True)
+
+    #source is local
+    elif source_node.ssh_to is None and target_node.ssh_to is not None:
+        cmd.append("{}/".format(source_path))
+        cmd.append("{}:{}/".format(target_node.ssh_to, target_path))
+        source_node.debug("Running rsync locally, on source.")
+        stdout, stderr = source_node.run(cmd, return_stderr=True)
+
+    #target is local
+    elif source_node.ssh_to is not None and target_node.ssh_to is None:
+        cmd.append("{}:{}/".format(source_node.ssh_to, source_path))
+        cmd.append("{}/".format(target_path))
+        source_node.debug("Running rsync locally, on target.")
+        stdout, stderr=target_node.run(cmd, return_stderr=True)
+
+    else:
+        raise Exception("Source and target cant both be remote when verifying. (rsync limitation)")
+
+    if stderr:
+        raise Exception("Dataset verify failed, see above list for differences")
+
+
+def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, method):
+    """Compare the contents of two zfs filesystem snapshots """
+
+    try:
+
+        # mount the snapshots
+        source_snapshot.mount(source_mnt)
+        target_snapshot.mount(target_mnt)
+
+        if method=='rsync':
+            compare_trees_rsync(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
+        elif method == 'tar':
+            compare_trees_tar(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
+        else:
+            raise(Exception("program errror, unknown method"))
+
+    finally:
+        source_snapshot.unmount()
+        target_snapshot.unmount()
+
+
+def hash_dev(node, dev):
+    """calculate md5sum of a device on a node"""
+
+    node.debug("Hashing volume {} ".format(dev))
+
+    cmd = [ "md5sum", dev ]
+
+    stdout = node.run(cmd)
+
+    if node.readonly:
+        hashed=None
+    else:
+        hashed = stdout[0].split(" ")[0]
+
+    node.debug("Hash of volume {} is {}".format(dev, hashed))
+
+    return hashed
+
+def activate_volume_snapshot(dataset, snapshot):
+    """enables snapdev, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
+
+    dataset.set("snapdev", "visible")
+
+    #NOTE: add smartos location to this list as well
+    locations=[
+        "/dev/zvol/" + snapshot.name
+    ]
+
+    dataset.debug("Waiting for /dev entry to appear...")
+    time.sleep(0.1)
+
+    start_time=time.time()
+    while time.time()-start_time<10:
+        for location in locations:
+            stdout, stderr, exit_code=dataset.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
+
+            #fake it in testmode
+            if dataset.zfs_node.readonly:
+                return location
+
+            if exit_code==0:
+                return location
+        time.sleep(1)
+
+    raise(Exception("Timeout while waiting for {} entry to appear.".format(locations)))
+
+def deacitvate_volume_snapshot(dataset):
+    dataset.inherit("snapdev")
+
+
+def verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot):
+    """compare the contents of two zfs volume snapshots"""
+
+    try:
+        source_dev= activate_volume_snapshot(source_dataset, source_snapshot)
+        target_dev= activate_volume_snapshot(target_dataset, target_snapshot)
+
+        source_hash= hash_dev(source_snapshot.zfs_node, source_dev)
+        target_hash= hash_dev(target_snapshot.zfs_node, target_dev)
+
+        if source_hash!=target_hash:
+            raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
+
+    finally:
+        deacitvate_volume_snapshot(source_dataset)
+        deacitvate_volume_snapshot(target_dataset)
+
+
+def create_mountpoints(source_node, target_node):
+
+    # prepare mount points
+    source_node.debug("Create temporary mount point")
+    source_mnt = "/tmp/zfs-autoverify_source_{}_{}".format(platform.node(), os.getpid())
+    source_node.run(["mkdir", source_mnt])
+
+    target_node.debug("Create temporary mount point")
+    target_mnt = "/tmp/zfs-autoverify_target_{}_{}".format(platform.node(), os.getpid())
+    target_node.run(["mkdir", target_mnt])
+
+    return source_mnt, target_mnt
+
+
+def cleanup_mountpoint(node, mnt):
+    node.debug("Cleaning up temporary mount point")
+    node.run([ "rmdir", mnt ], hide_errors=True, valid_exitcodes=[] )
 
 
 class ZfsAutoverify(ZfsAuto):
@@ -37,105 +211,6 @@ class ZfsAutoverify(ZfsAuto):
 
         return parser
 
-    def compare_trees_tar(self , source_node, source_path, target_node, target_path):
-        """compare two trees using tar. compatible and simple"""
-
-        self.error("XXX implement")
-        pass
-
-
-    def compare_trees_rsync(self , source_node, source_path, target_node, target_path):
-        """use rsync to compare two trees.
-         Advantage is that we can see which individual files differ.
-         But requires rsync and cant do remote to remote."""
-
-        cmd = ["rsync", "-rcn", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
-
-        #local
-        if source_node.ssh_to is None and target_node.ssh_to is None:
-            cmd.append("{}/".format(source_path))
-            cmd.append("{}/".format(target_path))
-            source_node.debug("Running rsync locally, on source.")
-            stdout, stderr = source_node.run(cmd, return_stderr=True)
-
-        #source is local
-        elif source_node.ssh_to is None and target_node.ssh_to is not None:
-            cmd.append("{}/".format(source_path))
-            cmd.append("{}:{}/".format(target_node.ssh_to, target_path))
-            source_node.debug("Running rsync locally, on source.")
-            stdout, stderr = source_node.run(cmd, return_stderr=True)
-
-        #target is local
-        elif source_node.ssh_to is not None and target_node.ssh_to is None:
-            cmd.append("{}:{}/".format(source_node.ssh_to, source_path))
-            cmd.append("{}/".format(target_path))
-            source_node.debug("Running rsync locally, on target.")
-            stdout, stderr=target_node.run(cmd, return_stderr=True)
-
-        else:
-            raise Exception("Source and target cant both be remote when verifying. (rsync limitation)")
-
-        if stderr:
-            raise Exception("Dataset verify failed, see above list for differences")
-
-    def verify_filesystem(self, source_snapshot, source_mnt, target_snapshot, target_mnt):
-        """Compare the contents of two zfs filesystem snapshots """
-
-        try:
-
-            # mount the snapshots
-            source_snapshot.mount(source_mnt)
-            target_snapshot.mount(target_mnt)
-
-            self.compare_trees_rsync(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
-
-        finally:
-            source_snapshot.unmount()
-            target_snapshot.unmount()
-
-    def hash_dev(self, node, dev):
-        """calculate md5sum of a device on a node"""
-
-        node.debug("Hashing {} ".format(dev))
-
-        cmd = [ "md5sum", dev ]
-
-        stdout = node.run(cmd)
-
-        if node.readonly:
-            hashed=None
-        else:
-            hashed = stdout[0].split(" ")[0]
-
-        node.debug("Hash of {} is {}".format(dev, hashed))
-
-        return hashed
-
-    def verify_volume(self, source_dataset, source_snapshot, target_dataset, target_snapshot):
-        """compare the contents of two zfs volume snapshots"""
-
-        try:
-            #make sure the volume snapshot is visible in /dev
-            source_dataset.set("snapdev", "visible")
-            target_dataset.set("snapdev", "visible")
-
-            # fixme: not compatible with freebsd and others.
-            source_dev="/dev/zvol/"+source_snapshot.name
-            target_dev="/dev/zvol/"+target_snapshot.name
-            source_dataset.zfs_node.run(["udevadm", "trigger", source_dev])
-            target_dataset.zfs_node.run(["udevadm", "trigger", target_dev])
-
-            source_hash=self.hash_dev(source_snapshot.zfs_node, source_dev)
-            target_hash=self.hash_dev(target_snapshot.zfs_node, target_dev)
-
-            if source_hash!=target_hash:
-                raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
-
-        finally:
-            source_dataset.inherit("snapdev")
-            target_dataset.inherit("snapdev")
-
-
     def verify_datasets(self, source_mnt, source_datasets, target_node, target_mnt):
 
         fail_count=0
@@ -162,9 +237,9 @@ class ZfsAutoverify(ZfsAuto):
                 target_snapshot.verbose("Verifying...")
 
                 if source_dataset.properties['type']=="filesystem":
-                    self.verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt)
+                    verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, self.args.fs_compare)
                 elif source_dataset.properties['type']=="volume":
-                    self.verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot)
+                    verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot)
                 else:
                     raise(Exception("{} has unknown type {}".format(source_dataset, source_dataset.properties['type'])))
 
@@ -177,24 +252,6 @@ class ZfsAutoverify(ZfsAuto):
                     raise
 
         return fail_count
-
-    def create_mountpoints(self, source_node, target_node):
-
-        # prepare mount points
-        source_node.debug("Create temporary mount point")
-        source_mnt = "/tmp/zfs-autoverify_source_{}_{}".format(platform.node(), os.getpid())
-        source_node.run(["mkdir", source_mnt])
-
-        target_node.debug("Create temporary mount point")
-        target_mnt = "/tmp/zfs-autoverify_target_{}_{}".format(platform.node(), os.getpid())
-        target_node.run(["mkdir", target_mnt])
-
-        return source_mnt, target_mnt
-
-    def cleanup_mountpoint(self, node, mnt):
-        node.debug("Cleaning up temporary mount point")
-        node.run([ "rmdir", mnt ], hide_errors=True, valid_exitcodes=[] )
-
 
     def run(self):
 
@@ -237,7 +294,7 @@ class ZfsAutoverify(ZfsAuto):
 
             self.set_title("Verifying")
 
-            source_mnt, target_mnt=self.create_mountpoints(source_node, target_node)
+            source_mnt, target_mnt= create_mountpoints(source_node, target_node)
 
             fail_count = self.verify_datasets(
                 source_mnt=source_mnt,
@@ -273,10 +330,10 @@ class ZfsAutoverify(ZfsAuto):
 
             # cleanup
             if source_mnt is not None:
-                self.cleanup_mountpoint(source_node, source_mnt)
+                cleanup_mountpoint(source_node, source_mnt)
 
             if target_mnt is not None:
-                self.cleanup_mountpoint(target_node, target_mnt)
+                cleanup_mountpoint(target_node, target_mnt)
 
 
 
