@@ -58,12 +58,29 @@ class TestZfsEncryption(unittest2.TestCase):
         shelltest("rm /test_source1/fs1/bad_filesystem/*")
         shelltest("dd if=/dev/zero of=/dev/zvol/test_source1/fs1/ok_zvol count=1 bs=512k")
 
+
+
     def test_verify(self):
 
-        self.assertFalse(ZfsAutoverify("test test_target1 --verbose --test".split(" ")).run())
 
-        #rsync mode
-        self.assertEqual(2, ZfsAutoverify("test test_target1 --verbose".split(" ")).run())
-        self.assertEqual(2, ZfsAutoverify("test test_target1 --ssh-source=localhost --verbose --exclude-received".split(" ")).run())
-        self.assertEqual(2, ZfsAutoverify("test test_target1 --ssh-target=localhost --verbose --exclude-received".split(" ")).run())
+        with self.subTest("default --test"):
+            self.assertFalse(ZfsAutoverify("test test_target1 --verbose --test".split(" ")).run())
+
+        with self.subTest("rsync, remote source and target. (not supported, all 6 fail)"):
+            self.assertEqual(6, ZfsAutoverify("test test_target1 --ssh-source=localhost --ssh-target=localhost --verbose --exclude-received".split(" ")).run())
+
+        def runchecked(testname, command):
+            with self.subTest(testname):
+                with OutputIO() as buf:
+                    with redirect_stderr(buf):
+                        self.assertEqual(2, ZfsAutoverify(command.split(" ")).run())
+
+                    print(buf.getvalue())
+                    self.assertRegex(buf.getvalue(), "bad_filesystem: FAILED:")
+                    self.assertRegex(buf.getvalue(), "bad_zvol: FAILED:")
+
+        runchecked("rsync, remote source", "test test_target1 --ssh-source=localhost --verbose --exclude-received")
+        runchecked("rsync, remote target", "test test_target1 --ssh-target=localhost --verbose --exclude-received")
+        runchecked("rsync, local", "test test_target1 --verbose --exclude-received")
+
 
