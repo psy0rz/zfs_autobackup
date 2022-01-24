@@ -31,6 +31,10 @@ class ZfsAuto(object):
         parser=self.get_parser()
         args = parser.parse_args(argv)
 
+        if args.help:
+            parser.print_help()
+            sys.exit(255)
+
         if args.version:
             print(self.HEADER)
             sys.exit(255)
@@ -93,12 +97,11 @@ class ZfsAuto(object):
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
 
-
         return args
 
     def get_parser(self):
 
-        parser = argparse.ArgumentParser(description=self.HEADER,
+        parser = argparse.ArgumentParser(description=self.HEADER, add_help=False,
                                          epilog='Full manual at: https://github.com/psy0rz/zfs_autobackup')
 
         #positional arguments
@@ -109,24 +112,25 @@ class ZfsAuto(object):
                             help='Target ZFS filesystem (optional)')
 
         # Basic options
-        parser.add_argument('--test', '--dry-run', '-n', action='store_true',
+        group=parser.add_argument_group("Basic options")
+        group.add_argument('--help', '-h', action='store_true', help='show help')
+        group.add_argument('--test', '--dry-run', '-n', action='store_true',
                             help='Dry run, dont change anything, just show what would be done (still does all read-only '
                                  'operations)')
-        parser.add_argument('--verbose', '-v', action='store_true', help='verbose output')
-        parser.add_argument('--debug', '-d', action='store_true',
+        group.add_argument('--verbose', '-v', action='store_true', help='verbose output')
+        group.add_argument('--debug', '-d', action='store_true',
                             help='Show zfs commands that are executed, stops after an exception.')
-        parser.add_argument('--debug-output', action='store_true',
+        group.add_argument('--debug-output', action='store_true',
                             help='Show zfs commands and their output/exit codes. (noisy)')
-        parser.add_argument('--progress', action='store_true',
+        group.add_argument('--progress', action='store_true',
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
-        parser.add_argument('--no-progress', action='store_true',
+        group.add_argument('--no-progress', action='store_true',
                             help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
-        parser.add_argument('--version', action='store_true',
+        group.add_argument('--version', action='store_true',
                             help='Show version.')
-        parser.add_argument('--strip-path', metavar='N', default=0, type=int,
+        group.add_argument('--strip-path', metavar='N', default=0, type=int,
                            help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
                                 'SmartOS machines)')
-
 
         # SSH options
         group=parser.add_argument_group("SSH options")
@@ -136,7 +140,6 @@ class ZfsAuto(object):
         group.add_argument('--ssh-target', metavar='USER@HOST', default=None,
                             help='Target host to push backup to.')
 
-
         group=parser.add_argument_group("String formatting options")
         group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
                             help='Dataset selection string format. Default: %(default)s')
@@ -144,7 +147,6 @@ class ZfsAuto(object):
                             help='ZFS Snapshot string format. Default: %(default)s')
         group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
                             help='ZFS hold string format. Default: %(default)s')
-
 
         group=parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
