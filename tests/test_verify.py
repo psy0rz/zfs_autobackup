@@ -86,12 +86,12 @@ class TestZfsEncryption(unittest2.TestCase):
         runchecked("rsync, local", "test test_target1 --verbose --exclude-received --fs-compare=rsync")
 
         runchecked("tar, remote source and remote target",
-                   "test test_target1 --ssh-source=localhost --ssh-target=localhost --verbose --exclude-received --fs-compare=tar")
+                   "test test_target1 --ssh-source=localhost --ssh-target=localhost --verbose --exclude-received --fs-compare=find")
         runchecked("tar, remote source",
-                   "test test_target1 --ssh-source=localhost --verbose --exclude-received --fs-compare=tar")
+                   "test test_target1 --ssh-source=localhost --verbose --exclude-received --fs-compare=find")
         runchecked("tar, remote target",
-                   "test test_target1 --ssh-target=localhost --verbose --exclude-received --fs-compare=tar")
-        runchecked("tar, local", "test test_target1 --verbose --exclude-received --fs-compare=tar")
+                   "test test_target1 --ssh-target=localhost --verbose --exclude-received --fs-compare=find")
+        runchecked("tar, local", "test test_target1 --verbose --exclude-received --fs-compare=find")
 
         with self.subTest("no common snapshot"):
             #destroy common snapshot, now 3 should fail

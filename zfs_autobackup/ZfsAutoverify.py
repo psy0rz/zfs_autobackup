@@ -16,34 +16,60 @@ def tmp_name(suffix=""):
     name=name+suffix
     return name
 
-def hash_tree_tar(node, path):
-    """calculate md5sum of a directory tree, using tar"""
+#NO!
+# def hash_tree_tar(node, path):
+#     """calculate md5sum of a directory tree, using tar"""
+#
+#     node.debug("Hashing filesystem {} ".format(path))
+#
+#     cmd=[ "tar", "-cf", "-", "-C", path, "--warning=none", ".",
+#           ExecuteNode.PIPE, "md5sum"]
+#
+#
+#     stdout = node.run(cmd)
+#
+#     if node.readonly:
+#         hashed=None
+#     else:
+#         hashed = stdout[0].split(" ")[0]
+#
+#     node.debug("Hash of {} filesytem is {}".format(path, hashed))
+#
+#     return hashed
 
-    node.debug("Hashing filesystem {} ".format(path))
+# try to be as unix compatible as possible, while still having decent performance
+def compare_trees_find(source_node, source_path, target_node, target_path):
+    # find /tmp/zfstmp_pve1_1993135target/ -xdev -type f -print0 | xargs -0 md5sum | md5sum -c
 
-    cmd=[ "tar", "-cf", "-", "-C", path, ".",
-          ExecuteNode.PIPE, "md5sum"]
+    #verify tree has atleast one file
 
-    stdout = node.run(cmd)
+    stdout=source_node.run(["find", ".", "-type", "f",
+                          ExecuteNode.PIPE, "head", "-n1",
+                          ], cwd=source_path)
 
-    if node.readonly:
-        hashed=None
+    if not stdout:
+        source_node.debug("No files, skipping check")
     else:
-        hashed = stdout[0].split(" ")[0]
+        pipe=source_node.run(["find", ".", "-type", "f", "-print0",
+                              ExecuteNode.PIPE, "xargs", "-0", "md5sum"
+                              ], pipe=True, cwd=source_path)
+        stdout=target_node.run([ "md5sum", "-c", "--quiet"], inp=pipe, cwd=target_path, valid_exitcodes=[0,1])
 
-    node.debug("Hash of {} filesytem is {}".format(path, hashed))
+        if len(stdout):
+            for line in stdout:
+                target_node.error("md5sum: "+line)
 
-    return hashed
+            raise(Exception("Some files have checksum errors"))
 
-
-def compare_trees_tar(source_node, source_path, target_node, target_path):
-    """compare two trees using tar. compatible and simple"""
-
-    source_hash= hash_tree_tar(source_node, source_path)
-    target_hash= hash_tree_tar(target_node, target_path)
-
-    if source_hash != target_hash:
-        raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
+#NOTE: horrible idea, dont use
+# def compare_trees_tar(source_node, source_path, target_node, target_path):
+#     """compare two trees using tar. compatible and simple"""
+#
+#     source_hash= hash_tree_tar(source_node, source_path)
+#     target_hash= hash_tree_tar(target_node, target_path)
+#
+#     if source_hash != target_hash:
+#         raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
 
 
 def compare_trees_rsync(source_node, source_path, target_node, target_path):
@@ -51,7 +77,7 @@ def compare_trees_rsync(source_node, source_path, target_node, target_path):
      Advantage is that we can see which individual files differ.
      But requires rsync and cant do remote to remote."""
 
-    cmd = ["rsync", "-rcn", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
+    cmd = ["rsync", "-rcnq", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
 
     #local
     if source_node.ssh_to is None and target_node.ssh_to is None:
@@ -94,6 +120,8 @@ def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, 
             compare_trees_rsync(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         elif method == 'tar':
             compare_trees_tar(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
+        elif method == 'find':
+            compare_trees_find(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         else:
             raise(Exception("program errror, unknown method"))
 
@@ -191,7 +219,7 @@ def activate_volume_snapshot(snapshot):
 def deacitvate_volume_snapshot(snapshot):
     clone_name=get_tmp_clone_name(snapshot)
     clone=snapshot.zfs_node.get_dataset(clone_name)
-    clone.destroy()
+    clone.destroy(deferred=True, verbose=False)
 
 def verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot):
     """compare the contents of two zfs volume snapshots"""
@@ -254,8 +282,8 @@ class ZfsAutoverify(ZfsAuto):
         parser=super(ZfsAutoverify, self).get_parser()
 
         group=parser.add_argument_group("Verify options")
-        group.add_argument('--fs-compare', metavar='METHOD', default="tar", choices=["tar", "rsync"],
-                            help='Compare method to use for filesystems. (tar, rsync) Default: %(default)s ')
+        group.add_argument('--fs-compare', metavar='METHOD', default="find", choices=["find", "rsync"],
+                            help='Compare method to use for filesystems. (find, rsync) Default: %(default)s ')
 
         return parser
 

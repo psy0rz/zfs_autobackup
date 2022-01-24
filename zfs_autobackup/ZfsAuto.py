@@ -9,7 +9,7 @@ class ZfsAuto(object):
     """Common Base class, this class is always used subclassed. Look at ZfsAutobackup and ZfsAutoverify ."""
 
     # also used by setup.py
-    VERSION = "3.2-alpha1"
+    VERSION = "3.2-alpha2"
     HEADER = "{} v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(os.path.basename(sys.argv[0]), VERSION)
 
     def __init__(self, argv, print_arguments=True):

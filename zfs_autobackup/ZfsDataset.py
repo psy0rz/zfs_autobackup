@@ -260,7 +260,7 @@ class ZfsDataset:
 
         self.force_exists = True
 
-    def destroy(self, fail_exception=False):
+    def destroy(self, fail_exception=False, deferred=False, verbose=True):
         """destroy the dataset. by default failures are not an exception, so we
         can continue making backups
 
@@ -268,13 +268,20 @@ class ZfsDataset:
             :type fail_exception: bool
         """
 
-        self.verbose("Destroying")
+        if verbose:
+            self.verbose("Destroying")
+        else:
+            self.debug("Destroying")
 
         if self.is_snapshot:
             self.release()
 
         try:
-            self.zfs_node.run(["zfs", "destroy", self.name])
+            if deferred and self.is_snapshot:
+                self.zfs_node.run(["zfs", "destroy", "-d", self.name])
+            else:
+                self.zfs_node.run(["zfs", "destroy", self.name])
+
             self.invalidate()
             self.force_exists = False
             return True
@@ -1113,8 +1120,9 @@ class ZfsDataset:
         self.debug("Unmounting")
 
         cmd = [
-            "umount", self.name
+            "umount", "-l", self.name
         ]
+
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
