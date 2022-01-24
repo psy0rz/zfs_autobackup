@@ -10,10 +10,10 @@ from basetest import *
 # - on snapshots of datasets:
 #   - that are correct
 #   - that are different
-#   - because of rsync: test local/local, local remote etc
 # - on snapshots of zvols
 #  - that are correct
 #  - that are different
+# - test all directions (local, remote/local, local/remote, remote/remote)
 #
 
 class TestZfsEncryption(unittest2.TestCase):
@@ -84,3 +84,7 @@ class TestZfsEncryption(unittest2.TestCase):
         runchecked("rsync, local", "test test_target1 --verbose --exclude-received")
 
 
+        with self.subTest("no common snapshot"):
+            #destroy common snapshot, now 3 should fail
+            shelltest("zfs destroy test_source1/fs1/ok_zvol@test-20101111000000")
+            self.assertEqual(3, ZfsAutoverify("test test_target1 --verbose --exclude-received".split(" ")).run())
