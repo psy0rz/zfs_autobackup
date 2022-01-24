@@ -72,10 +72,12 @@ class TestZfsEncryption(unittest2.TestCase):
         def runchecked(testname, command):
             with self.subTest(testname):
                 with OutputIO() as buf:
+                    result=None
                     with redirect_stderr(buf):
-                        self.assertEqual(2, ZfsAutoverify(command.split(" ")).run())
+                        result=ZfsAutoverify(command.split(" ")).run()
 
                     print(buf.getvalue())
+                    self.assertEqual(2,result)
                     self.assertRegex(buf.getvalue(), "bad_filesystem: FAILED:")
                     self.assertRegex(buf.getvalue(), "bad_zvol: FAILED:")
 
