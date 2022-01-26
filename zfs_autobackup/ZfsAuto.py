@@ -136,7 +136,7 @@ class ZfsAuto(object):
         group=parser.add_argument_group("SSH options")
         group.add_argument('--ssh-config', metavar='CONFIG-FILE', default=None, help='Custom ssh client config')
         group.add_argument('--ssh-source', metavar='USER@HOST', default=None,
-                            help='Source host to get backup from.')
+                            help='Source host to pull backup from.')
         group.add_argument('--ssh-target', metavar='USER@HOST', default=None,
                             help='Target host to push backup to.')
 

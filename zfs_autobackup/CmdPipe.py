@@ -1,3 +1,9 @@
+# This is the low level process executing stuff.
+# It makes piping multiple process easier.
+# You can specify a handler for each line of stderr output for each item in the pipe.
+# Every item also has its own exitcode handler.
+# There is one stdout handler for the last item in the pipe. This is also called for each line.
+
 import subprocess
 import os
 import select
