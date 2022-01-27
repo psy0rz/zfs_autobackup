@@ -121,3 +121,55 @@ class TestCmdPipe(unittest2.TestCase):
         self.assertEqual(out, [])
         self.assertTrue(executed)
 
+    def test_no_handlers(self):
+        with self.assertRaises(Exception):
+            p=CmdPipe()
+            p.add(CmdItem([ "echo" ]))
+            p.execute()
+
+        #NOTE: this will give some resource warnings
+
+    def test_manual_pipes(self):
+
+        # manual piping means: a command in the pipe has a stdout_handler, which is responsible for sending the data into the next item of the pipe.
+
+        result=[]
+
+
+        def stdout_handler(line):
+            item2.process.stdin.write(line.encode('utf8'))
+
+            # item2.process.stdin.close()
+
+        item1=CmdItem(["echo", "test"], stdout_handler=stdout_handler)
+        item2=CmdItem(["tr", "e", "E"], stdout_handler=lambda line: result.append(line))
+
+        p=CmdPipe()
+        p.add(item1)
+        p.add(item2)
+        p.execute()
+
+        self.assertEqual(result, ["tEst"])
+
+    def test_multiprocess(self):
+
+        #dont do any piping at all, just run multiple processes and handle outputs
+
+        result1=[]
+        result2=[]
+        result3=[]
+
+        item1=CmdItem(["echo", "test1"], stdout_handler=lambda line: result1.append(line))
+        item2=CmdItem(["echo", "test2"], stdout_handler=lambda line: result2.append(line))
+        item3=CmdItem(["echo", "test3"], stdout_handler=lambda line: result3.append(line))
+
+        p=CmdPipe()
+        p.add(item1)
+        p.add(item2)
+        p.add(item3)
+        p.execute()
+
+        self.assertEqual(result1, ["test1"])
+        self.assertEqual(result2, ["test2"])
+        self.assertEqual(result3, ["test3"])
+

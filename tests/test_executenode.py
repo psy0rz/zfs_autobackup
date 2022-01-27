@@ -164,8 +164,8 @@ class TestExecuteNode(unittest2.TestCase):
     #
     #     nodea=ExecuteNode(debug_output=True, ssh_to="localhost")
     #
-    #     cmd_pipe=nodea.script(lines=["echo line1", "echo line 2"])
-    #     cmd_pipe.execute(stdout_handler)
+    #     cmd_pipe=nodea.script(lines=["echo line1", "echo line 2"], stdout_handler=stdout_handler)
+    #     cmd_pipe.execute()
 
 
 
