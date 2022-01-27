@@ -157,7 +157,15 @@ class TestExecuteNode(unittest2.TestCase):
         self.assertEqual(nodeb.run(cmd=["cat", ExecuteNode.PIPE, "pwd"], cwd="/tmp/space test"), ["/tmp/space test"])
 
 
+    def test_script(self):
 
+        def stdout_handler(line):
+            print("handle: " + line)
+
+        nodea=ExecuteNode(debug_output=True, ssh_to="localhost")
+
+        cmd_pipe=nodea.script(lines=["echo line1", "echo line 2"])
+        cmd_pipe.execute(stdout_handler)
 
 
 
