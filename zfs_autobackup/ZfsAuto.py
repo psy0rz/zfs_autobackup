@@ -82,8 +82,9 @@ class ZfsAuto(object):
                 self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
                 self.exclude_paths.append(args.target_path)
             else:
-                self.verbose("NOTE: Source and target are on the same host, excluding received datasets from selection.")
-                args.exclude_received = True
+                if not args.exclude_received:
+                    self.verbose("NOTE: Source and target are on the same host, adding --exclude-received to commandline.")
+                    args.exclude_received = True
 
         if args.test:
             self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
