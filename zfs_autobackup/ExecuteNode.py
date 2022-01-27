@@ -144,23 +144,28 @@ class ExecuteNode(LogStub):
 
             return True
 
-        # add shell command and handlers to pipe
-        cmd_item=CmdItem(cmd=self._shell_cmd(cmd, cwd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
-        cmd_pipe.add(cmd_item)
-
-        # return pipe instead of executing?
-        if pipe:
-            return cmd_pipe
-
         # stdout parser
         output_lines = []
 
-        def stdout_handler(line):
-            if tab_split:
-                output_lines.append(line.rstrip().split('\t'))
-            else:
-                output_lines.append(line.rstrip())
-            self._parse_stdout(line)
+        if pipe:
+            # dont specify output handler, so it will get piped to next process
+            stdout_handler=None
+        else:
+            # handle output manually, dont pipe it
+            def stdout_handler(line):
+                if tab_split:
+                    output_lines.append(line.rstrip().split('\t'))
+                else:
+                    output_lines.append(line.rstrip())
+                self._parse_stdout(line)
+
+        # add shell command and handlers to pipe
+        cmd_item=CmdItem(cmd=self._shell_cmd(cmd, cwd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local(), stdout_handler=stdout_handler)
+        cmd_pipe.add(cmd_item)
+
+        # return CmdPipe instead of executing?
+        if pipe:
+            return cmd_pipe
 
         if cmd_pipe.should_execute():
             self.debug("CMD    > {}".format(cmd_pipe))
@@ -168,7 +173,7 @@ class ExecuteNode(LogStub):
             self.debug("CMDSKIP> {}".format(cmd_pipe))
 
         # execute and calls handlers in CmdPipe
-        if not cmd_pipe.execute(stdout_handler=stdout_handler):
+        if not cmd_pipe.execute():
             raise(ExecuteError("Last command returned error"))
 
         if return_all:
