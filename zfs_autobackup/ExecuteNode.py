@@ -183,7 +183,7 @@ class ExecuteNode(LogStub):
         else:
             return output_lines
 
-    def script(self, lines, inp=None, valid_exitcodes=None, readonly=False, hide_errors=False):
+    def script(self, lines, inp=None, stdout_handler=None, stderr_handler=None, exit_handler=None, valid_exitcodes=None, readonly=False, hide_errors=False):
         """Run a multiline script on the node.
 
         This is much more low level than run() and allows for finer grained control.
@@ -205,7 +205,6 @@ class ExecuteNode(LogStub):
 
         """
 
-
         # create new pipe?
         if not isinstance(inp, CmdPipe):
             cmd_pipe = CmdPipe(self.readonly, inp)
@@ -213,20 +212,31 @@ class ExecuteNode(LogStub):
             # add stuff to existing pipe
             cmd_pipe = inp
 
+        internal_stdout_handler=None
+        if stdout_handler is not None:
+            if self.debug_output:
+                def internal_stdout_handler(line):
+                    self.debug("STDOUT > " + line.rstrip())
+                    stdout_handler(line)
 
-        def stderr_handler(line):
+        def internal_stderr_handler(line):
             self._parse_stderr(line, hide_errors)
+            if stderr_handler is not None:
+                stderr_handler(line)
 
         # exit code hanlder
         if valid_exitcodes is None:
             valid_exitcodes = [0]
 
-        def exit_handler(exit_code):
+        def internal_exit_handler(exit_code):
             if self.debug_output:
                 self.debug("EXIT   > {}".format(exit_code))
 
+            if exit_handler is not None:
+                exit_handler(exit_code)
+
             if (valid_exitcodes != []) and (exit_code not in valid_exitcodes):
-                self.error("Script returned exit code {} (valid codes: {})".format(cmd_item, exit_code, valid_exitcodes))
+                self.error("Script returned exit code {} (valid codes: {})".format(exit_code, valid_exitcodes))
                 return False
 
             return True
@@ -248,7 +258,7 @@ class ExecuteNode(LogStub):
         cmd.append("\n".join(lines))
 
         # add shell command and handlers to pipe
-        cmd_item=CmdItem(cmd=cmd, readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local())
+        cmd_item=CmdItem(cmd=cmd, readonly=readonly, stderr_handler=internal_stderr_handler, exit_handler=internal_exit_handler, stdout_handler=internal_stdout_handler, shell=self.is_local())
         cmd_pipe.add(cmd_item)
 
         self.debug("SCRIPT > {}".format(cmd_pipe))

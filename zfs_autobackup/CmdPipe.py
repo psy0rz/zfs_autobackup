@@ -143,13 +143,6 @@ class CmdPipe:
             # read line and call appropriate handlers
 
             for item in self.items:
-                if item.process.stderr in read_ready:
-                    line = item.process.stderr.readline().decode('utf-8').rstrip()
-                    if line != "":
-                        item.stderr_handler(line)
-                    else:
-                        eof_count = eof_count + 1
-
                 if item.process.stdout in read_ready:
                     line = item.process.stdout.readline().decode('utf-8').rstrip()
                     if line != "":
@@ -158,6 +151,14 @@ class CmdPipe:
                         eof_count = eof_count + 1
                         if item.next:
                             item.next.process.stdin.close()
+
+                if item.process.stderr in read_ready:
+                    line = item.process.stderr.readline().decode('utf-8').rstrip()
+                    if line != "":
+                        item.stderr_handler(line)
+                    else:
+                        eof_count = eof_count + 1
+
 
                 if item.process.poll() is not None:
                     done_count = done_count + 1
