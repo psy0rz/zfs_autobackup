@@ -158,24 +158,32 @@ class TestExecuteNode(unittest2.TestCase):
 
     def test_script_handlers(self):
 
-        results=[]
-        nodea=ExecuteNode(debug_output=True)
-        cmd_pipe=nodea.script(lines=["echo line1", "echo line2 1>&2", "exit 123"],
-                              stdout_handler=lambda line: results.append(line),
-                              stderr_handler=lambda line: results.append(line),
-                              exit_handler=lambda exit_code: results.append(exit_code),
-                              valid_exitcodes=[123]
-                              )
-        cmd_pipe.execute()
 
-        self.assertEqual(results, ["line1", "line2", 123 ])
+
+        def test(node):
+            results = []
+            cmd_pipe=node.script(lines=["echo line1", "echo line2 1>&2", "exit 123"],
+                                  stdout_handler=lambda line: results.append(line),
+                                  stderr_handler=lambda line: results.append(line),
+                                  exit_handler=lambda exit_code: results.append(exit_code),
+                                  valid_exitcodes=[123]
+                                  )
+            cmd_pipe.execute()
+            self.assertEqual(results, ["line1", "line2", 123 ])
+
+        with self.subTest("remote"):
+            test(ExecuteNode(ssh_to="localhost", debug_output=True))
+        #
+        with self.subTest("local"):
+            test(ExecuteNode(debug_output=True))
+
 
     def test_script_defaults(self):
 
         def handler(line):
             pass
 
-        nodea=ExecuteNode(debug_output=True, ssh_to="localhost")
+        nodea=ExecuteNode(debug_output=True)
         cmd_pipe=nodea.script(lines=["echo test"], stdout_handler=handler)
         cmd_pipe.execute()
 

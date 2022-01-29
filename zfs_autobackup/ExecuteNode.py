@@ -100,7 +100,7 @@ class ExecuteNode(LogStub):
         :param cmd: the actual command, should be a list, where the first item is the command
                     and the rest are parameters. use ExecuteNode.PIPE to add an unescaped |
                     (if you want to use system piping instead of python piping)
-        :param pipe: return CmdPipe instead of executing it. (pipe this into anoter run() command via inp=...)
+        :param pipe: return CmdPipe instead of executing it. (pipe this into another run() command via inp=...)
         :param inp: Can be None, a string or a CmdPipe that was previously returned.
         :param tab_split: split tabbed files in output into a list
         :param valid_exitcodes: list of valid exit codes for this command. Use [] to accept all exit codes. Default [0]
