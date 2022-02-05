@@ -13,9 +13,9 @@ You can select what to backup by setting a custom `ZFS property`. This makes it 
 
 Other settings are just specified on the commandline: Simply setup and test your zfs-autobackup command and  fix all the issues you might encounter. When you're done you can just copy/paste your command to a cron or script.
 
-Since its using ZFS commands, you can see what it's actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (something I missed in other tools)
+Since it's using ZFS commands, you can see what it's actually doing by specifying `--debug`. This also helps a lot if you run into some strange problem or error. You can just copy-paste the command that fails and play around with it on the commandline. (something I missed in other tools)
 
-An important feature thats missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your system.
+An important feature that's missing from other tools is a reliable `--test` option: This allows you to see what zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your system.
 
 ## Features
 
