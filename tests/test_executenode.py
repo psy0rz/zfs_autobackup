@@ -160,13 +160,13 @@ class TestExecuteNode(unittest2.TestCase):
 
         def test(node):
             results = []
-            cmd_pipe=node.script(lines=["echo line1", "echo line2 1>&2", "exit 123"],
+            node.script(lines=["echo line1", "echo line2 1>&2", "exit 123"],
                                   stdout_handler=lambda line: results.append(line),
                                   stderr_handler=lambda line: results.append(line),
                                   exit_handler=lambda exit_code: results.append(exit_code),
                                   valid_exitcodes=[123]
                                   )
-            cmd_pipe.execute()
+
             self.assertEqual(results, ["line1", "line2", 123 ])
 
         with self.subTest("remote"):
@@ -179,17 +179,17 @@ class TestExecuteNode(unittest2.TestCase):
 
         result=[]
         nodea=ExecuteNode(debug_output=True)
-        cmd_pipe=nodea.script(lines=["echo test"], stdout_handler=lambda line: result.append(line))
-        cmd_pipe.execute()
+        nodea.script(lines=["echo test"], stdout_handler=lambda line: result.append(line))
+
         self.assertEqual(result, ["test"])
 
     def test_script_pipe(self):
 
         result=[]
         nodea=ExecuteNode()
-        cmd_pipe=nodea.script(lines=["echo test"])
+        cmd_pipe=nodea.script(lines=["echo test"], pipe=True)
         nodea.script(lines=["tr e E"], inp=cmd_pipe,stdout_handler=lambda line: result.append(line))
-        cmd_pipe.execute()
+
         self.assertEqual(result, ["tEst"])
 
 
@@ -200,8 +200,8 @@ class TestExecuteNode(unittest2.TestCase):
 
         result=[]
         pipe=node.run(["echo", "test"], pipe=True)
-        pipe=node.script(["tr e E"], inp=pipe, stdout_handler=lambda line: result.append(line))
-        pipe.execute()
+        node.script(["tr e E"], inp=pipe, stdout_handler=lambda line: result.append(line))
+
         self.assertEqual(result, ["tEst"])
 
 

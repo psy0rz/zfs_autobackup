@@ -265,5 +265,7 @@ class ExecuteNode(LogStub):
 
         self.debug("SCRIPT > {}".format(cmd_pipe))
 
-        return cmd_pipe
-
+        if pipe:
+            return cmd_pipe
+        else:
+            return cmd_pipe.execute()
