@@ -158,8 +158,6 @@ class TestExecuteNode(unittest2.TestCase):
 
     def test_script_handlers(self):
 
-
-
         def test(node):
             results = []
             cmd_pipe=node.script(lines=["echo line1", "echo line2 1>&2", "exit 123"],
@@ -177,15 +175,37 @@ class TestExecuteNode(unittest2.TestCase):
         with self.subTest("local"):
             test(ExecuteNode(debug_output=True))
 
-
     def test_script_defaults(self):
 
-        def handler(line):
-            pass
-
+        result=[]
         nodea=ExecuteNode(debug_output=True)
-        cmd_pipe=nodea.script(lines=["echo test"], stdout_handler=handler)
+        cmd_pipe=nodea.script(lines=["echo test"], stdout_handler=lambda line: result.append(line))
         cmd_pipe.execute()
+        self.assertEqual(result, ["test"])
+
+    def test_script_pipe(self):
+
+        result=[]
+        nodea=ExecuteNode()
+        cmd_pipe=nodea.script(lines=["echo test"])
+        nodea.script(lines=["tr e E"], inp=cmd_pipe,stdout_handler=lambda line: result.append(line))
+        cmd_pipe.execute()
+        self.assertEqual(result, ["tEst"])
+
+
+    def test_mixed(self):
+
+        #should be able to mix run() and script()
+        node=ExecuteNode()
+
+        result=[]
+        pipe=node.run(["echo", "test"], pipe=True)
+        pipe=node.script(["tr e E"], inp=pipe, stdout_handler=lambda line: result.append(line))
+        pipe.execute()
+        self.assertEqual(result, ["tEst"])
+
+
+
 
 
 

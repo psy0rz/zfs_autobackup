@@ -183,13 +183,12 @@ class ExecuteNode(LogStub):
         else:
             return output_lines
 
-    def script(self, lines, inp=None, stdout_handler=None, stderr_handler=None, exit_handler=None, valid_exitcodes=None, readonly=False, hide_errors=False):
+    def script(self, lines, inp=None, stdout_handler=None, stderr_handler=None, exit_handler=None, valid_exitcodes=None, readonly=False, hide_errors=False, pipe=False):
         """Run a multiline script on the node.
 
         This is much more low level than run() and allows for finer grained control.
 
         Either uses a local shell (sh -c) or remote shell (ssh) to execute the command.
-        It will always return a CmdPipe that you should call execute on, or pipe to another script. (via inp=...)
         You need to do your own escaping/quoting.
         It will do logging of stderr and exit codes, but you should
         specify your stdout handler when calling CmdPipe.execute.
@@ -202,6 +201,7 @@ class ExecuteNode(LogStub):
         :param readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
         :param valid_exitcodes: list of valid exit codes for this command. Use [] to accept all exit codes. Default [0]
         :param hide_errors: don't show stderr output as error, instead show it as debugging output (use to hide expected errors)
+        :param pipe: return CmdPipe instead of executing it. (pipe this into another run() command via inp=...)
 
         """
 
@@ -218,6 +218,8 @@ class ExecuteNode(LogStub):
                 def internal_stdout_handler(line):
                     self.debug("STDOUT > " + line.rstrip())
                     stdout_handler(line)
+            else:
+                internal_stdout_handler=stdout_handler
 
         def internal_stderr_handler(line):
             self._parse_stderr(line, hide_errors)
