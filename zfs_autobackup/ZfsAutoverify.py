@@ -16,26 +16,6 @@ def tmp_name(suffix=""):
     name=name+suffix
     return name
 
-#NO!
-# def hash_tree_tar(node, path):
-#     """calculate md5sum of a directory tree, using tar"""
-#
-#     node.debug("Hashing filesystem {} ".format(path))
-#
-#     cmd=[ "tar", "-cf", "-", "-C", path, "--warning=none", ".",
-#           ExecuteNode.PIPE, "md5sum"]
-#
-#
-#     stdout = node.run(cmd)
-#
-#     if node.readonly:
-#         hashed=None
-#     else:
-#         hashed = stdout[0].split(" ")[0]
-#
-#     node.debug("Hash of {} filesytem is {}".format(path, hashed))
-#
-#     return hashed
 
 # try to be as unix compatible as possible, while still having decent performance
 def compare_trees_find(source_node, source_path, target_node, target_path):
@@ -60,16 +40,6 @@ def compare_trees_find(source_node, source_path, target_node, target_path):
                 target_node.error("md5sum: "+line)
 
             raise(Exception("Some files have checksum errors"))
-
-#NOTE: horrible idea, dont use
-# def compare_trees_tar(source_node, source_path, target_node, target_path):
-#     """compare two trees using tar. compatible and simple"""
-#
-#     source_hash= hash_tree_tar(source_node, source_path)
-#     target_hash= hash_tree_tar(target_node, target_path)
-#
-#     if source_hash != target_hash:
-#         raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
 
 
 def compare_trees_rsync(source_node, source_path, target_node, target_path):
@@ -148,36 +118,6 @@ def hash_dev(node, dev):
 
     return hashed
 
-# def activate_volume_snapshot(dataset, snapshot):
-#     """enables snapdev, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
-#
-#     dataset.set("snapdev", "visible")
-#
-#     #NOTE: add smartos location to this list as well
-#     locations=[
-#         "/dev/zvol/" + snapshot.name
-#     ]
-#
-#     dataset.debug("Waiting for /dev entry to appear...")
-#     time.sleep(0.1)
-#
-#     start_time=time.time()
-#     while time.time()-start_time<10:
-#         for location in locations:
-#             stdout, stderr, exit_code=dataset.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
-#
-#             #fake it in testmode
-#             if dataset.zfs_node.readonly:
-#                 return location
-#
-#             if exit_code==0:
-#                 return location
-#         time.sleep(1)
-#
-#     raise(Exception("Timeout while waiting for {} entry to appear.".format(locations)))
-#
-# def deacitvate_volume_snapshot(dataset):
-#     dataset.inherit("snapdev")
 
 #NOTE: https://www.google.com/search?q=Mount+Path+Limit+freebsd
 #Freebsd has limitations regarding path length, so we cant use the above method.

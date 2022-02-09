@@ -97,3 +97,4 @@ class TestZfsEncryption(unittest2.TestCase):
             #destroy common snapshot, now 3 should fail
             shelltest("zfs destroy test_source1/fs1/ok_zvol@test-20101111000000")
             self.assertEqual(3, ZfsAutoverify("test test_target1 --verbose --exclude-received".split(" ")).run())
+
