@@ -2,7 +2,7 @@
 # ZFS autobackup
 
 [![Tests](https://github.com/psy0rz/zfs_autobackup/workflows/Regression%20tests/badge.svg)](https://github.com/psy0rz/zfs_autobackup/actions?query=workflow%3A%22Regression+tests%22) [![Coverage Status](https://coveralls.io/repos/github/psy0rz/zfs_autobackup/badge.svg)](https://coveralls.io/github/psy0rz/zfs_autobackup)  [![Python Package](https://github.com/psy0rz/zfs_autobackup/workflows/Upload%20Python%20Package/badge.svg)](https://pypi.org/project/zfs-autobackup/)
-
+![CodeQL](https://github.com/psy0rz/zfs_autobackup/workflows/CodeQL/badge.svg)
 ## Introduction
 
 ZFS-autobackup tries to be the most reliable and easiest to use tool, while having all the features.
