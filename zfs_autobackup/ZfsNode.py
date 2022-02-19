@@ -109,10 +109,10 @@ class ZfsNode(ExecuteNode):
 
         return self.__datasets.setdefault(name, ZfsDataset(self, name, force_exists))
 
-    def reset_progress(self):
-        """reset progress output counters"""
-        self._progress_total_bytes = 0
-        self._progress_start_time = time.time()
+    # def reset_progress(self):
+    #     """reset progress output counters"""
+    #     self._progress_total_bytes = 0
+    #     self._progress_start_time = time.time()
 
     def parse_zfs_progress(self, line, hide_errors, prefix):
         """try to parse progress output of zfs recv -Pv, and don't show it as error to the user """
@@ -132,13 +132,13 @@ class ZfsNode(ExecuteNode):
             # actual useful info
             if len(progress_fields) >= 3:
                 if progress_fields[0] == 'full' or progress_fields[0] == 'size':
-		    # Reset the total bytes and start the timer again (otherwise the MB/s
-		    # counter gets confused)
+                    # Reset the total bytes and start the timer again (otherwise the MB/s
+                    # counter gets confused)
                     self._progress_total_bytes = int(progress_fields[2])
                     self._progress_start_time = time.time()
                 elif progress_fields[0] == 'incremental':
-		    # Reset the total bytes and start the timer again (otherwise the MB/s
-		    # counter gets confused)
+                    # Reset the total bytes and start the timer again (otherwise the MB/s
+                    # counter gets confused)
                     self._progress_total_bytes = int(progress_fields[3])
                     self._progress_start_time = time.time()
                 elif progress_fields[1].isnumeric():

@@ -637,7 +637,7 @@ class ZfsDataset:
         else:
             valid_exitcodes = [0]
 
-        self.zfs_node.reset_progress()
+        # self.zfs_node.reset_progress()
         self.zfs_node.run(cmd, inp=pipe, valid_exitcodes=valid_exitcodes)
 
         # invalidate cache, but we at least know we exist now
