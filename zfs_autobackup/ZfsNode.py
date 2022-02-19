@@ -132,9 +132,15 @@ class ZfsNode(ExecuteNode):
             # actual useful info
             if len(progress_fields) >= 3:
                 if progress_fields[0] == 'full' or progress_fields[0] == 'size':
+		    # Reset the total bytes and start the timer again (otherwise the MB/s
+		    # counter gets confused)
                     self._progress_total_bytes = int(progress_fields[2])
+                    self._progress_start_time = time.time()
                 elif progress_fields[0] == 'incremental':
+		    # Reset the total bytes and start the timer again (otherwise the MB/s
+		    # counter gets confused)
                     self._progress_total_bytes = int(progress_fields[3])
+                    self._progress_start_time = time.time()
                 elif progress_fields[1].isnumeric():
                     bytes_ = int(progress_fields[1])
                     if self._progress_total_bytes:
