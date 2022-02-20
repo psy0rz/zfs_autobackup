@@ -17,7 +17,7 @@ from .ExecuteNode import ExecuteError
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, snapshot_time_format, hold_name, logger, ssh_config=None, ssh_to=None, readonly=False,
+    def __init__(self, logger, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None, readonly=False,
                  description="",
                  debug_output=False, thinner=None):
 
@@ -32,9 +32,9 @@ class ZfsNode(ExecuteNode):
             self.verbose("Using custom SSH config: {}".format(ssh_config))
 
         if ssh_to:
-            self.verbose("Datasets on: {}".format(ssh_to))
-        else:
-            self.verbose("Datasets are local")
+            self.verbose("SSH to: {}".format(ssh_to))
+        # else:
+        #     self.verbose("Datasets are local")
 
         if thinner is not None:
             rules = thinner.human_rules()
