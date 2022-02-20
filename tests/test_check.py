@@ -1,13 +1,14 @@
 from basetest import *
-from zfs_autobackup.util import *
 
 
-class TestZfsEncryption(unittest2.TestCase):
+class TestZfsCheck(unittest2.TestCase):
 
     def setUp(self):
         pass
 
     def test_blockhash(self):
+        #make VERY sure this works correctly under all circumstances.
+
         # sha1 sums of files, (bs=4096)
         # da39a3ee5e6b4b0d3255bfef95601890afd80709  empty
         # 642027d63bb0afd7e0ba197f2c66ad03e3d70de1  partial
@@ -61,6 +62,36 @@ class TestZfsEncryption(unittest2.TestCase):
             list(block_hash("tests/data/whole_whole2_partial", count=10)),
             [
                 (0, "309ffffba2e1977d12f3b7469971f30d28b94bd8"), #whole_whole2_partial
-            ]
-        )
+            ])
+
+
+    def test_volume(self):
+        prepare_zpools()
+
+        shelltest("zfs create -V200M test_source1/vol")
+        shelltest("zfs snapshot test_source1/vol@test")
+
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                self.assertFalse(ZfsCheck("test_source1/vol@test".split(" "),print_arguments=False).run())
+
+            print(buf.getvalue())
+            self.assertEqual("""0	2c2ceccb5ec5574f791d45b63c940cff20550f9a
+1	2c2ceccb5ec5574f791d45b63c940cff20550f9a
+""", buf.getvalue())
+
+
+    def test_filesystem(self):
+        prepare_zpools()
+
+        shelltest("cp tests/data/whole /test_source1/testfile")
+        shelltest("zfs snapshot test_source1@test")
+
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                self.assertFalse(ZfsCheck("test_source1@test".split(" "), print_arguments=False).run())
+
+            print(buf.getvalue())
+            self.assertEqual("""testfile	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
+""", buf.getvalue())
 

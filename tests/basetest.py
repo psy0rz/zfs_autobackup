@@ -12,6 +12,8 @@ import time
 from pprint import *
 from zfs_autobackup.ZfsAutobackup import *
 from zfs_autobackup.ZfsAutoverify import *
+from zfs_autobackup.ZfsCheck import *
+from zfs_autobackup.util import *
 from mock import *
 import contextlib
 import sys
