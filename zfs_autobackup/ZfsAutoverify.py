@@ -1,80 +1,67 @@
-import os
-import time
-
-from .ExecuteNode import ExecuteNode
+# from util import activate_volume_snapshot, create_mountpoints, cleanup_mountpoint
 from .ZfsAuto import ZfsAuto
-from .ZfsDataset import ZfsDataset
 from .ZfsNode import ZfsNode
 import sys
-import platform
-
-def tmp_name(suffix=""):
-    """create temporary name unique to this process and node"""
-
-    #we could use uuids but those are ugly and confusing
-    name="zfstmp_{}_{}".format(platform.node(), os.getpid())
-    name=name+suffix
-    return name
 
 
-# try to be as unix compatible as possible, while still having decent performance
-def compare_trees_find(source_node, source_path, target_node, target_path):
-    # find /tmp/zfstmp_pve1_1993135target/ -xdev -type f -print0 | xargs -0 md5sum | md5sum -c
-
-    #verify tree has atleast one file
-
-    stdout=source_node.run(["find", ".", "-type", "f",
-                          ExecuteNode.PIPE, "head", "-n1",
-                          ], cwd=source_path)
-
-    if not stdout:
-        source_node.debug("No files, skipping check")
-    else:
-        pipe=source_node.run(["find", ".", "-type", "f", "-print0",
-                              ExecuteNode.PIPE, "xargs", "-0", "md5sum"
-                              ], pipe=True, cwd=source_path)
-        stdout=target_node.run([ "md5sum", "-c", "--quiet"], inp=pipe, cwd=target_path, valid_exitcodes=[0,1])
-
-        if len(stdout):
-            for line in stdout:
-                target_node.error("md5sum: "+line)
-
-            raise(Exception("Some files have checksum errors"))
-
-
-def compare_trees_rsync(source_node, source_path, target_node, target_path):
-    """use rsync to compare two trees.
-     Advantage is that we can see which individual files differ.
-     But requires rsync and cant do remote to remote."""
-
-    cmd = ["rsync", "-rcnq", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
-
-    #local
-    if source_node.ssh_to is None and target_node.ssh_to is None:
-        cmd.append("{}/".format(source_path))
-        cmd.append("{}/".format(target_path))
-        source_node.debug("Running rsync locally, on source.")
-        stdout, stderr = source_node.run(cmd, return_stderr=True)
-
-    #source is local
-    elif source_node.ssh_to is None and target_node.ssh_to is not None:
-        cmd.append("{}/".format(source_path))
-        cmd.append("{}:{}/".format(target_node.ssh_to, target_path))
-        source_node.debug("Running rsync locally, on source.")
-        stdout, stderr = source_node.run(cmd, return_stderr=True)
-
-    #target is local
-    elif source_node.ssh_to is not None and target_node.ssh_to is None:
-        cmd.append("{}:{}/".format(source_node.ssh_to, source_path))
-        cmd.append("{}/".format(target_path))
-        source_node.debug("Running rsync locally, on target.")
-        stdout, stderr=target_node.run(cmd, return_stderr=True)
-
-    else:
-        raise Exception("Source and target cant both be remote when verifying. (rsync limitation)")
-
-    if stderr:
-        raise Exception("Dataset verify failed, see above list for differences")
+# # try to be as unix compatible as possible, while still having decent performance
+# def compare_trees_find(source_node, source_path, target_node, target_path):
+#     # find /tmp/zfstmp_pve1_1993135target/ -xdev -type f -print0 | xargs -0 md5sum | md5sum -c
+#
+#     #verify tree has atleast one file
+#
+#     stdout=source_node.run(["find", ".", "-type", "f",
+#                           ExecuteNode.PIPE, "head", "-n1",
+#                           ], cwd=source_path)
+#
+#     if not stdout:
+#         source_node.debug("No files, skipping check")
+#     else:
+#         pipe=source_node.run(["find", ".", "-type", "f", "-print0",
+#                               ExecuteNode.PIPE, "xargs", "-0", "md5sum"
+#                               ], pipe=True, cwd=source_path)
+#         stdout=target_node.run([ "md5sum", "-c", "--quiet"], inp=pipe, cwd=target_path, valid_exitcodes=[0,1])
+#
+#         if len(stdout):
+#             for line in stdout:
+#                 target_node.error("md5sum: "+line)
+#
+#             raise(Exception("Some files have checksum errors"))
+#
+#
+# def compare_trees_rsync(source_node, source_path, target_node, target_path):
+#     """use rsync to compare two trees.
+#      Advantage is that we can see which individual files differ.
+#      But requires rsync and cant do remote to remote."""
+#
+#     cmd = ["rsync", "-rcnq", "--info=COPY,DEL,MISC,NAME,SYMSAFE", "--msgs2stderr", "--delete" ]
+#
+#     #local
+#     if source_node.ssh_to is None and target_node.ssh_to is None:
+#         cmd.append("{}/".format(source_path))
+#         cmd.append("{}/".format(target_path))
+#         source_node.debug("Running rsync locally, on source.")
+#         stdout, stderr = source_node.run(cmd, return_stderr=True)
+#
+#     #source is local
+#     elif source_node.ssh_to is None and target_node.ssh_to is not None:
+#         cmd.append("{}/".format(source_path))
+#         cmd.append("{}:{}/".format(target_node.ssh_to, target_path))
+#         source_node.debug("Running rsync locally, on source.")
+#         stdout, stderr = source_node.run(cmd, return_stderr=True)
+#
+#     #target is local
+#     elif source_node.ssh_to is not None and target_node.ssh_to is None:
+#         cmd.append("{}:{}/".format(source_node.ssh_to, source_path))
+#         cmd.append("{}/".format(target_path))
+#         source_node.debug("Running rsync locally, on target.")
+#         stdout, stderr=target_node.run(cmd, return_stderr=True)
+#
+#     else:
+#         raise Exception("Source and target cant both be remote when verifying. (rsync limitation)")
+#
+#     if stderr:
+#         raise Exception("Dataset verify failed, see above list for differences")
 
 
 def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, method):
@@ -88,8 +75,8 @@ def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, 
 
         if method=='rsync':
             compare_trees_rsync(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
-        elif method == 'tar':
-            compare_trees_tar(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
+        # elif method == 'tar':
+        #     compare_trees_tar(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         elif method == 'find':
             compare_trees_find(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         else:
@@ -100,102 +87,54 @@ def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, 
         target_snapshot.unmount()
 
 
-def hash_dev(node, dev):
-    """calculate md5sum of a device on a node"""
+# def hash_dev(node, dev):
+#     """calculate md5sum of a device on a node"""
+#
+#     node.debug("Hashing volume {} ".format(dev))
+#
+#     cmd = [ "md5sum", dev ]
+#
+#     stdout = node.run(cmd)
+#
+#     if node.readonly:
+#         hashed=None
+#     else:
+#         hashed = stdout[0].split(" ")[0]
+#
+#     node.debug("Hash of volume {} is {}".format(dev, hashed))
+#
+#     return hashed
 
-    node.debug("Hashing volume {} ".format(dev))
-
-    cmd = [ "md5sum", dev ]
-
-    stdout = node.run(cmd)
-
-    if node.readonly:
-        hashed=None
-    else:
-        hashed = stdout[0].split(" ")[0]
-
-    node.debug("Hash of volume {} is {}".format(dev, hashed))
-
-    return hashed
 
 
-#NOTE: https://www.google.com/search?q=Mount+Path+Limit+freebsd
-#Freebsd has limitations regarding path length, so we cant use the above method.
-#Instead we create a temporary clone
-
-def get_tmp_clone_name(snapshot):
-    pool=snapshot.zfs_node.get_pool(snapshot)
-    return pool.name+"/"+tmp_name()
-
-def activate_volume_snapshot(snapshot):
-    """clone volume, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
-
-    clone_name=get_tmp_clone_name(snapshot)
-    clone=snapshot.clone(clone_name)
-
-    #NOTE: add smartos location to this list as well
-    locations=[
-        "/dev/zvol/" + clone_name
-    ]
-
-    clone.debug("Waiting for /dev entry to appear...")
-    time.sleep(0.1)
-
-    start_time=time.time()
-    while time.time()-start_time<10:
-        for location in locations:
-            stdout, stderr, exit_code=clone.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
-
-            #fake it in testmode
-            if clone.zfs_node.readonly:
-                return location
-
-            if exit_code==0:
-                return location
-        time.sleep(1)
-
-    raise(Exception("Timeout while waiting for {} entry to appear.".format(locations)))
-
-def deacitvate_volume_snapshot(snapshot):
-    clone_name=get_tmp_clone_name(snapshot)
-    clone=snapshot.zfs_node.get_dataset(clone_name)
-    clone.destroy(deferred=True, verbose=False)
+# def deacitvate_volume_snapshot(snapshot):
+#     clone_name=get_tmp_clone_name(snapshot)
+#     clone=snapshot.zfs_node.get_dataset(clone_name)
+#     clone.destroy(deferred=True, verbose=False)
 
 def verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot):
     """compare the contents of two zfs volume snapshots"""
 
-    try:
-        source_dev= activate_volume_snapshot(source_snapshot)
-        target_dev= activate_volume_snapshot(target_snapshot)
+    # try:
+    source_dev= activate_volume_snapshot(source_snapshot)
+    target_dev= activate_volume_snapshot(target_snapshot)
 
-        source_hash= hash_dev(source_snapshot.zfs_node, source_dev)
-        target_hash= hash_dev(target_snapshot.zfs_node, target_dev)
+    source_hash= hash_dev(source_snapshot.zfs_node, source_dev)
+    target_hash= hash_dev(target_snapshot.zfs_node, target_dev)
 
-        if source_hash!=target_hash:
-            raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
+    if source_hash!=target_hash:
+        raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
 
-    finally:
-        deacitvate_volume_snapshot(source_snapshot)
-        deacitvate_volume_snapshot(target_snapshot)
-
-def create_mountpoints(source_node, target_node):
-
-    # prepare mount points
-    source_node.debug("Create temporary mount point")
-    source_mnt = "/tmp/"+tmp_name("source")
-    source_node.run(["mkdir", source_mnt])
-
-    target_node.debug("Create temporary mount point")
-    target_mnt = "/tmp/"+tmp_name("target")
-    target_node.run(["mkdir", target_mnt])
-
-    return source_mnt, target_mnt
+    # finally:
+    #     deacitvate_volume_snapshot(source_snapshot)
+    #     deacitvate_volume_snapshot(target_snapshot)
 
 
-def cleanup_mountpoint(node, mnt):
-    node.debug("Cleaning up temporary mount point")
-    node.run([ "rmdir", mnt ], hide_errors=True, valid_exitcodes=[] )
-
+# class ZfsAutoChecksumVolume(ZfsAuto):
+#     def __init__(self, argv, print_arguments=True):
+#
+#         # NOTE: common options and parameters are in ZfsAuto
+#         super(ZfsAutoverify, self).__init__(argv, print_arguments)
 
 class ZfsAutoverify(ZfsAuto):
     """The zfs-autoverify class, default agruments and stuff come from ZfsAuto"""

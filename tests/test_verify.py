@@ -16,10 +16,12 @@ from basetest import *
 # - test all directions (local, remote/local, local/remote, remote/remote)
 #
 
-class TestZfsEncryption(unittest2.TestCase):
+class TestZfsVerify(unittest2.TestCase):
 
 
     def setUp(self):
+        self.skipTest("WIP")
+
         prepare_zpools()
 
         #create actual test files and data
