@@ -36,7 +36,7 @@ def block_hash(fname, count=10000, bs=4006):
         hash = hashlib.sha1()
         block_nr = 0
         chunk_nr = 0
-        for block in iter(lambda: f.read(4096), b""):
+        for block in iter(lambda: f.read(bs), b""):
             hash.update(block)
             block_nr = block_nr + 1
             if block_nr % count == 0:

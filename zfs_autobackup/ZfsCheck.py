@@ -39,8 +39,8 @@ class ZfsCheck(CliBase):
 
         return args
 
-    def hash_filesystem(self, snapshot):
-        """
+    def hash_filesystem(self, snapshot, count, bs):
+        """ recursively hash all files in this snapshot, using block_hash_tree()
 
         :type snapshot: ZfsDataset.ZfsDataset
         """
@@ -54,13 +54,15 @@ class ZfsCheck(CliBase):
 
             self.debug("Hashing tree: {}".format(mnt))
             if not self.args.test:
-                for (file, block, hash) in block_hash_tree(mnt):
+                for (file, block, hash) in block_hash_tree(mnt, count, bs):
                     print("{}\t{}\t{}".format(file, block, hash))
 
         finally:
-            self.debug("Cleaning up temporary mount point")
             snapshot.unmount()
+            self.debug("Cleaning up temporary mount point")
             self.node.run(["rmdir", mnt], hide_errors=True, valid_exitcodes=[])
+
+    # def hash_volume(self, snapshot):
 
 
     def run(self):
@@ -78,9 +80,9 @@ class ZfsCheck(CliBase):
         dataset_type=snapshot.parent.properties['type']
 
         if dataset_type=='volume':
-            self.checksum_volume(snapshot)
+            self.checksum_volume(snapshot, self.args.count, self.args.block_size)
         elif dataset_type=='filesystem':
-            self.hash_filesystem(snapshot)
+            self.hash_filesystem(snapshot, self.args.count, self.args.block_size)
         else:
             raise Exception("huh?")
 
