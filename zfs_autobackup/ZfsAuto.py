@@ -1,16 +1,11 @@
 import argparse
-import os.path
 import sys
 
-from .LogConsole import LogConsole
+from .CliBase import CliBase
 
 
-class ZfsAuto(object):
-    """Common Base class, this class is always used subclassed. Look at ZfsAutobackup and ZfsAutoverify ."""
-
-    # also used by setup.py
-    VERSION = "3.2-alpha2"
-    HEADER = "{} v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(os.path.basename(sys.argv[0]), VERSION)
+class ZfsAuto(CliBase):
+    """Common Base class for ZfsAutobackup and ZfsAutoverify ."""
 
     def __init__(self, argv, print_arguments=True):
 
@@ -19,46 +14,15 @@ class ZfsAuto(object):
         self.property_name = None
         self.exclude_paths = None
 
-        # helps with investigating failed regression tests:
-        if print_arguments:
-            print("ARGUMENTS: " + " ".join(argv))
-
-        self.args = self.parse_args(argv)
+        super(ZfsAuto, self).__init__(argv, print_arguments)
 
     def parse_args(self, argv):
         """parse common arguments, setup logging, check and adjust parameters"""
 
-        parser=self.get_parser()
-        args = parser.parse_args(argv)
-
-        if args.help:
-            parser.print_help()
-            sys.exit(255)
-
-        if args.version:
-            print(self.HEADER)
-            sys.exit(255)
-
-        # auto enable progress?
-        if sys.stderr.isatty() and not args.no_progress:
-            args.progress = True
-
-        if args.debug_output:
-            args.debug = True
-
-        if args.test:
-            args.verbose = True
-
-        if args.debug:
-            args.verbose = True
-
-        self.log = LogConsole(show_debug=args.debug, show_verbose=args.verbose, color=sys.stdout.isatty())
-
-        self.verbose(self.HEADER)
-        self.verbose("")
+        args = super(ZfsAuto, self).parse_args(argv)
 
         if args.backup_name == None:
-            parser.print_usage()
+            self.parser.print_usage()
             self.log.error("Please specify BACKUP-NAME")
             sys.exit(255)
 
@@ -102,8 +66,7 @@ class ZfsAuto(object):
 
     def get_parser(self):
 
-        parser = argparse.ArgumentParser(description=self.HEADER, add_help=False,
-                                         epilog='Full manual at: https://github.com/psy0rz/zfs_autobackup')
+        parser = super(ZfsAuto, self).get_parser()
 
         #positional arguments
         parser.add_argument('backup_name', metavar='BACKUP-NAME', default=None, nargs='?',
@@ -158,28 +121,6 @@ class ZfsAuto(object):
                                  'This can avoid recursive replication between two backup partners.')
 
         return parser
-
-    def verbose(self, txt):
-        self.log.verbose(txt)
-
-    def warning(self, txt):
-        self.log.warning(txt)
-
-    def error(self, txt):
-        self.log.error(txt)
-
-    def debug(self, txt):
-        self.log.debug(txt)
-
-    def progress(self, txt):
-        self.log.progress(txt)
-
-    def clear_progress(self):
-        self.log.clear_progress()
-
-    def set_title(self, title):
-        self.log.verbose("")
-        self.log.verbose("#### " + title)
 
     def print_error_sources(self):
         self.error(
