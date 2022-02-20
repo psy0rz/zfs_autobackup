@@ -77,35 +77,4 @@ def get_tmp_clone_name(snapshot):
     return pool.name+"/"+tmp_name()
 
 
-#NOTE: https://www.google.com/search?q=Mount+Path+Limit+freebsd
-#Freebsd has limitations regarding path length, so we have to clone it so the part stays sort
-def activate_volume_snapshot(snapshot):
-    """clone volume, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
-
-    clone_name= get_tmp_clone_name(snapshot)
-    clone=snapshot.clone(clone_name)
-
-    #NOTE: add smartos location to this list as well
-    locations=[
-        "/dev/zvol/" + clone_name
-    ]
-
-    clone.debug("Waiting for /dev entry to appear...")
-    time.sleep(0.1)
-
-    start_time=time.time()
-    while time.time()-start_time<10:
-        for location in locations:
-            stdout, stderr, exit_code=clone.zfs_node.run(["test", "-e", location], return_all=True, valid_exitcodes=[0,1])
-
-            #fake it in testmode
-            if clone.zfs_node.readonly:
-                return location
-
-            if exit_code==0:
-                return location
-        time.sleep(1)
-
-    raise(Exception("Timeout while waiting for {} entry to appear.".format(locations)))
-
 
