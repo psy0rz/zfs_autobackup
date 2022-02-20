@@ -1,4 +1,8 @@
+from __future__ import print_function
 import hashlib
+import sys
+from builtins import BrokenPipeError
+from signal import signal, SIGPIPE, SIG_DFL
 
 from .ZfsNode import ZfsNode
 from .util import *
@@ -60,6 +64,10 @@ class ZfsCheck(CliBase):
             if not self.args.test:
                 for (file, block, hash) in block_hash_tree(mnt, count, bs):
                     print("{}\t{}\t{}".format(file, block, hash))
+                    sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
+
+        except BrokenPipeError:
+            output_redir()
 
         finally:
             snapshot.unmount()
@@ -110,13 +118,16 @@ class ZfsCheck(CliBase):
             if not self.args.test:
                 for (block, hash) in block_hash(dev, count, bs):
                     print("{}\t{}".format(block, hash))
+                    sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
 
+        except BrokenPipeError:
+            output_redir()
 
         finally:
-
             self.deacitvate_volume_snapshot(snapshot)
 
     def run(self):
+
 
         snapshot = self.node.get_dataset(self.args.snapshot)
 
@@ -147,4 +158,25 @@ def cli():
 
 
 if __name__ == "__main__":
+    # try:
+    #     while True:
+    #         # print("stderr", file=sys.stderr)
+    #         print("loop")
+    #         sys.stdout.flush()
+    #
+    # except BrokenPipeError:
+    #     output_redir()
+    #     print("pipe brookn", file=sys.stderr)
+    #     sys.stderr.flush()
+    #
+    #     devnull = os.open(os.devnull, os.O_WRONLY)
+    #     os.dup2(devnull, sys.stdout.fileno())
+    #
+    #     print("stout")
+    #     sys.stdout.flush()
+    #
+    #
+    #     print("hier kom ik nie", file=sys.stderr)
+    #     open("yo" ,"w")
+
     cli()

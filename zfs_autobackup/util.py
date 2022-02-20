@@ -78,3 +78,12 @@ def get_tmp_clone_name(snapshot):
 
 
 
+def output_redir():
+    """use this after a BrokenPipeError to prevent further exceptions.
+    Redirects stdout/err to /dev/null
+    """
+
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, sys.stdout.fileno())
+    os.dup2(devnull, sys.stderr.fileno())
+
