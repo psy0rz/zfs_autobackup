@@ -23,13 +23,15 @@ import time
 import pathlib as pathlib
 
 
-def block_hash(fname, count=10000, bs=4006):
-    """yields sha1 hash per count blocks.
+def block_hash(fname, count=10000, bs=4096):
+    """This function was created to checksum huge files and blockdevices (TB's)
+    Instead of one sha1sum of the whole file, it generates sha1susms of chunks of the file.
+
+    yields sha1 hash of fname,  per count blocks.
     yields(chunk_nr, hexdigest)
 
     yields nothing for empty files.
 
-    This function was created to checksum huge files and blockdevices (TB's)
     """
 
     with open(fname, "rb") as f:
@@ -49,23 +51,31 @@ def block_hash(fname, count=10000, bs=4006):
             yield (chunk_nr, hash.hexdigest())
 
 def block_hash_tree(start_path, count=10000, bs=4096):
-    """block_hash every file in a tree, yielding results"""
+    """block_hash every file in a tree, yielding the results
 
+    note that it only checks the contents of actual files. It ignores metadata like permissions and mtimes.
+    It also ignores empty directories, symlinks and special files.
+    """
+
+    cwd=os.getcwd()
     os.chdir(start_path)
 
-    for f in pathlib.Path('.').glob('**/*'):
-        if f.is_file() and not f.is_symlink():
-            for (chunk_nr, hash) in block_hash(f, count, bs):
+    try:
+        for f in pathlib.Path('.').glob('**/*'):
+            if f.is_file() and not f.is_symlink():
+                for (chunk_nr, hash) in block_hash(f, count, bs):
 
-                yield ( f, chunk_nr, hash)
+                    yield ( f, chunk_nr, hash )
+    finally:
+        os.chdir(cwd)
 
 
 def tmp_name(suffix=""):
     """create temporary name unique to this process and node"""
 
     #we could use uuids but those are ugly and confusing
-    name="{}_{}_{}".format(
-        os.path.basename(sys.argv[0]),
+    name="{}-{}-{}".format(
+        os.path.basename(sys.argv[0]).replace(" ","_"),
         platform.node(),
         os.getpid())
     name=name+suffix
