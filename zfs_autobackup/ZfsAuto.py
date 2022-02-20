@@ -75,26 +75,7 @@ class ZfsAuto(CliBase):
         parser.add_argument('target_path', metavar='TARGET-PATH', default=None, nargs='?',
                             help='Target ZFS filesystem (optional)')
 
-        # Basic options
-        group=parser.add_argument_group("Basic options")
-        group.add_argument('--help', '-h', action='store_true', help='show help')
-        group.add_argument('--test', '--dry-run', '-n', action='store_true',
-                            help='Dry run, dont change anything, just show what would be done (still does all read-only '
-                                 'operations)')
-        group.add_argument('--verbose', '-v', action='store_true', help='verbose output')
-        group.add_argument('--debug', '-d', action='store_true',
-                            help='Show zfs commands that are executed, stops after an exception.')
-        group.add_argument('--debug-output', action='store_true',
-                            help='Show zfs commands and their output/exit codes. (noisy)')
-        group.add_argument('--progress', action='store_true',
-                            help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
-        group.add_argument('--no-progress', action='store_true',
-                            help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
-        group.add_argument('--version', action='store_true',
-                            help='Show version.')
-        group.add_argument('--strip-path', metavar='N', default=0, type=int,
-                           help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
-                                'SmartOS machines)')
+
 
         # SSH options
         group=parser.add_argument_group("SSH options")
@@ -111,6 +92,9 @@ class ZfsAuto(CliBase):
                             help='ZFS Snapshot string format. Default: %(default)s')
         group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
                             help='ZFS hold string format. Default: %(default)s')
+        group.add_argument('--strip-path', metavar='N', default=0, type=int,
+                           help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
+                                'SmartOS machines)')
 
         group=parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
