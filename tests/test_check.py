@@ -107,21 +107,44 @@ dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
 """, buf.getvalue())
 
 
-    def test_brokenpipe_cleanup_filesystem(self):
-        """test if stuff is cleaned up correctly, in debugging mode , when a pipe breaks. """
+    # def test_brokenpipe_cleanup_filesystem(self):
+    #     """test if stuff is cleaned up correctly, in debugging mode , when a pipe breaks. """
+    #
+    #     prepare_zpools()
+    #     shelltest("cp tests/data/whole /test_source1/testfile")
+    #     shelltest("zfs snapshot test_source1@test")
+    #
+    #     #breaks pipe when grep exists:
+    #     #important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
+    #     shelltest("python -m zfs_autobackup.ZfsCheck test_source1@test --debug | grep -m1 'Hashing tree'")
+    #
+    #     #should NOT be mounted anymore if cleanup went ok:
+    #     self.assertNotRegex(shelltest("mount"), "test_source1@test")
+
+    def test_brokenpipe_cleanup_volume(self):
 
         prepare_zpools()
-        shelltest("cp tests/data/whole /test_source1/testfile")
-        shelltest("zfs snapshot test_source1@test")
+        shelltest("zfs create -V200M test_source1/vol")
+        shelltest("zfs snapshot test_source1/vol@test")
 
         #breaks pipe when grep exists:
         #important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
-        shelltest("python -m zfs_autobackup.ZfsCheck test_source1@test --debug | grep -m1 Hashing")
+        shelltest("python -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug | grep -m1 'Hashing dev'")
 
-        #should NOT be mounted anymore if cleanup went ok:
-        self.assertNotRegex(shelltest("mount"), "test_source1@test")
-
-
+        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        self.assertMultiLineEqual(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1/sub
+test_source1/vol
+test_source1/vol@test
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+""")
 
 
 

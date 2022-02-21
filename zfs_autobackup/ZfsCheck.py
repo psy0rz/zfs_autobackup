@@ -31,6 +31,9 @@ class ZfsCheck(CliBase):
         group.add_argument('--count', metavar="COUNT", default=int((100 * (1024 ** 2)) / 4096),
                            help="Generate a hash for every COUNT blocks. default %(default)s", type=int)  # 100MiB
 
+        group.add_argument('--check', '-c', metavar="FILE", default=None,
+                           help="Read hashes from FILE and check them")
+
         return parser
 
     def parse_args(self, argv):
@@ -153,25 +156,5 @@ def cli():
 
 
 if __name__ == "__main__":
-    # try:
-    #     while True:
-    #         # print("stderr", file=sys.stderr)
-    #         print("loop")
-    #         sys.stdout.flush()
-    #
-    # except BrokenPipeError:
-    #     output_redir()
-    #     print("pipe brookn", file=sys.stderr)
-    #     sys.stderr.flush()
-    #
-    #     devnull = os.open(os.devnull, os.O_WRONLY)
-    #     os.dup2(devnull, sys.stdout.fileno())
-    #
-    #     print("stout")
-    #     sys.stdout.flush()
-    #
-    #
-    #     print("hier kom ik nie", file=sys.stderr)
-    #     open("yo" ,"w")
 
     cli()
