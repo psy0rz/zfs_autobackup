@@ -64,7 +64,7 @@ def block_hash_tree(start_path, count=10000, bs=4096):
     try:
         for (dirpath, dirnames, filenames) in os.walk(".", onerror=walkerror):
             for f in filenames:
-                file_path=os.path.join(dirpath, f)
+                file_path=os.path.join(dirpath, f)[2:]
 
                 if (not os.path.islink(file_path)) and os.path.isfile(file_path):
                     for (chunk_nr, hash) in block_hash(file_path, count, bs):

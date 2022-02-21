@@ -1,5 +1,8 @@
 from __future__ import print_function
 
+from signal import signal, SIGPIPE
+
+
 from .ZfsNode import ZfsNode
 from .util import *
 from .CliBase import CliBase
@@ -62,8 +65,6 @@ class ZfsCheck(CliBase):
                     print("{}\t{}\t{}".format(file, block, hash))
                     sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
 
-        # except BrokenPipeError:
-        #     output_redir()
 
         finally:
             snapshot.unmount()
@@ -89,7 +90,7 @@ class ZfsCheck(CliBase):
         start_time = time.time()
         while time.time() - start_time < 10:
             for location in locations:
-                if pathlib.Path(location).is_block_device():
+                if os.path.exists(location):
                     return location
 
                 # fake it in testmode
@@ -116,14 +117,11 @@ class ZfsCheck(CliBase):
                     print("{}\t{}".format(block, hash))
                     sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
 
-        except BrokenPipeError:
-            output_redir()
 
         finally:
             self.deacitvate_volume_snapshot(snapshot)
 
     def run(self):
-
 
         snapshot = self.node.get_dataset(self.args.snapshot)
 
@@ -149,6 +147,8 @@ class ZfsCheck(CliBase):
 
 def cli():
     import sys
+
+    signal(SIGPIPE, output_redir)
 
     sys.exit(ZfsCheck(sys.argv[1:], False).run())
 

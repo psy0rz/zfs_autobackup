@@ -85,6 +85,16 @@ class TestZfsCheck(unittest2.TestCase):
         prepare_zpools()
 
         shelltest("cp tests/data/whole /test_source1/testfile")
+        shelltest("mkdir /test_source1/emptydir")
+        shelltest("mkdir /test_source1/dir")
+        shelltest("cp tests/data/whole2 /test_source1/dir/testfile")
+
+        #it should ignore these:
+        shelltest("ln -s / /test_source1/symlink")
+        shelltest("mknod /test_source1/c c 1 1")
+        shelltest("mknod /test_source1/b b 1 1")
+        shelltest("mkfifo /test_source1/f")
+
         shelltest("zfs snapshot test_source1@test")
 
         with OutputIO() as buf:
@@ -93,5 +103,11 @@ class TestZfsCheck(unittest2.TestCase):
 
             print(buf.getvalue())
             self.assertEqual("""testfile	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
+dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
 """, buf.getvalue())
+
+
+    # def test_brokenpipe_cleanup_filesystem(self):
+    #     """test if stuff is cleaned up correctly, in debugging mode , when a pipe breaks. """
+
 

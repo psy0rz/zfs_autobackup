@@ -1,6 +1,9 @@
 import time
 
 import argparse
+from signal import signal, SIGPIPE
+from .util import output_redir
+
 from .ZfsAuto import ZfsAuto
 
 from . import compressors
@@ -488,6 +491,8 @@ class ZfsAutobackup(ZfsAuto):
 
 def cli():
     import sys
+
+    signal(SIGPIPE, output_redir)
 
     sys.exit(ZfsAutobackup(sys.argv[1:], False).run())
 

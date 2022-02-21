@@ -1,4 +1,7 @@
 # from util import activate_volume_snapshot, create_mountpoints, cleanup_mountpoint
+from signal import signal, SIGPIPE
+from .util import output_redir
+
 from .ZfsAuto import ZfsAuto
 from .ZfsNode import ZfsNode
 import sys
@@ -301,6 +304,8 @@ class ZfsAutoverify(ZfsAuto):
 
 def cli():
     import sys
+
+    signal(SIGPIPE, output_redir)
 
     sys.exit(ZfsAutoverify(sys.argv[1:], False).run())
 
