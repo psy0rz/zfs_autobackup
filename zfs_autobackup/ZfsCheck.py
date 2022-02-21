@@ -31,7 +31,7 @@ class ZfsCheck(CliBase):
         group.add_argument('--block-size', metavar="BYTES", default=4096, help="Read block-size, default %(default)s",
                            type=int)
         group.add_argument('--count', metavar="COUNT", default=int((100 * (1024 ** 2)) / 4096),
-                           help="Generate a hash for every COUNT blocks. default %(default)s", type=int)  # 100MiB
+                           help="Hash chunks of COUNT blocks. Default %(default)s . (Chunk size is BYTES * COUNT) ", type=int)  # 100MiB
 
         group.add_argument('--check', '-c', metavar="FILE", default=None,
                            help="Read hashes from FILE and check them")
