@@ -44,7 +44,7 @@ class BlockHasher():
         checked=0
         with open(fname, "rb") as f:
             for ( chunk_nr, hexdigest ) in generator:
-                print ("comparing {} {} {}".format(fname, chunk_nr, hexdigest))
+                # print ("comparing {} {} {}".format(fname, chunk_nr, hexdigest))
 
                 checked=checked+1
                 hash = self.hash_class()

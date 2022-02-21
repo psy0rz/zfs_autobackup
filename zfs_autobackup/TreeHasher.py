@@ -43,6 +43,7 @@ class TreeHasher():
 
         cwd=os.getcwd()
         os.chdir(start_path)
+        count=0
         try:
 
             def filter_file_name( file_name, chunk_nr, hexdigest):
@@ -50,10 +51,13 @@ class TreeHasher():
 
 
             for file_name, group_generator in itertools.groupby(generator, lambda x: x[0]):
+                count=count+1
                 block_generator=itertools.starmap(filter_file_name, group_generator)
                 self.block_hasher.compare(file_name, block_generator)
         finally:
             os.chdir(cwd)
+
+        return count
 
 
 
