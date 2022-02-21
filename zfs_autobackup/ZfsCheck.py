@@ -1,8 +1,4 @@
 from __future__ import print_function
-import hashlib
-import sys
-from builtins import BrokenPipeError
-from signal import signal, SIGPIPE, SIG_DFL
 
 from .ZfsNode import ZfsNode
 from .util import *
@@ -66,8 +62,8 @@ class ZfsCheck(CliBase):
                     print("{}\t{}\t{}".format(file, block, hash))
                     sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
 
-        except BrokenPipeError:
-            output_redir()
+        # except BrokenPipeError:
+        #     output_redir()
 
         finally:
             snapshot.unmount()

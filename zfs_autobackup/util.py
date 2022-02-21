@@ -20,8 +20,6 @@ import platform
 import sys
 import time
 
-import pathlib as pathlib
-
 
 def block_hash(fname, count=10000, bs=4096):
     """This function was created to checksum huge files and blockdevices (TB's)
@@ -60,12 +58,17 @@ def block_hash_tree(start_path, count=10000, bs=4096):
     cwd=os.getcwd()
     os.chdir(start_path)
 
-    try:
-        for f in pathlib.Path('.').glob('**/*'):
-            if f.is_file() and not f.is_symlink():
-                for (chunk_nr, hash) in block_hash(f, count, bs):
+    def walkerror(e):
+        raise e
 
-                    yield ( f, chunk_nr, hash )
+    try:
+        for (dirpath, dirnames, filenames) in os.walk(".", onerror=walkerror):
+            for f in filenames:
+                file_path=os.path.join(dirpath, f)
+
+                if (not os.path.islink(file_path)) and os.path.isfile(file_path):
+                    for (chunk_nr, hash) in block_hash(file_path, count, bs):
+                        yield ( file_path, chunk_nr, hash )
     finally:
         os.chdir(cwd)
 
