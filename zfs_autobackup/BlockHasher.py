@@ -44,11 +44,17 @@ class BlockHasher():
         checked=0
         with open(fname, "rb") as f:
             for ( chunk_nr, hexdigest ) in generator:
+                print ("comparing {} {} {}".format(fname, chunk_nr, hexdigest))
+
                 checked=checked+1
                 hash = self.hash_class()
                 f.seek(chunk_nr * self.bs * self.count)
-                for block_nr in range(0,self.count):
-                    hash.update(f.read(self.bs))
+                block_nr=0
+                for block in iter(lambda: f.read(self.bs), b""):
+                    hash.update(block)
+                    block_nr=block_nr+1
+                    if block_nr == self.count:
+                        break
 
                 if (hash.hexdigest()!=hexdigest):
                     raise Exception("Block {} mismatched! Hash is {}, but should be {}".format(chunk_nr, hash.hexdigest(), hexdigest))

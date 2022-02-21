@@ -68,6 +68,11 @@ class ZfsCheck(CliBase):
 
             self.debug("Hashing tree: {}".format(mnt))
             if not self.args.test:
+
+                # generator=tree_hasher.generate(mnt)
+                # tree_hasher.compare(mnt, generator)
+
+
                 for (file, block, hash) in tree_hasher.generate(mnt):
                     print("{}\t{}\t{}".format(file, block, hash))
                     sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
@@ -157,6 +162,21 @@ def cli():
     signal(SIGPIPE, sigpipe_handler)
 
     sys.exit(ZfsCheck(sys.argv[1:], False).run())
+
+    # block_hasher=BlockHasher()
+
+    # if sys.argv[1]=="s":
+    #     for ( fname, nr, hash ) in TreeHasher(block_hasher).generate("/usr/src/linux-headers-5.14.14-051414"):
+    #         print("{}\t{}\t{}".format(fname, nr, hash))
+    #
+    # if sys.argv[1]=="r":
+    #
+    #     def gen():
+    #         for line in sys.stdin:
+    #             ( fname, nr, hash)=line.rstrip().split('\t')
+    #             yield (fname, int(nr), hash)
+    #
+    #     TreeHasher(block_hasher).compare("/usr/src/linux-headers-5.14.14-051414", gen())
 
 
 if __name__ == "__main__":

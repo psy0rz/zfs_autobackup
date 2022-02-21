@@ -5,6 +5,10 @@ class TreeHasher():
     """uses BlockHasher recursively on a directory tree"""
 
     def __init__(self, block_hasher):
+        """
+
+        :type block_hasher: BlockHasher
+        """
         self.block_hasher=block_hasher
 
     def generate(self, start_path):
@@ -30,4 +34,38 @@ class TreeHasher():
                             yield ( file_path, chunk_nr, hash )
         finally:
             os.chdir(cwd)
+
+
+    def compare(self, start_path, generator):
+        """reads from generator and compares blocks, raises exception on error
+        """
+
+        cwd=os.getcwd()
+        os.chdir(start_path)
+
+        try:
+            current= [None]
+            def per_file_generator():
+
+                (current_file_path, chunk_nr, hash)=current[0]
+                yield ( chunk_nr, hash)
+
+                for (file_path, chunk_nr, hash) in generator:
+                    if file_path==current_file_path:
+                        yield ( chunk_nr, hash)
+                    else:
+                        current[0] = (file_path, chunk_nr, hash)
+                        return
+
+                current[0]=None
+
+
+            current[0] = generator.next()
+            while current[0] is not None:
+                self.block_hasher.compare(current[0][0], per_file_generator())
+
+        finally:
+            os.chdir(cwd)
+
+
 
