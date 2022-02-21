@@ -1,3 +1,4 @@
+import itertools
 import os
 
 
@@ -42,28 +43,15 @@ class TreeHasher():
 
         cwd=os.getcwd()
         os.chdir(start_path)
-
         try:
-            current= [None]
-            def per_file_generator():
 
-                (current_file_path, chunk_nr, hash)=current[0]
-                yield ( chunk_nr, hash)
-
-                for (file_path, chunk_nr, hash) in generator:
-                    if file_path==current_file_path:
-                        yield ( chunk_nr, hash)
-                    else:
-                        current[0] = (file_path, chunk_nr, hash)
-                        return
-
-                current[0]=None
+            def filter_file_name( file_name, chunk_nr, hexdigest):
+                    return ( chunk_nr, hexdigest )
 
 
-            current[0] = generator.next()
-            while current[0] is not None:
-                self.block_hasher.compare(current[0][0], per_file_generator())
-
+            for file_name, group_generator in itertools.groupby(generator, lambda x: x[0]):
+                block_generator=itertools.starmap(filter_file_name, group_generator)
+                self.block_hasher.compare(file_name, block_generator)
         finally:
             os.chdir(cwd)
 
