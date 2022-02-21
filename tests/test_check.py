@@ -68,6 +68,27 @@ class TestZfsCheck(unittest2.TestCase):
                 (0, "309ffffba2e1977d12f3b7469971f30d28b94bd8"), #whole_whole2_partial
             ])
 
+    def test_blockhash_compare(self):
+
+
+        block_hasher=BlockHasher(count=1)
+        generator=block_hasher.generate("tests/data/whole_whole2_partial")
+        self.assertEqual(3,block_hasher.compare("tests/data/whole_whole2_partial", generator))
+
+        block_hasher=BlockHasher(count=1)
+        with self.assertRaisesRegexp(Exception, "^Block 1 mismatched!"):
+            generator=block_hasher.generate("tests/data/whole_whole2_partial")
+            self.assertEqual(3,block_hasher.compare("tests/data/whole", generator))
+
+        block_hasher=BlockHasher(count=10)
+        generator=block_hasher.generate("tests/data/whole_whole2_partial")
+        self.assertEqual(1,block_hasher.compare("tests/data/whole_whole2_partial", generator))
+
+        #different order to make sure seek functions
+        block_hasher=BlockHasher(count=1)
+        checksums=list(block_hasher.generate("tests/data/whole_whole2_partial"))
+        checksums.reverse()
+        self.assertEqual(3,block_hasher.compare("tests/data/whole_whole2_partial", checksums))
 
     def test_volume(self):
         prepare_zpools()

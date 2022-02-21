@@ -38,8 +38,20 @@ class BlockHasher():
             if block_nr % self.count != 0:
                 yield (chunk_nr, hash.hexdigest())
 
-        # def compare(fname, generator):
-        #     """reads from generatos and compares blocks"""
-        #
-        #     with open(fname, "rb") as f:
-        #         for ( count, bs , chunk_nr, hexdigest) in input_generator:
+    def compare(self, fname, generator):
+        """reads from generator and compares blocks, raises exception on error"""
+
+        checked=0
+        with open(fname, "rb") as f:
+            for ( chunk_nr, hexdigest ) in generator:
+                checked=checked+1
+                hash = self.hash_class()
+                f.seek(chunk_nr * self.bs * self.count)
+                for block_nr in range(0,self.count):
+                    hash.update(f.read(self.bs))
+
+                if (hash.hexdigest()!=hexdigest):
+                    raise Exception("Block {} mismatched! Hash is {}, but should be {}".format(chunk_nr, hash.hexdigest(), hexdigest))
+
+        return checked
+
