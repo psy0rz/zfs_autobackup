@@ -1,8 +1,10 @@
 from __future__ import print_function
 
+import time
 from signal import signal, SIGPIPE
 
-
+from .TreeHasher import TreeHasher
+from .BlockHasher import BlockHasher
 from .ZfsNode import ZfsNode
 from .util import *
 from .CliBase import CliBase
@@ -62,9 +64,11 @@ class ZfsCheck(CliBase):
 
             snapshot.mount(mnt)
 
+            tree_hasher=TreeHasher(BlockHasher(count=count, bs=bs))
+
             self.debug("Hashing tree: {}".format(mnt))
             if not self.args.test:
-                for (file, block, hash) in block_hash_tree(mnt, count, bs):
+                for (file, block, hash) in tree_hasher.generate(mnt):
                     print("{}\t{}\t{}".format(file, block, hash))
                     sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
 
@@ -113,13 +117,13 @@ class ZfsCheck(CliBase):
     def hash_volume(self, snapshot, count, bs):
         try:
             dev=self.activate_volume_snapshot(snapshot)
+            block_hasher=BlockHasher(count=count, bs=bs)
 
             self.debug("Hashing dev: {}".format(dev))
             if not self.args.test:
-                for (block, hash) in block_hash(dev, count, bs):
+                for (block, hash) in block_hasher.generate(dev):
                     print("{}\t{}".format(block, hash))
                     sys.stdout.flush() #important, to generate SIGPIPES on ssh disconnect
-
 
         finally:
             self.deacitvate_volume_snapshot(snapshot)
