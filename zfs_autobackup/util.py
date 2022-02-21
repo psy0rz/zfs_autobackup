@@ -21,6 +21,7 @@ import sys
 import time
 
 
+
 def block_hash(fname, count=10000, bs=4096):
     """This function was created to checksum huge files and blockdevices (TB's)
     Instead of one sha1sum of the whole file, it generates sha1susms of chunks of the file.
@@ -100,3 +101,6 @@ def output_redir():
     os.dup2(devnull, sys.stdout.fileno())
     os.dup2(devnull, sys.stderr.fileno())
 
+def sigpipe_handler(sig, stack):
+    #redir output so we dont get more SIGPIPES during cleanup. (which my try to write to stdout)
+    output_redir()

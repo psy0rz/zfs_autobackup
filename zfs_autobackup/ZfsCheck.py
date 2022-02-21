@@ -147,8 +147,7 @@ class ZfsCheck(CliBase):
 
 def cli():
     import sys
-
-    signal(SIGPIPE, output_redir)
+    signal(SIGPIPE, sigpipe_handler)
 
     sys.exit(ZfsCheck(sys.argv[1:], False).run())
 

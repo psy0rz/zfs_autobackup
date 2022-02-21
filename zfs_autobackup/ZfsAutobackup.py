@@ -2,7 +2,7 @@ import time
 
 import argparse
 from signal import signal, SIGPIPE
-from .util import output_redir
+from .util import output_redir, sigpipe_handler
 
 from .ZfsAuto import ZfsAuto
 
@@ -492,7 +492,7 @@ class ZfsAutobackup(ZfsAuto):
 def cli():
     import sys
 
-    signal(SIGPIPE, output_redir)
+    signal(SIGPIPE, sigpipe_handler)
 
     sys.exit(ZfsAutobackup(sys.argv[1:], False).run())
 
