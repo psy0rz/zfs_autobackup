@@ -9,11 +9,11 @@ class BlockHasher():
 
     Its also possible to only read a certain percentage of blocks to just check a sample.
     """
-    def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1):
-        self.count=count
-        self.bs=bs
-        self.hash_class=hash_class
 
+    def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1):
+        self.count = count
+        self.bs = bs
+        self.hash_class = hash_class
 
     def generate(self, fname):
         """Generates checksums
@@ -39,25 +39,32 @@ class BlockHasher():
                 yield (chunk_nr, hash.hexdigest())
 
     def compare(self, fname, generator):
-        """reads from generator and compares blocks, raises exception on error"""
+        """reads from generator and compares blocks, yields mismatches"""
 
-        checked=0
-        with open(fname, "rb") as f:
-            for ( chunk_nr, hexdigest ) in generator:
-                # print ("comparing {} {} {}".format(fname, chunk_nr, hexdigest))
+        try:
+            checked = 0
+            with open(fname, "rb") as f:
+                for (chunk_nr, hexdigest) in generator:
+                    try:
 
-                checked=checked+1
-                hash = self.hash_class()
-                f.seek(chunk_nr * self.bs * self.count)
-                block_nr=0
-                for block in iter(lambda: f.read(self.bs), b""):
-                    hash.update(block)
-                    block_nr=block_nr+1
-                    if block_nr == self.count:
-                        break
+                        checked = checked + 1
+                        hash = self.hash_class()
+                        f.seek(chunk_nr * self.bs * self.count)
+                        block_nr = 0
+                        for block in iter(lambda: f.read(self.bs), b""):
+                            hash.update(block)
+                            block_nr = block_nr + 1
+                            if block_nr == self.count:
+                                break
 
-                if (hash.hexdigest()!=hexdigest):
-                    raise Exception("Block {} mismatched! Hash is {}, but should be {}".format(chunk_nr, hash.hexdigest(), hexdigest))
+                        if block_nr == 0:
+                            yield (chunk_nr, hexdigest, 'EOF')
 
-        return checked
+                        elif (hash.hexdigest() != hexdigest):
+                            yield (chunk_nr, hexdigest, hash.hexdigest())
 
+                    except Exception as e:
+                        yield ( chunk_nr , hexdigest, 'ERROR: '+str(e))
+
+        except Exception as e:
+            yield ( '-', '-', 'ERROR: '+ str(e))

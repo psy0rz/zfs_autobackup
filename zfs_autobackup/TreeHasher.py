@@ -53,11 +53,11 @@ class TreeHasher():
             for file_name, group_generator in itertools.groupby(generator, lambda x: x[0]):
                 count=count+1
                 block_generator=itertools.starmap(filter_file_name, group_generator)
-                self.block_hasher.compare(file_name, block_generator)
+                for ( chunk_nr, compare_hexdigest, actual_hexdigest) in self.block_hasher.compare(file_name, block_generator):
+                    yield ( file_name, chunk_nr, compare_hexdigest, actual_hexdigest )
         finally:
             os.chdir(cwd)
 
-        return count
 
 
 
