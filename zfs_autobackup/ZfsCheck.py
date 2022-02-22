@@ -34,8 +34,8 @@ class ZfsCheck(CliBase):
         group.add_argument('--count', metavar="COUNT", default=int((100 * (1024 ** 2)) / 4096),
                            help="Hash chunks of COUNT blocks. Default %(default)s . (Chunk size is BYTES * COUNT) ", type=int)  # 100MiB
 
-        group.add_argument('--check', '-c', metavar="FILE", default=None,
-                           help="Read hashes from FILE and check them")
+        group.add_argument('--check', '-c', metavar="FILE", default=None, const=True, nargs='?',
+                           help="Read hashes from STDIN (or FILE) and check them")
 
         return parser
 
@@ -138,12 +138,10 @@ class ZfsCheck(CliBase):
 
         snapshot = self.node.get_dataset(self.args.target)
         if not snapshot.exists:
-            snapshot.error("Snapshot not found")
-            sys.exit(1)
+            raise Exception("Snapshot {} not found".format(snapshot))
 
         if not snapshot.is_snapshot:
-            snapshot.error("Dataset should be a snapshot")
-            sys.exit(1)
+            raise Exception("Dataset {} should be a snapshot".format(snapshot))
 
         dataset_type = snapshot.parent.properties['type']
 
@@ -194,12 +192,17 @@ class ZfsCheck(CliBase):
 
     def input_parser(self, file_name):
         """parse input lines and generate items to use in compare functions"""
-        with open(file_name, 'r') as input_fh:
-            for line in input_fh:
-                i=line.rstrip().split("\t")
-                #ignores lines without tabs
-                if (len(i)>1):
-                    yield i
+
+        if self.args.check is True:
+            input_fh=sys.stdin
+        else:
+            input_fh=open(file_name, 'r')
+
+        for line in input_fh:
+            i=line.rstrip().split("\t")
+            #ignores lines without tabs
+            if (len(i)>1):
+                yield i
 
     def run(self):
 
@@ -213,7 +216,7 @@ class ZfsCheck(CliBase):
                         print("{}\t{}".format(*i))
                     sys.stdout.flush()
 
-                sys.exit(0)
+                return 0
 
             #run as compare
             else:
@@ -228,7 +231,7 @@ class ZfsCheck(CliBase):
                             (chunk_nr, compare_hexdigest, actual_hexdigest) = i
                             self.log.error("{}\t{}\t{}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
 
-                sys.exit(min(255,errors))
+                return min(255,errors)
 
         except Exception as e:
             self.error("Exception: " + str(e))
