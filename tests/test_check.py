@@ -96,18 +96,31 @@ dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
                 self.assertEqual("Chunk 0 failed: 3c0bf91170d873b8e327d3bafb6bc074580d11bX 3c0bf91170d873b8e327d3bafb6bc074580d11b7\n", buf.getvalue())
 
     def test_tree(self):
+        shelltest("rm -rf /tmp/testtree; mkdir /tmp/testtree")
+        shelltest("cp tests/data/whole /tmp/testtree")
+        shelltest("cp tests/data/whole_whole2 /tmp/testtree")
+        shelltest("cp tests/data/whole2 /tmp/testtree")
+        shelltest("cp tests/data/partial /tmp/testtree")
+        shelltest("cp tests/data/whole_whole2_partial /tmp/testtree")
+
         with self.subTest("Generate"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertFalse(ZfsCheck("tests/data".split(" "), print_arguments=False).run())
+                    self.assertFalse(ZfsCheck("/tmp/testtree".split(" "), print_arguments=False).run())
 
-                print(buf.getvalue())
-                self.assertEqual("""whole	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
-whole_whole2	0	959e6b58078f0cfd2fb3d37e978fda51820473ff
-whole2	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
+                #file order on disk can vary, so sort it..
+                sorted=buf.getvalue().split("\n")
+                sorted.sort()
+                sorted="\n".join(sorted)+"\n"
+
+                print(sorted)
+                self.assertEqual("""
 partial	0	642027d63bb0afd7e0ba197f2c66ad03e3d70de1
+whole	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
+whole2	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
+whole_whole2	0	959e6b58078f0cfd2fb3d37e978fda51820473ff
 whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
-""", buf.getvalue())
+""", sorted)
 
                 # store on disk for next step, add error
                 with open("/tmp/testhashes", "w") as fh:
@@ -116,7 +129,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
         with self.subTest("Compare"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertEqual(1, ZfsCheck("tests/data --check=/tmp/testhashes".split(" "),
+                    self.assertEqual(1, ZfsCheck("/tmp/testtree --check=/tmp/testhashes".split(" "),
                                                  print_arguments=False).run())
                 print(buf.getvalue())
                 self.assertEqual(

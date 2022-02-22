@@ -227,8 +227,6 @@ class ZfsCheck(CliBase):
             if self.args.check==None:
                 for i in self.generate(input_generator=None):
 
-                    self.clear_progress()
-
                     if len(i)==3:
                         print("{}\t{}\t{}".format(*i))
                     else:
