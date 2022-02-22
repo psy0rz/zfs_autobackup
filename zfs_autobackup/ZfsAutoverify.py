@@ -203,8 +203,8 @@ class ZfsAutoverify(ZfsAuto):
 
 
             except Exception as e:
-                if self.args.progress:
-                    self.clear_progress()
+                # if self.args.progress:
+                #     self.clear_progress()
 
                 fail_count = fail_count + 1
                 target_dataset.error("FAILED: " + str(e))
@@ -212,8 +212,8 @@ class ZfsAutoverify(ZfsAuto):
                     self.verbose("Debug mode, aborting on first error")
                     raise
 
-        if self.args.progress:
-            self.clear_progress()
+        # if self.args.progress:
+        #     self.clear_progress()
 
         return fail_count
 

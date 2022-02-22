@@ -10,6 +10,7 @@ class LogConsole:
         self.last_log = ""
         self.show_debug = show_debug
         self.show_verbose = show_verbose
+        self._progress_uncleared=False
 
         if color:
             # try to use color, failback if colorama not available
@@ -25,6 +26,7 @@ class LogConsole:
             self.colorama=False
 
     def error(self, txt):
+        self.clear_progress()
         if self.colorama:
             print(colorama.Fore.RED + colorama.Style.BRIGHT + "! " + txt + colorama.Style.RESET_ALL, file=sys.stderr)
         else:
@@ -32,6 +34,7 @@ class LogConsole:
         sys.stderr.flush()
 
     def warning(self, txt):
+        self.clear_progress()
         if self.colorama:
             print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "  NOTE: " + txt + colorama.Style.RESET_ALL)
         else:
@@ -40,6 +43,7 @@ class LogConsole:
 
     def verbose(self, txt):
         if self.show_verbose:
+            self.clear_progress()
             if self.colorama:
                 print(colorama.Style.NORMAL + "  " + txt + colorama.Style.RESET_ALL)
             else:
@@ -48,6 +52,7 @@ class LogConsole:
 
     def debug(self, txt):
         if self.show_debug:
+            self.clear_progress()
             if self.colorama:
                 print(colorama.Fore.GREEN + "# " + txt + colorama.Style.RESET_ALL)
             else:
@@ -57,10 +62,13 @@ class LogConsole:
     def progress(self, txt):
         """print progress output to stderr (stays on same line)"""
         self.clear_progress()
+        self._progress_uncleared=True
         print(">>> {}\r".format(txt), end='', file=sys.stderr)
         sys.stderr.flush()
 
     def clear_progress(self):
-        import colorama
-        print(colorama.ansi.clear_line(), end='', file=sys.stderr)
-        sys.stderr.flush()
+        if self._progress_uncleared:
+            import colorama
+            print(colorama.ansi.clear_line(), end='', file=sys.stderr)
+            # sys.stderr.flush()
+            self._progress_uncleared=False

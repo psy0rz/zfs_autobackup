@@ -157,8 +157,8 @@ class ZfsAutobackup(ZfsAuto):
             except Exception as e:
                 dataset.error("Error during thinning of missing datasets ({})".format(str(e)))
 
-        if self.args.progress:
-            self.clear_progress()
+        # if self.args.progress:
+        #     self.clear_progress()
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def destroy_missing_targets(self, target_dataset, used_target_datasets):
@@ -217,13 +217,13 @@ class ZfsAutobackup(ZfsAuto):
                                 dataset.destroy(fail_exception=True)
 
             except Exception as e:
-                if self.args.progress:
-                    self.clear_progress()
+                # if self.args.progress:
+                #     self.clear_progress()
 
                 dataset.error("Error during --destroy-missing: {}".format(str(e)))
 
-        if self.args.progress:
-            self.clear_progress()
+        # if self.args.progress:
+        #     self.clear_progress()
 
     def get_send_pipes(self, logger):
         """determine the zfs send pipe"""
@@ -333,8 +333,8 @@ class ZfsAutobackup(ZfsAuto):
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed)
             except Exception as e:
-                if self.args.progress:
-                    self.clear_progress()
+                # if self.args.progress:
+                #     self.clear_progress()
 
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -342,8 +342,8 @@ class ZfsAutobackup(ZfsAuto):
                     self.verbose("Debug mode, aborting on first error")
                     raise
 
-        if self.args.progress:
-            self.clear_progress()
+        # if self.args.progress:
+        #     self.clear_progress()
 
         target_path_dataset = target_node.get_dataset(self.args.target_path)
         if not self.args.no_thinning:
@@ -477,6 +477,7 @@ class ZfsAutobackup(ZfsAuto):
                 self.verbose("")
                 self.warning("TEST MODE - DID NOT MAKE ANY CHANGES!")
 
+            self.clear_progress()
             return fail_count
 
         except Exception as e:
