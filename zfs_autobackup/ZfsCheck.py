@@ -34,8 +34,10 @@ class ZfsCheck(CliBase):
         group.add_argument('--count', metavar="COUNT", default=int((100 * (1024 ** 2)) / 4096),
                            help="Hash chunks of COUNT blocks. Default %(default)s . (Chunk size is BYTES * COUNT) ", type=int)  # 100MiB
 
+        group = parser.add_argument_group('Compare options')
+
         group.add_argument('--check', '-c', metavar="FILE", default=None, const=True, nargs='?',
-                           help="Read hashes from STDIN (or FILE) and check them")
+                           help="Read hashes from STDIN (or FILE) and compare them")
 
         return parser
 
@@ -200,7 +202,8 @@ class ZfsCheck(CliBase):
         last_progress_time = time.time()
         progress_count = 0
 
-        for line in input_fh:
+        line=input_fh.readline()
+        while line:
             i=line.rstrip().split("\t")
             #ignores lines without tabs
             if (len(i)>1):
@@ -212,6 +215,8 @@ class ZfsCheck(CliBase):
                     last_progress_time = time.time()
                     self.progress("Checked {} hashes.".format(progress_count))
 
+            line=input_fh.readline()
+
     def run(self):
 
         try:
@@ -221,6 +226,9 @@ class ZfsCheck(CliBase):
             #run as generator
             if self.args.check==None:
                 for i in self.generate(input_generator=None):
+
+                    self.clear_progress()
+
                     if len(i)==3:
                         print("{}\t{}\t{}".format(*i))
                     else:
@@ -233,6 +241,7 @@ class ZfsCheck(CliBase):
 
                     sys.stdout.flush()
 
+                self.clear_progress()
                 return 0
 
             #run as compare
@@ -241,6 +250,7 @@ class ZfsCheck(CliBase):
                 input_generator=self.input_parser(self.args.check)
                 for i in self.generate(input_generator):
                         errors=errors+1
+
                         if len(i)==4:
                             (file_name, chunk_nr, compare_hexdigest, actual_hexdigest)=i
                             self.log.error("{}\t{}\t{}\t{}".format(file_name, chunk_nr, compare_hexdigest, actual_hexdigest))
@@ -248,6 +258,7 @@ class ZfsCheck(CliBase):
                             (chunk_nr, compare_hexdigest, actual_hexdigest) = i
                             self.log.error("{}\t{}\t{}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
 
+                self.clear_progress()
                 return min(255,errors)
 
         except Exception as e:

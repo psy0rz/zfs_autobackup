@@ -14,14 +14,23 @@ class TestZfsCheck(unittest2.TestCase):
         shelltest("zfs create -V200M test_source1/vol")
         shelltest("zfs snapshot test_source1/vol@test")
 
-        with OutputIO() as buf:
-            with redirect_stdout(buf):
-                self.assertFalse(ZfsCheck("test_source1/vol@test".split(" "),print_arguments=False).run())
+        with self.subTest("Generate"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertFalse(ZfsCheck("test_source1/vol@test".split(" "),print_arguments=False).run())
 
-            print(buf.getvalue())
-            self.assertEqual("""0	2c2ceccb5ec5574f791d45b63c940cff20550f9a
+                print(buf.getvalue())
+                self.assertEqual("""0	2c2ceccb5ec5574f791d45b63c940cff20550f9a
 1	2c2ceccb5ec5574f791d45b63c940cff20550f9a
 """, buf.getvalue())
+
+                #store on disk for next step
+                with open("/tmp/testhashes", "w") as fh:
+                    fh.write(buf.getvalue())
+
+        with self.subTest("Compare"):
+            self.assertFalse(ZfsCheck("test_source1/vol@test --check=/tmp/testhashes --verbose".split(" "),print_arguments=False).run())
+
 
 
     def test_filesystem(self):
@@ -40,14 +49,22 @@ class TestZfsCheck(unittest2.TestCase):
 
         shelltest("zfs snapshot test_source1@test")
 
-        with OutputIO() as buf:
-            with redirect_stdout(buf):
-                self.assertFalse(ZfsCheck("test_source1@test".split(" "), print_arguments=False).run())
+        with self.subTest("Generate"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertFalse(ZfsCheck("test_source1@test".split(" "), print_arguments=False).run())
 
-            print(buf.getvalue())
-            self.assertEqual("""testfile	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
+                print(buf.getvalue())
+                self.assertEqual("""testfile	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
 dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
 """, buf.getvalue())
+
+                #store on disk for next step
+                with open("/tmp/testhashes", "w") as fh:
+                    fh.write(buf.getvalue())
+
+        with self.subTest("Compare"):
+            self.assertFalse(ZfsCheck("test_source1@test --check=/tmp/testhashes --verbose".split(" "),print_arguments=False).run())
 
 
     def test_brokenpipe_cleanup_filesystem(self):
