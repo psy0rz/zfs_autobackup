@@ -8,6 +8,8 @@ class BlockHasher():
     The chunksize is count*bs (bs is the read blocksize from disk)
 
     Its also possible to only read a certain percentage of blocks to just check a sample.
+
+    Input and output generators are in the format ( chunk_nr, hexdigest )
     """
 
     def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1):
@@ -39,7 +41,11 @@ class BlockHasher():
                 yield (chunk_nr, hash.hexdigest())
 
     def compare(self, fname, generator):
-        """reads from generator and compares blocks, yields mismatches"""
+        """reads from generator and compares blocks
+        Yields mismatches in the form: ( chunk_nr, hexdigest, actual_hexdigest)
+        Yields errors in the form: ( chunk_nr, hexdigest, "message" )
+
+        """
 
         try:
             checked = 0
@@ -49,7 +55,7 @@ class BlockHasher():
 
                         checked = checked + 1
                         hash = self.hash_class()
-                        f.seek(chunk_nr * self.bs * self.count)
+                        f.seek(int(chunk_nr) * self.bs * self.count)
                         block_nr = 0
                         for block in iter(lambda: f.read(self.bs), b""):
                             hash.update(block)
