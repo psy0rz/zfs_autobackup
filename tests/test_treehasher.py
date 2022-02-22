@@ -56,4 +56,4 @@ class TestTreeHasher(unittest2.TestCase):
             shelltest("rm /tmp/treehashertest/whole")
 
             self.assertEqual(list(tree_hasher.compare("/tmp/treehashertest", generator)),
-                             [('whole', '-', '-', "ERROR: [Errno 2] No such file or directory: 'whole'")])
+                             [('whole', '-', '-', "ERROR: [Errno 2] No such file or directory: '/tmp/treehashertest/whole'")])

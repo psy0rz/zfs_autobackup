@@ -43,8 +43,7 @@ class ZfsCheck(CliBase):
         args = super(ZfsCheck, self).parse_args(argv)
 
         if args.test:
-            self.warning("TEST MODE - NOT DOING ANYTHING USEFULL")
-            self.log.show_debug = True  # show at least what we would do
+            self.warning("TEST MODE - WILL ONLY DO READ-ONLY STUFF")
 
         if args.target is None:
             self.error("Please specify TARGET")
@@ -198,15 +197,27 @@ class ZfsCheck(CliBase):
         else:
             input_fh=open(file_name, 'r')
 
+        last_progress_time = time.time()
+        progress_count = 0
+
         for line in input_fh:
             i=line.rstrip().split("\t")
             #ignores lines without tabs
             if (len(i)>1):
+
                 yield i
+
+                progress_count=progress_count+1
+                if self.args.progress and time.time() - last_progress_time > 1:
+                    last_progress_time = time.time()
+                    self.progress("Checked {} hashes.".format(progress_count))
 
     def run(self):
 
         try:
+            last_progress_time = time.time()
+            progress_count = 0
+
             #run as generator
             if self.args.check==None:
                 for i in self.generate(input_generator=None):
@@ -214,6 +225,12 @@ class ZfsCheck(CliBase):
                         print("{}\t{}\t{}".format(*i))
                     else:
                         print("{}\t{}".format(*i))
+                    progress_count=progress_count+1
+
+                    if self.args.progress and time.time()-last_progress_time>1:
+                        last_progress_time=time.time()
+                        self.progress("Generated {} hashes.".format(progress_count))
+
                     sys.stdout.flush()
 
                 return 0
