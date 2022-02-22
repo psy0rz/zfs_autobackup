@@ -154,6 +154,29 @@ class ZfsCheck(CliBase):
         else:
             raise Exception("huh?")
 
+    def generate_path(self, input_generator=None):
+
+        tree_hasher = TreeHasher(self.block_hasher)
+
+        self.debug("Hashing tree: {}".format(self.args.target))
+        if input_generator:
+            for i in tree_hasher.compare(self.args.target, input_generator):
+                yield i
+        else:
+            for i in tree_hasher.generate(self.args.target):
+                yield i
+
+    def generate_file(self, input_generator=None):
+
+
+        self.debug("Hashing file: {}".format(self.args.target))
+        if input_generator:
+            for i in self.block_hasher.compare(self.args.target, input_generator):
+                yield i
+        else:
+            for i in self.block_hasher.generate(self.args.target):
+                yield i
+
     def generate(self, input_generator=None):
         """generate checksums or compare (and generate error messages)"""
 
@@ -162,9 +185,12 @@ class ZfsCheck(CliBase):
             return self.generate_zfs_target(input_generator)
         elif os.path.isdir(self.args.target):
             self.verbose("Target {} is directory, checking recursively.".format(self.args.target))
-            return self.check_path(input_generator)
-        elif os.path.isfile(self.args.target):
+            return self.generate_path(input_generator)
+        elif os.path.exists(self.args.target):
             self.verbose("Target {} is single file or blockdevice.".format(self.args.target))
+            return self.generate_file(input_generator)
+        else:
+            raise Exception("Cant open {} ".format(self.args.target))
 
     def input_parser(self, file_name):
         """parse input lines and generate items to use in compare functions"""
@@ -186,16 +212,23 @@ class ZfsCheck(CliBase):
                     else:
                         print("{}\t{}".format(*i))
                     sys.stdout.flush()
+
+                sys.exit(0)
+
             #run as compare
             else:
+                errors=0
                 input_generator=self.input_parser(self.args.check)
                 for i in self.generate(input_generator):
+                        errors=errors+1
                         if len(i)==4:
                             (file_name, chunk_nr, compare_hexdigest, actual_hexdigest)=i
                             self.log.error("{}\t{}\t{}\t{}".format(file_name, chunk_nr, compare_hexdigest, actual_hexdigest))
                         else:
                             (chunk_nr, compare_hexdigest, actual_hexdigest) = i
                             self.log.error("{}\t{}\t{}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
+
+                sys.exit(min(255,errors))
 
         except Exception as e:
             self.error("Exception: " + str(e))
