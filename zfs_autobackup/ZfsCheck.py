@@ -253,10 +253,12 @@ class ZfsCheck(CliBase):
 
                         if len(i)==4:
                             (file_name, chunk_nr, compare_hexdigest, actual_hexdigest)=i
-                            self.log.error("{}\t{}\t{}\t{}".format(file_name, chunk_nr, compare_hexdigest, actual_hexdigest))
+                            print("{}: Chunk {} failed: {} {}".format(file_name, chunk_nr, compare_hexdigest, actual_hexdigest))
                         else:
                             (chunk_nr, compare_hexdigest, actual_hexdigest) = i
-                            self.log.error("{}\t{}\t{}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
+                            print("Chunk {} failed: {} {}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
+
+                        sys.stdout.flush()
 
                 self.clear_progress()
                 return min(255,errors)

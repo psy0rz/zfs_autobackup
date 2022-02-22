@@ -24,14 +24,16 @@ class TestZfsCheck(unittest2.TestCase):
 1	2c2ceccb5ec5574f791d45b63c940cff20550f9a
 """, buf.getvalue())
 
-                #store on disk for next step
+                #store on disk for next step, add one error.
                 with open("/tmp/testhashes", "w") as fh:
-                    fh.write(buf.getvalue())
+                    fh.write(buf.getvalue()+"1\t2c2ceccb5ec5574f791d45b63c940cff20550f9X")
 
         with self.subTest("Compare"):
-            self.assertFalse(ZfsCheck("test_source1/vol@test --check=/tmp/testhashes --verbose".split(" "),print_arguments=False).run())
-
-
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertEqual(1, ZfsCheck("test_source1/vol@test --check=/tmp/testhashes".split(" "),print_arguments=False).run())
+                print(buf.getvalue())
+                self.assertEqual("Chunk 1 failed: 2c2ceccb5ec5574f791d45b63c940cff20550f9X 2c2ceccb5ec5574f791d45b63c940cff20550f9a\n", buf.getvalue())
 
     def test_filesystem(self):
         prepare_zpools()
@@ -59,13 +61,67 @@ class TestZfsCheck(unittest2.TestCase):
 dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
 """, buf.getvalue())
 
-                #store on disk for next step
+                #store on disk for next step, add error
                 with open("/tmp/testhashes", "w") as fh:
-                    fh.write(buf.getvalue())
+                    fh.write(buf.getvalue()+"dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d79X")
 
         with self.subTest("Compare"):
-            self.assertFalse(ZfsCheck("test_source1@test --check=/tmp/testhashes --verbose".split(" "),print_arguments=False).run())
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertEqual(1, ZfsCheck("test_source1@test --check=/tmp/testhashes".split(" "),print_arguments=False).run())
 
+                print(buf.getvalue())
+                self.assertEqual("dir/testfile: Chunk 0 failed: 2e863f1fcccd6642e4e28453eba10d2d3f74d79X 2e863f1fcccd6642e4e28453eba10d2d3f74d798\n", buf.getvalue())
+
+    def test_file(self):
+
+        with self.subTest("Generate"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertFalse(ZfsCheck("tests/data/whole".split(" "), print_arguments=False).run())
+
+                print(buf.getvalue())
+                self.assertEqual("""0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
+""", buf.getvalue())
+
+                # store on disk for next step, add error
+                with open("/tmp/testhashes", "w") as fh:
+                    fh.write(buf.getvalue()+"0	3c0bf91170d873b8e327d3bafb6bc074580d11bX")
+
+        with self.subTest("Compare"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertEqual(1,ZfsCheck("tests/data/whole --check=/tmp/testhashes".split(" "), print_arguments=False).run())
+                print(buf.getvalue())
+                self.assertEqual("Chunk 0 failed: 3c0bf91170d873b8e327d3bafb6bc074580d11bX 3c0bf91170d873b8e327d3bafb6bc074580d11b7\n", buf.getvalue())
+
+    def test_tree(self):
+        with self.subTest("Generate"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertFalse(ZfsCheck("tests/data".split(" "), print_arguments=False).run())
+
+                print(buf.getvalue())
+                self.assertEqual("""whole	0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
+whole_whole2	0	959e6b58078f0cfd2fb3d37e978fda51820473ff
+whole2	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
+partial	0	642027d63bb0afd7e0ba197f2c66ad03e3d70de1
+whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
+""", buf.getvalue())
+
+                # store on disk for next step, add error
+                with open("/tmp/testhashes", "w") as fh:
+                    fh.write(buf.getvalue() + "whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bdX")
+
+        with self.subTest("Compare"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertEqual(1, ZfsCheck("tests/data --check=/tmp/testhashes".split(" "),
+                                                 print_arguments=False).run())
+                print(buf.getvalue())
+                self.assertEqual(
+                    "whole_whole2_partial: Chunk 0 failed: 309ffffba2e1977d12f3b7469971f30d28b94bdX 309ffffba2e1977d12f3b7469971f30d28b94bd8\n",
+                    buf.getvalue())
 
     def test_brokenpipe_cleanup_filesystem(self):
         """test if stuff is cleaned up correctly, in debugging mode , when a pipe breaks. """
