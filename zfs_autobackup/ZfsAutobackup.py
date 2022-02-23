@@ -91,6 +91,8 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--rollback', action='store_true',
                            help='Rollback changes to the latest target snapshot before starting. (normally you can '
                                 'prevent changes by setting the readonly property on the target_path to on)')
+        group.add_argument('--force', '-F', action='store_true',
+                           help='Use zfs -F option to force overwrite/rollback. (Usefull with --strip-path=1, but use with care)')
         group.add_argument('--destroy-incompatible', action='store_true',
                            help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
         group.add_argument('--ignore-transfer-errors', action='store_true',

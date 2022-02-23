@@ -79,3 +79,19 @@ test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000000
             self.assertFalse(
                 ZfsAutobackup("test test_target1 --no-progress --verbose --debug --zfs-compressed".split(" ")).run())
 
+    def test_force(self):
+        """test 1:1 replication"""
+
+        shelltest("zfs set autobackup:test=true test_source1")
+
+        with patch('time.strftime', return_value="test-20101111000000"):
+            self.assertFalse(
+                ZfsAutobackup("test test_target1 --no-progress --verbose --debug --force --strip-path=1".split(" ")).run())
+
+            r=shelltest("zfs list -H -o name -r -t snapshot test_target1")
+            self.assertMultiLineEqual(r,"""
+test_target1@test-20101111000000
+test_target1/fs1@test-20101111000000
+test_target1/fs1/sub@test-20101111000000
+test_target1/fs2/sub@test-20101111000000
+""")
