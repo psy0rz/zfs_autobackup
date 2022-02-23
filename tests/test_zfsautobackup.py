@@ -420,33 +420,13 @@ test_target1/fs2/sub
 test_target1/fs2/sub@test-20101111000000
 """)
 
-#     def test_strippath_toomuch(self):
-#         with patch('time.strftime', return_value="test-20101111000000"):
-#             self.assertFalse(
-#                 ZfsAutobackup("test test_target1 --verbose --strip-path=2 --no-progress".split(" ")).run())
-#
-#             r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
-#             self.assertMultiLineEqual(r, """
-# test_source1
-# test_source1/fs1
-# test_source1/fs1@test-20101111000000
-# test_source1/fs1/sub
-# test_source1/fs1/sub@test-20101111000000
-# test_source2
-# test_source2/fs2
-# test_source2/fs2/sub
-# test_source2/fs2/sub@test-20101111000000
-# test_source2/fs3
-# test_source2/fs3/sub
-# test_target1
-# test_target1/fs1
-# test_target1/fs1@test-20101111000000
-# test_target1/fs1/sub
-# test_target1/fs1/sub@test-20101111000000
-# test_target1/fs2
-# test_target1/fs2/sub
-# test_target1/fs2/sub@test-20101111000000
-# """)
+    def test_strippath_collision(self):
+        with self.assertRaisesRegexp(Exception,"collision"):
+            ZfsAutobackup("test test_target1 --verbose --strip-path=2 --no-progress --debug".split(" ")).run()
+
+    def test_strippath_toomuch(self):
+        with self.assertRaisesRegexp(Exception,"too much"):
+            ZfsAutobackup("test test_target1 --verbose --strip-path=3 --no-progress --debug".split(" ")).run()
 
     def  test_clearrefres(self):
 

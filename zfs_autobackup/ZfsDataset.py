@@ -79,7 +79,11 @@ class ZfsDataset:
         Args:
             :type count: int
         """
-        return "/".join(self.split_path()[count:])
+        components=self.split_path()
+        if count>len(components):
+            raise Exception("Trying to strip too much from path ({} items from {})".format(count, self.name))
+
+        return "/".join(components[count:])
 
     def rstrip_path(self, count):
         """return name with last count components stripped
@@ -184,11 +188,17 @@ class ZfsDataset:
         parent according to path
 
         we cache this so everything in the parent that is cached also stays.
+
+        returns None if there is no parent.
         """
         if self.is_snapshot:
             return self.zfs_node.get_dataset(self.filesystem_name)
         else:
-            return self.zfs_node.get_dataset(self.rstrip_path(1))
+            stripped=self.rstrip_path(1)
+            if stripped:
+                return self.zfs_node.get_dataset(stripped)
+            else:
+                return None
 
     # NOTE: unused for now
     # def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
@@ -584,7 +594,7 @@ class ZfsDataset:
 
         return output_pipe
 
-    def recv_pipe(self, pipe, features, recv_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False):
+    def recv_pipe(self, pipe, features, recv_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False, force=False):
         """starts a zfs recv for this snapshot and uses pipe as input
 
         note: you can it both on a snapshot or filesystem object. The
@@ -625,6 +635,9 @@ class ZfsDataset:
         # verbose output
         cmd.append("-v")
 
+        if force:
+            cmd.append("-F")
+
         if 'extensible_dataset' in features and "-s" in self.zfs_node.supported_recv_options:
             # support resuming
             self.debug("Enabled resume support")
@@ -655,7 +668,7 @@ class ZfsDataset:
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
-                          raw, send_properties, write_embedded, send_pipes, recv_pipes, zfs_compressed):
+                          raw, send_properties, write_embedded, send_pipes, recv_pipes, zfs_compressed, force):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for
         incremental transfer
 
@@ -696,7 +709,7 @@ class ZfsDataset:
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
                               resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, send_pipes=send_pipes, zfs_compressed=zfs_compressed)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
-                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, recv_pipes=recv_pipes)
+                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, recv_pipes=recv_pipes, force=force)
 
     def abort_resume(self):
         """abort current resume state"""
@@ -987,7 +1000,7 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1007,6 +1020,8 @@ class ZfsDataset:
             :type no_send: bool
             :type destroy_incompatible: bool
         """
+
+        self.verbose("sending to {}".format(target_dataset))
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
@@ -1070,7 +1085,9 @@ class ZfsDataset:
                                                   filter_properties=active_filter_properties,
                                                   set_properties=active_set_properties,
                                                   ignore_recv_exit_code=ignore_recv_exit_code,
-                                                  resume_token=resume_token, write_embedded=write_embedded, raw=raw, send_properties=send_properties, send_pipes=send_pipes, recv_pipes=recv_pipes, zfs_compressed=zfs_compressed)
+                                                  resume_token=resume_token, write_embedded=write_embedded, raw=raw,
+                                                  send_properties=send_properties, send_pipes=send_pipes,
+                                                  recv_pipes=recv_pipes, zfs_compressed=zfs_compressed, force=force)
 
                 resume_token = None
 
