@@ -12,10 +12,14 @@ class BlockHasher():
     Input and output generators are in the format ( chunk_nr, hexdigest )
     """
 
-    def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1):
+    def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1, coverage=1):
         self.count = count
         self.bs = bs
         self.hash_class = hash_class
+        self.coverage=1
+
+        self.stats_total=0
+        self.stats_checked=0
 
     def generate(self, fname):
         """Generates checksums

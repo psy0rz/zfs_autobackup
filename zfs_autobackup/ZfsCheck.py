@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import time
+from random import random, randint
 from signal import signal, SIGPIPE
 
 from .TreeHasher import TreeHasher
@@ -18,26 +19,31 @@ class ZfsCheck(CliBase):
         super(ZfsCheck, self).__init__(argv, print_arguments)
 
         self.node = ZfsNode(self.log, readonly=self.args.test, debug_output=self.args.debug_output)
-        self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size)
+
+        if self.args.check is None:
+            self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size)
+        else:
+            self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size, coverage=self.args.percentage)
 
     def get_parser(self):
 
         parser = super(ZfsCheck, self).get_parser()
 
         # positional arguments
-        parser.add_argument('target', metavar='TARGET', default=None, nargs='?', help='Target to checksum. (can be blockdevice, directory or ZFS snapshot)')
+        parser.add_argument('target', metavar='TARGET', default=None, nargs='?', help='Target to checkum. (can be blockdevice, directory or ZFS snapshot)')
 
-        group = parser.add_argument_group('Hasher options')
+        group = parser.add_argument_group('Checker options')
 
         group.add_argument('--block-size', metavar="BYTES", default=4096, help="Read block-size, default %(default)s",
                            type=int)
         group.add_argument('--count', metavar="COUNT", default=int((100 * (1024 ** 2)) / 4096),
                            help="Hash chunks of COUNT blocks. Default %(default)s . (Chunk size is BYTES * COUNT) ", type=int)  # 100MiB
 
-        group = parser.add_argument_group('Compare options')
-
         group.add_argument('--check', '-c', metavar="FILE", default=None, const=True, nargs='?',
                            help="Read hashes from STDIN (or FILE) and compare them")
+
+        group.add_argument('--percentage', '-p', metavar="NUMBER", default=100, type=float,
+                           help="Generate/compare only this percentage of hashes. Default %(default)s")
 
         return parser
 
@@ -50,6 +56,15 @@ class ZfsCheck(CliBase):
         if args.target is None:
             self.error("Please specify TARGET")
             sys.exit(1)
+
+        self.verbose("Target               : {}".format(args.target))
+        self.verbose("Block size           : {} bytes".format(args.block_size))
+        self.verbose("Block count          : {}".format(args.count))
+        self.verbose("Effective chunk size : {} bytes".format(args.count*args.block_size))
+        self.verbose("Percentage to check  : {} %".format(args.percentage))
+        self.verbose("")
+
+        args.percentage=args.percentage/100
 
         return args
 
@@ -180,13 +195,13 @@ class ZfsCheck(CliBase):
         """generate checksums or compare (and generate error messages)"""
 
         if '@' in self.args.target:
-            self.verbose("Assuming target {} is ZFS snapshot.".format(self.args.target))
+            self.verbose("Target is a ZFS snapshot.".format(self.args.target))
             return self.generate_zfs_target(input_generator)
         elif os.path.isdir(self.args.target):
-            self.verbose("Target {} is directory, checking recursively.".format(self.args.target))
+            self.verbose("Target is a directory, checking recursively.".format(self.args.target))
             return self.generate_path(input_generator)
         elif os.path.exists(self.args.target):
-            self.verbose("Target {} is single file or blockdevice.".format(self.args.target))
+            self.verbose("Target is single file or blockdevice.".format(self.args.target))
             return self.generate_file(input_generator)
         else:
             raise Exception("Cant open {} ".format(self.args.target))
@@ -200,7 +215,8 @@ class ZfsCheck(CliBase):
             input_fh=open(file_name, 'r')
 
         last_progress_time = time.time()
-        progress_count = 0
+        progress_checked = 0
+        progress_total = 0
 
         line=input_fh.readline()
         while line:
@@ -208,14 +224,20 @@ class ZfsCheck(CliBase):
             #ignores lines without tabs
             if (len(i)>1):
 
-                yield i
+                if self.args.percentage==1 or self.args.percentage>random():
+                    progress_checked=progress_checked+1
+                    yield i
 
-                progress_count=progress_count+1
+                progress_total=progress_total+1
+
                 if self.args.progress and time.time() - last_progress_time > 1:
                     last_progress_time = time.time()
-                    self.progress("Checked {} hashes.".format(progress_count))
+                    self.progress("Checked {}/{} hashes. ({:.2f}% coverage)".format(progress_checked, progress_total, (float(progress_checked)/progress_total)*100))
 
             line=input_fh.readline()
+
+        self.verbose("Checked {}/{} hashes. ({:.2f}% coverage)".format(progress_checked, progress_total, (
+                    float(progress_checked) / progress_total) * 100))
 
     def run(self):
 
@@ -239,6 +261,7 @@ class ZfsCheck(CliBase):
 
                     sys.stdout.flush()
 
+                self.verbose("Generated {} hashes.".format(progress_count))
                 self.clear_progress()
                 return 0
 
@@ -257,6 +280,8 @@ class ZfsCheck(CliBase):
                             print("Chunk {} failed: {} {}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
 
                         sys.stdout.flush()
+
+                self.verbose("Total errors: {}".format(errors))
 
                 self.clear_progress()
                 return min(255,errors)
