@@ -14,7 +14,7 @@ import os.path
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.1.2-rc1"
+    VERSION = "3.1.2-rc2"
     HEADER = "zfs-autobackup v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
@@ -87,6 +87,8 @@ class ZfsAutobackup:
         parser.add_argument('--rollback', action='store_true',
                             help='Rollback changes to the latest target snapshot before starting. (normally you can '
                                  'prevent changes by setting the readonly property on the target_path to on)')
+        parser.add_argument('--force', '-F', action='store_true',
+                            help='Use zfs -F option to force overwrite/rollback. (Usefull with --strip-path=1, but use with care)')
         parser.add_argument('--destroy-incompatible', action='store_true',
                             help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
         parser.add_argument('--destroy-missing', metavar="SCHEDULE", type=str, default=None,
@@ -438,7 +440,7 @@ class ZfsAutobackup:
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed)
+                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force)
             except Exception as e:
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
