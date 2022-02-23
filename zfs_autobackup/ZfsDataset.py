@@ -79,7 +79,11 @@ class ZfsDataset:
         Args:
             :type count: int
         """
-        return "/".join(self.split_path()[count:])
+        components=self.split_path()
+        if count>len(components):
+            raise Exception("Trying to strip too much from path ({} items from {})".format(count, self.name))
+
+        return "/".join(components[count:])
 
     def rstrip_path(self, count):
         """return name with last count components stripped
@@ -188,7 +192,11 @@ class ZfsDataset:
         if self.is_snapshot:
             return ZfsDataset(self.zfs_node, self.filesystem_name)
         else:
-            return ZfsDataset(self.zfs_node, self.rstrip_path(1))
+            stripped=self.rstrip_path(1)
+            if stripped:
+                return ZfsDataset(self.zfs_node, stripped)
+            else:
+                return None
 
     # NOTE: unused for now
     # def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
@@ -1006,6 +1014,8 @@ class ZfsDataset:
             :type no_send: bool
             :type destroy_incompatible: bool
         """
+
+        self.verbose("sending to {}".format(target_dataset))
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \

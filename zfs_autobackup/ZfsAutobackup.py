@@ -9,12 +9,12 @@ from .ZfsDataset import ZfsDataset
 from .LogConsole import LogConsole
 from .ZfsNode import ZfsNode
 from .ThinnerRule import ThinnerRule
-
+import os.path
 
 class ZfsAutobackup:
     """main class"""
 
-    VERSION = "3.1.1"
+    VERSION = "3.1.2-rc1"
     HEADER = "zfs-autobackup v{} - (c)2021 E.H.Eefting (edwin@datux.nl)".format(VERSION)
 
     def __init__(self, argv, print_arguments=True):
@@ -364,6 +364,29 @@ class ZfsAutobackup:
 
         return ret
 
+    def make_target_name(self, source_dataset):
+        """make target_name from a source_dataset"""
+        stripped=source_dataset.lstrip_path(self.args.strip_path)
+        if stripped!="":
+            return self.args.target_path + "/" + stripped
+        else:
+            return self.args.target_path
+
+    def check_target_names(self, source_node, source_datasets, target_node):
+        """check all target names for collesions etc due to strip-options"""
+
+        self.debug("Checking target names:")
+        target_datasets={}
+        for source_dataset in source_datasets:
+
+            target_name = self.make_target_name(source_dataset)
+            source_dataset.debug("-> {}".format(target_name))
+
+            if target_name in target_datasets:
+                raise Exception("Target collision: Target path {} encountered twice, due to: {} and {}".format(target_name, source_dataset, target_datasets[target_name]))
+
+            target_datasets[target_name]=source_dataset
+
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
         """Sync datasets, or thin-only on both sides
@@ -387,13 +410,14 @@ class ZfsAutobackup:
 
             try:
                 # determine corresponding target_dataset
-                target_name = self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
+                target_name = self.make_target_name(source_dataset)
                 target_dataset = ZfsDataset(target_node, target_name)
                 target_datasets.append(target_dataset)
 
                 # ensure parents exists
                 # TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
                 if not self.args.no_send \
+                        and target_dataset.parent \
                         and target_dataset.parent not in target_datasets \
                         and not target_dataset.parent.exists:
                     target_dataset.parent.create_filesystem(parents=True)
@@ -559,6 +583,9 @@ class ZfsAutobackup:
                 if not target_dataset.exists:
                     raise (Exception(
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
+
+                # check for collisions due to strip-path
+                self.check_target_names(source_node, source_datasets, target_node)
 
                 # do the actual sync
                 # NOTE: even with no_send, no_thinning and no_snapshot it does a usefull thing because it checks if the common snapshots and shows incompatible snapshots
