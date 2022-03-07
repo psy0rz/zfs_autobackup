@@ -42,7 +42,7 @@ An important feature that's missing from other tools is a reliable `--test` opti
 * Uses progressive thinning for older snapshots.
 * Uses zfs-holds on important snapshots to prevent accidental deletion.
 * Automatic resuming of failed transfers.
-* Easy migration from existing zfs backups.
+* Easy migration from other zfs backup systems to zfs-autobackup.
 * Gracefully handles datasets that no longer exist on source.
 * Complete and clean logging. 
 * Easy installation:

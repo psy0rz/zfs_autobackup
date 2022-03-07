@@ -103,6 +103,40 @@ dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
         shelltest("cp tests/data/partial /tmp/testtree")
         shelltest("cp tests/data/whole_whole2_partial /tmp/testtree")
 
+        ####################################
+        with self.subTest("Generate, skip 1"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertFalse(ZfsCheck("/tmp/testtree --skip=1".split(" "), print_arguments=False).run())
+
+                #since order varies, just check count (there is one empty line for some reason, only when testing like this)
+                print(buf.getvalue().split("\n"))
+                self.assertEqual(len(buf.getvalue().split("\n")),4)
+
+        ######################################
+        with self.subTest("Compare, all incorrect, skip 1"):
+
+            # store on disk for next step, add error
+            with open("/tmp/testhashes", "w") as fh:
+                fh.write("""
+partial	0	642027d63bb0afd7e0ba197f2c66ad03e3d70deX
+whole	0	3c0bf91170d873b8e327d3bafb6bc074580d11bX
+whole2	0	2e863f1fcccd6642e4e28453eba10d2d3f74d79X
+whole_whole2	0	959e6b58078f0cfd2fb3d37e978fda51820473fX
+whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bdX
+""")
+
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    self.assertEqual(ZfsCheck("/tmp/testtree --check=/tmp/testhashes --skip=1".split(" "), print_arguments=False).run(), 3)
+
+                print(buf.getvalue())
+                self.assertMultiLineEqual("""partial: Chunk 0 failed: 642027d63bb0afd7e0ba197f2c66ad03e3d70deX 642027d63bb0afd7e0ba197f2c66ad03e3d70de1
+whole2: Chunk 0 failed: 2e863f1fcccd6642e4e28453eba10d2d3f74d79X 2e863f1fcccd6642e4e28453eba10d2d3f74d798
+whole_whole2_partial: Chunk 0 failed: 309ffffba2e1977d12f3b7469971f30d28b94bdX 309ffffba2e1977d12f3b7469971f30d28b94bd8
+""",buf.getvalue())
+
+        ####################################
         with self.subTest("Generate"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
@@ -126,6 +160,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
                 with open("/tmp/testhashes", "w") as fh:
                     fh.write(buf.getvalue() + "whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bdX")
 
+        ####################################
         with self.subTest("Compare"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
