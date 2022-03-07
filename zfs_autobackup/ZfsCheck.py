@@ -20,10 +20,7 @@ class ZfsCheck(CliBase):
 
         self.node = ZfsNode(self.log, readonly=self.args.test, debug_output=self.args.debug_output)
 
-        if self.args.check is None:
-            self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size)
-        else:
-            self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size, coverage=self.args.percentage)
+        self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size, skip=self.args.skip)
 
     def get_parser(self):
 
@@ -37,13 +34,13 @@ class ZfsCheck(CliBase):
         group.add_argument('--block-size', metavar="BYTES", default=4096, help="Read block-size, default %(default)s",
                            type=int)
         group.add_argument('--count', metavar="COUNT", default=int((100 * (1024 ** 2)) / 4096),
-                           help="Hash chunks of COUNT blocks. Default %(default)s . (Chunk size is BYTES * COUNT) ", type=int)  # 100MiB
+                           help="Hash chunks of COUNT blocks. Default %(default)s . (CHUNK size is BYTES * COUNT) ", type=int)  # 100MiB
 
         group.add_argument('--check', '-c', metavar="FILE", default=None, const=True, nargs='?',
                            help="Read hashes from STDIN (or FILE) and compare them")
 
-        group.add_argument('--percentage', '-p', metavar="NUMBER", default=100, type=float,
-                           help="Generate/compare only this percentage of hashes. Default %(default)s")
+        group.add_argument('--skip', '-s', metavar="NUMBER", default=0, type=float,
+                           help="Skip this number of chunks after every hash. %(default)s")
 
         return parser
 
@@ -61,10 +58,9 @@ class ZfsCheck(CliBase):
         self.verbose("Block size           : {} bytes".format(args.block_size))
         self.verbose("Block count          : {}".format(args.count))
         self.verbose("Effective chunk size : {} bytes".format(args.count*args.block_size))
-        self.verbose("Percentage to check  : {} %".format(args.percentage))
+        self.verbose("Skip chunk count     : {} (checks {:.2f}% of data)".format(args.skip, 100/(1+args.skip)))
         self.verbose("")
 
-        args.percentage=args.percentage/100
 
         return args
 
@@ -216,28 +212,30 @@ class ZfsCheck(CliBase):
 
         last_progress_time = time.time()
         progress_checked = 0
-        progress_total = 0
+        progress_skipped = 0
 
         line=input_fh.readline()
+        skip=0
         while line:
             i=line.rstrip().split("\t")
             #ignores lines without tabs
             if (len(i)>1):
 
-                if self.args.percentage==1 or self.args.percentage>random():
+                if skip==0:
                     progress_checked=progress_checked+1
                     yield i
-
-                progress_total=progress_total+1
+                    skip=self.args.skip
+                else:
+                    skip=skip-1
+                    progress_skipped=progress_skipped+1
 
                 if self.args.progress and time.time() - last_progress_time > 1:
                     last_progress_time = time.time()
-                    self.progress("Checked {}/{} hashes. ({:.2f}% coverage)".format(progress_checked, progress_total, (float(progress_checked)/progress_total)*100))
+                    self.progress("Checked {} hashes (skipped {})".format(progress_checked, progress_skipped))
 
             line=input_fh.readline()
 
-        self.verbose("Checked {}/{} hashes. ({:.2f}% coverage)".format(progress_checked, progress_total, (
-                    float(progress_checked) / progress_total) * 100))
+        self.verbose("Checked {} hashes (skipped {})".format(progress_checked, progress_skipped))
 
     def run(self):
 
