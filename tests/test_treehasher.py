@@ -26,10 +26,33 @@ class TestTreeHasher(unittest2.TestCase):
         shelltest("mknod /tmp/treehashertest/b b 1 1")
         shelltest("mkfifo /tmp/treehashertest/f")
 
+
+        block_hasher = BlockHasher(count=1, skip=0)
+        tree_hasher = TreeHasher(block_hasher)
+        with self.subTest("Test output, count 1, skip 0"):
+            self.assertEqual(list(tree_hasher.generate("/tmp/treehashertest")), [
+                ('whole', 0, '3c0bf91170d873b8e327d3bafb6bc074580d11b7'),
+                ('dir/whole_whole2_partial', 0, '3c0bf91170d873b8e327d3bafb6bc074580d11b7'),
+                ('dir/whole_whole2_partial', 1, '2e863f1fcccd6642e4e28453eba10d2d3f74d798'),
+                ('dir/whole_whole2_partial', 2, '642027d63bb0afd7e0ba197f2c66ad03e3d70de1')
+            ])
+
+        block_hasher = BlockHasher(count=1, skip=1)
+        tree_hasher = TreeHasher(block_hasher)
+        with self.subTest("Test output, count 1, skip 1"):
+            self.assertEqual(list(tree_hasher.generate("/tmp/treehashertest")), [
+                ('whole', 0, '3c0bf91170d873b8e327d3bafb6bc074580d11b7'),
+                # ('dir/whole_whole2_partial', 0, '3c0bf91170d873b8e327d3bafb6bc074580d11b7'),
+                ('dir/whole_whole2_partial', 1, '2e863f1fcccd6642e4e28453eba10d2d3f74d798'),
+                # ('dir/whole_whole2_partial', 2, '642027d63bb0afd7e0ba197f2c66ad03e3d70de1')
+            ])
+
+
+
         block_hasher = BlockHasher(count=2)
         tree_hasher = TreeHasher(block_hasher)
 
-        with self.subTest("Test output"):
+        with self.subTest("Test output, count 2, skip 0"):
             self.assertEqual(list(tree_hasher.generate("/tmp/treehashertest")), [
                 ('whole', 0, '3c0bf91170d873b8e327d3bafb6bc074580d11b7'),
                 ('dir/whole_whole2_partial', 0, '959e6b58078f0cfd2fb3d37e978fda51820473ff'),
@@ -57,3 +80,5 @@ class TestTreeHasher(unittest2.TestCase):
 
             self.assertEqual(list(tree_hasher.compare("/tmp/treehashertest", generator)),
                              [('whole', '-', '-', "ERROR: [Errno 2] No such file or directory: '/tmp/treehashertest/whole'")])
+
+

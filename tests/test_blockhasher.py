@@ -78,10 +78,12 @@ class TestBlockHasher(unittest2.TestCase):
             ])
 
     def test_blockhash_compare(self):
+        #no errors
         block_hasher = BlockHasher(count=1)
         generator = block_hasher.generate("tests/data/whole_whole2_partial")
         self.assertEqual([], list(block_hasher.compare("tests/data/whole_whole2_partial", generator)))
 
+        #compare file is smaller (EOF errors)
         block_hasher = BlockHasher(count=1)
         generator = block_hasher.generate("tests/data/whole_whole2_partial")
         self.assertEqual(
@@ -89,11 +91,12 @@ class TestBlockHasher(unittest2.TestCase):
              (2, '642027d63bb0afd7e0ba197f2c66ad03e3d70de1', 'EOF')],
             list(block_hasher.compare("tests/data/whole", generator)))
 
+        #no errors, huge chunks
         block_hasher = BlockHasher(count=10)
         generator = block_hasher.generate("tests/data/whole_whole2_partial")
         self.assertEqual([], list(block_hasher.compare("tests/data/whole_whole2_partial", generator)))
 
-        # different order to make sure seek functions
+        # different order to make sure seek functions are ok
         block_hasher = BlockHasher(count=1)
         checksums = list(block_hasher.generate("tests/data/whole_whole2_partial"))
         checksums.reverse()
@@ -150,3 +153,5 @@ class TestBlockHasher(unittest2.TestCase):
                 # (2, "642027d63bb0afd7e0ba197f2c66ad03e3d70de1")  # partial
             ]
         )
+
+    #NOTE: compare doesnt use skip. thats the job of its input generator

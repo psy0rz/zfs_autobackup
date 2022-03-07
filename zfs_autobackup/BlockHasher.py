@@ -12,6 +12,9 @@ class BlockHasher():
     Its also possible to only read a certain percentage of blocks to just check a sample.
 
     Input and output generators are in the format ( chunk_nr, hexdigest )
+
+    NOTE: skipping is only used on the generator side. The compare side just compares what it gets from the input generator.
+
     """
 
     def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1, skip=0):
@@ -30,7 +33,10 @@ class BlockHasher():
     def _seek_next_chunk(self, fh, fsize):
         """seek fh to next chunk and update skip counter.
         returns chunk_nr
-        return false it should skip the rest of the file"""
+        return false it should skip the rest of the file
+
+
+        """
 
         #ignore rempty files
         if fsize==0:
@@ -86,7 +92,7 @@ class BlockHasher():
 
                 yield (chunk_nr, hash.hexdigest())
 
-    def  compare(self, fname, generator):
+    def compare(self, fname, generator):
         """reads from generator and compares blocks
         Yields mismatches in the form: ( chunk_nr, hexdigest, actual_hexdigest)
         Yields errors in the form: ( chunk_nr, hexdigest, "message" )
