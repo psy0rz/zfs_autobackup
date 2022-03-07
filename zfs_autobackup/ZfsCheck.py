@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import time
-from random import random, randint
 from signal import signal, SIGPIPE
 
 from .TreeHasher import TreeHasher

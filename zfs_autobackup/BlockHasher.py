@@ -1,6 +1,5 @@
 import hashlib
 import os
-from random import random
 
 
 class BlockHasher():
