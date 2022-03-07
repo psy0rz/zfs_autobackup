@@ -98,3 +98,55 @@ class TestBlockHasher(unittest2.TestCase):
         checksums = list(block_hasher.generate("tests/data/whole_whole2_partial"))
         checksums.reverse()
         self.assertEqual([], list(block_hasher.compare("tests/data/whole_whole2_partial", checksums)))
+
+    def test_skip1(self):
+        block_hasher = BlockHasher(count=1, skip=1)
+        self.assertEqual(
+            list(block_hasher.generate("tests/data/whole_whole2_partial")),
+            [
+                (0, "3c0bf91170d873b8e327d3bafb6bc074580d11b7"),  # whole
+                # (1, "2e863f1fcccd6642e4e28453eba10d2d3f74d798"),  # whole2
+                (2, "642027d63bb0afd7e0ba197f2c66ad03e3d70de1")  # partial
+            ]
+        )
+
+        #should continue the pattern on the next file:
+        self.assertEqual(
+            list(block_hasher.generate("tests/data/whole_whole2_partial")),
+            [
+                # (0, "3c0bf91170d873b8e327d3bafb6bc074580d11b7"),  # whole
+                (1, "2e863f1fcccd6642e4e28453eba10d2d3f74d798"),  # whole2
+                # (2, "642027d63bb0afd7e0ba197f2c66ad03e3d70de1")  # partial
+            ]
+        )
+
+    def test_skip6(self):
+        block_hasher = BlockHasher(count=1, skip=6)
+        self.assertEqual(
+            list(block_hasher.generate("tests/data/whole_whole2_partial")),
+            [
+                (0, "3c0bf91170d873b8e327d3bafb6bc074580d11b7"),  # whole
+                # (1, "2e863f1fcccd6642e4e28453eba10d2d3f74d798"),  # whole2
+                # (2, "642027d63bb0afd7e0ba197f2c66ad03e3d70de1")  # partial
+            ]
+        )
+
+        #all blocks of next file are skipped
+        self.assertEqual(
+            list(block_hasher.generate("tests/data/whole_whole2_partial")),
+            [
+                # (0, "3c0bf91170d873b8e327d3bafb6bc074580d11b7"),  # whole
+                # (1, "2e863f1fcccd6642e4e28453eba10d2d3f74d798"),  # whole2
+                # (2, "642027d63bb0afd7e0ba197f2c66ad03e3d70de1")  # partial
+            ]
+        )
+
+        #first block of this one is the 6th to be skipped:
+        self.assertEqual(
+            list(block_hasher.generate("tests/data/whole_whole2_partial")),
+            [
+                # (0, "3c0bf91170d873b8e327d3bafb6bc074580d11b7"),  # whole
+                (1, "2e863f1fcccd6642e4e28453eba10d2d3f74d798"),  # whole2
+                # (2, "642027d63bb0afd7e0ba197f2c66ad03e3d70de1")  # partial
+            ]
+        )

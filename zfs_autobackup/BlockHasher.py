@@ -61,14 +61,9 @@ class BlockHasher():
 
         yields nothing for empty files.
         """
-        with os.open(fname, os.O_RDONLY) as fh:
-            print (os.lseek(fh, 0, os.SEEK_END))
 
 
-        with os.openopen(fname, "rb") as fh:
-
-            # print(os.path.getsize(fname))
-            print(os.lseek(fh, 0, os.SEEK_END))
+        with open(fname, "rb") as fh:
 
             fsize = fh.seek(0, os.SEEK_END)
             fh.seek(0)

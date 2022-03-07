@@ -39,7 +39,7 @@ class ZfsCheck(CliBase):
         group.add_argument('--check', '-c', metavar="FILE", default=None, const=True, nargs='?',
                            help="Read hashes from STDIN (or FILE) and compare them")
 
-        group.add_argument('--skip', '-s', metavar="NUMBER", default=0, type=float,
+        group.add_argument('--skip', '-s', metavar="NUMBER", default=0, type=int,
                            help="Skip this number of chunks after every hash. %(default)s")
 
         return parser
