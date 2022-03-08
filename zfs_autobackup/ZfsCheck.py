@@ -225,6 +225,8 @@ class ZfsCheck(CliBase):
         if "@" in self.args.target:
             # zfs snapshot
             snapshot=self.node.get_dataset(self.args.target)
+            if not snapshot.exists:
+                raise Exception("ZFS snapshot {} does not exist!".format(snapshot))
             dataset_type = snapshot.parent.properties['type']
 
             if dataset_type == 'volume':
@@ -239,6 +241,9 @@ class ZfsCheck(CliBase):
         if "@" in self.args.target:
             # zfs snapshot
             snapshot=self.node.get_dataset(self.args.target)
+            if not snapshot.exists:
+                return
+
             dataset_type = snapshot.parent.properties['type']
 
             if dataset_type == 'volume':
