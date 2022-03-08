@@ -1137,7 +1137,7 @@ class ZfsDataset:
         self.debug("Unmounting")
 
         cmd = [
-            "umount", "-l", self.name
+            "umount", self.name
         ]
 
 

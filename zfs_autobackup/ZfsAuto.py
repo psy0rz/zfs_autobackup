@@ -93,8 +93,7 @@ class ZfsAuto(CliBase):
         group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
                             help='ZFS hold string format. Default: %(default)s')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
-                           help='Number of directories to strip from target path (use 1 when cloning zones between 2 '
-                                'SmartOS machines)')
+                           help='Number of directories to strip from target path.')
 
         group=parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
