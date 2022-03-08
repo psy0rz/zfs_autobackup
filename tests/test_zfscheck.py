@@ -181,7 +181,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
         #breaks pipe when grep exists:
         #important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
         shelltest("python -m zfs_autobackup.ZfsCheck test_source1@test --debug | grep -m1 'Hashing tree'")
-        time.sleep(1)
+        # time.sleep(5)
 
         #should NOT be mounted anymore if cleanup went ok:
         self.assertNotRegex(shelltest("mount"), "test_source1@test")
@@ -194,11 +194,11 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
 
         #breaks pipe when grep exists:
         #important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
-        shelltest("python -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug | grep -m1 'Hashing dev'")
-        time.sleep(1)
+        shelltest("python -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug | grep -m1 'Hashing file'")
+        # time.sleep(1)
 
         r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
-        self.assertMultiLineEqual(r, """
+        self.assertMultiLineEqual("""
 test_source1
 test_source1/fs1
 test_source1/fs1/sub
@@ -210,7 +210,7 @@ test_source2/fs2/sub
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
-""")
+""",r )
 
 
 

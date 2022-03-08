@@ -3,6 +3,7 @@ from __future__ import print_function
 import time
 from signal import signal, SIGPIPE
 
+from . import util
 from .TreeHasher import TreeHasher
 from .BlockHasher import BlockHasher
 from .ZfsNode import ZfsNode
@@ -63,38 +64,23 @@ class ZfsCheck(CliBase):
 
         return args
 
-    def generate_zfs_filesystem(self, snapshot, input_generator):
-        """ recursively hash all files in this snapshot, using block_hash_tree()
+    def prepare_zfs_filesystem(self, snapshot):
 
-        :type snapshot: ZfsDataset.ZfsDataset
-        """
         mnt = "/tmp/" + tmp_name()
+        self.debug("Create temporary mount point {}".format(mnt))
+        self.node.run(["mkdir", mnt])
+        snapshot.mount(mnt)
+        return mnt
 
-        try:
-            self.debug("Create temporary mount point {}".format(mnt))
-            self.node.run(["mkdir", mnt])
-
-            snapshot.mount(mnt)
-
-            tree_hasher=TreeHasher(self.block_hasher)
-
-            self.debug("Hashing tree: {}".format(mnt))
-            if not self.args.test:
-                if input_generator:
-                    for i in tree_hasher.compare(mnt, input_generator):
-                        yield i
-                else:
-                    for i in tree_hasher.generate(mnt):
-                        yield i
-
-        finally:
-            snapshot.unmount()
-            self.debug("Cleaning up temporary mount point")
-            self.node.run(["rmdir", mnt], hide_errors=True, valid_exitcodes=[])
+    def cleanup_zfs_filesystem(self, snapshot):
+        mnt = "/tmp/" + tmp_name()
+        snapshot.unmount()
+        self.debug("Cleaning up temporary mount point")
+        self.node.run(["rmdir", mnt], hide_errors=True, valid_exitcodes=[])
 
     # NOTE: https://www.google.com/search?q=Mount+Path+Limit+freebsd
     # Freebsd has limitations regarding path length, so we have to clone it so the part stays sort
-    def activate_volume_snapshot(self, snapshot):
+    def prepare_zfs_volume(self, snapshot):
         """clone volume, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
 
         clone_name = get_tmp_clone_name(snapshot)
@@ -122,92 +108,45 @@ class ZfsCheck(CliBase):
 
         raise (Exception("Timeout while waiting for /dev entry to appear. (looking in: {})".format(locations)))
 
-    def deacitvate_volume_snapshot(self, snapshot):
+    def cleanup_zfs_volume(self, snapshot):
         """destroys temporary volume snapshot"""
         clone_name = get_tmp_clone_name(snapshot)
         clone = snapshot.zfs_node.get_dataset(clone_name)
         clone.destroy(deferred=True, verbose=False)
 
-    def generate_zfs_volume(self, snapshot, input_generator):
-        try:
-            dev=self.activate_volume_snapshot(snapshot)
-
-            self.debug("Hashing dev: {}".format(dev))
-            if not self.args.test:
-                if input_generator:
-                    for i in self.block_hasher.compare(dev, input_generator):
-                        yield i
-                else:
-                    for i in self.block_hasher.generate(dev):
-                        yield i
-
-        finally:
-            self.deacitvate_volume_snapshot(snapshot)
-
-    def generate_zfs_target(self, input_generator):
-        """specified arget is a ZFS snapshot"""
-
-        snapshot = self.node.get_dataset(self.args.target)
-        if not snapshot.exists:
-            raise Exception("Snapshot {} not found".format(snapshot))
-
-        if not snapshot.is_snapshot:
-            raise Exception("Dataset {} should be a snapshot".format(snapshot))
-
-        dataset_type = snapshot.parent.properties['type']
-
-        if dataset_type == 'volume':
-            return self.generate_zfs_volume(snapshot, input_generator)
-        elif dataset_type == 'filesystem':
-            return self.generate_zfs_filesystem(snapshot, input_generator)
-        else:
-            raise Exception("huh?")
-
-    def generate_path(self, input_generator=None):
+    def generate_tree_hashes(self, prepared_target):
 
         tree_hasher = TreeHasher(self.block_hasher)
+        self.debug("Hashing tree: {}".format(prepared_target))
+        for i in tree_hasher.generate(prepared_target):
+            yield i
 
-        self.debug("Hashing tree: {}".format(self.args.target))
-        if input_generator:
-            for i in tree_hasher.compare(self.args.target, input_generator):
-                yield i
-        else:
-            for i in tree_hasher.generate(self.args.target):
-                yield i
+    def generate_tree_compare(self, prepared_target, input_generator=None):
 
-    def generate_file(self, input_generator=None):
+        tree_hasher = TreeHasher(self.block_hasher)
+        self.debug("Comparing tree: {}".format(prepared_target))
+        for i in tree_hasher.compare(prepared_target, input_generator):
+            yield i
 
+    def generate_file_hashes(self, prepared_target):
 
-        self.debug("Hashing file: {}".format(self.args.target))
-        if input_generator:
-            for i in self.block_hasher.compare(self.args.target, input_generator):
-                yield i
-        else:
-            for i in self.block_hasher.generate(self.args.target):
-                yield i
+        self.debug("Hashing file: {}".format(prepared_target))
+        for i in self.block_hasher.generate(prepared_target):
+            yield i
 
-    def generate(self, input_generator=None):
-        """generate checksums or compare (and generate error messages)"""
+    def generate_file_compare(self, prepared_target, input_generator=None):
 
-        if '@' in self.args.target:
-            self.verbose("Target is a ZFS snapshot.".format(self.args.target))
-            return self.generate_zfs_target(input_generator)
-        elif os.path.isdir(self.args.target):
-            self.verbose("Target is a directory, checking recursively.".format(self.args.target))
-            return self.generate_path(input_generator)
-        elif os.path.exists(self.args.target):
-            self.verbose("Target is single file or blockdevice.".format(self.args.target))
-            return self.generate_file(input_generator)
-        else:
-            raise Exception("Cant open {} ".format(self.args.target))
+        self.debug("Comparing file: {}".format(prepared_target))
+        for i in self.block_hasher.compare(prepared_target, input_generator):
+            yield i
 
-    def input_parser(self, file_name):
-        """parse input lines and generate items to use in compare functions"""
+    def generate_input(self):
+        """parse input lines and yield items to use in compare functions"""
 
         if self.args.check is True:
             input_fh=sys.stdin
         else:
-            input_fh=open(file_name, 'r')
+            input_fh=open(self.args.check, 'r')
 
         last_progress_time = time.time()
         progress_checked = 0
@@ -236,52 +175,101 @@ class ZfsCheck(CliBase):
 
         self.verbose("Checked {} hashes (skipped {})".format(progress_checked, progress_skipped))
 
+    def print_hashes(self, hash_generator):
+        """prints hashes that are yielded by the specified hash_generator"""
+
+        last_progress_time = time.time()
+        progress_count = 0
+
+        for i in hash_generator:
+
+            if len(i) == 3:
+                print("{}\t{}\t{}".format(*i))
+            else:
+                print("{}\t{}".format(*i))
+            progress_count = progress_count + 1
+
+            if self.args.progress and time.time() - last_progress_time > 1:
+                last_progress_time = time.time()
+                self.progress("Generated {} hashes.".format(progress_count))
+
+            sys.stdout.flush()
+
+        self.verbose("Generated {} hashes.".format(progress_count))
+        self.clear_progress()
+
+        return 0
+
+    def print_errors(self, compare_generator):
+        """prints errors that are yielded by the specified compare_generator"""
+        errors = 0
+        for i in compare_generator:
+            errors = errors + 1
+
+            if len(i) == 4:
+                (file_name, chunk_nr, compare_hexdigest, actual_hexdigest) = i
+                print("{}: Chunk {} failed: {} {}".format(file_name, chunk_nr, compare_hexdigest, actual_hexdigest))
+            else:
+                (chunk_nr, compare_hexdigest, actual_hexdigest) = i
+                print("Chunk {} failed: {} {}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
+
+            sys.stdout.flush()
+
+        self.verbose("Total errors: {}".format(errors))
+        self.clear_progress()
+
+        return errors
+
+    def prepare_target(self):
+
+        if "@" in self.args.target:
+            # zfs snapshot
+            snapshot=self.node.get_dataset(self.args.target)
+            dataset_type = snapshot.parent.properties['type']
+
+            if dataset_type == 'volume':
+                return self.prepare_zfs_volume(snapshot)
+            elif dataset_type == 'filesystem':
+                return self.prepare_zfs_filesystem(snapshot)
+            else:
+                raise Exception("Unknown dataset type")
+        return self.args.target
+
+    def cleanup_target(self):
+        if "@" in self.args.target:
+            # zfs snapshot
+            snapshot=self.node.get_dataset(self.args.target)
+            dataset_type = snapshot.parent.properties['type']
+
+            if dataset_type == 'volume':
+                self.cleanup_zfs_volume(snapshot)
+            elif dataset_type == 'filesystem':
+                self.cleanup_zfs_filesystem(snapshot)
+
     def run(self):
 
+        compare_generator=None
+        hash_generator=None
         try:
-            last_progress_time = time.time()
-            progress_count = 0
-
-            #run as generator
-            if self.args.check==None:
-                for i in self.generate(input_generator=None):
-
-                    if len(i)==3:
-                        print("{}\t{}\t{}".format(*i))
-                    else:
-                        print("{}\t{}".format(*i))
-                    progress_count=progress_count+1
-
-                    if self.args.progress and time.time()-last_progress_time>1:
-                        last_progress_time=time.time()
-                        self.progress("Generated {} hashes.".format(progress_count))
-
-                    sys.stdout.flush()
-
-                self.verbose("Generated {} hashes.".format(progress_count))
-                self.clear_progress()
-                return 0
+            prepared_target=self.prepare_target()
+            is_dir=os.path.isdir(prepared_target)
 
             #run as compare
+            if self.args.check is not None:
+                input_generator=self.generate_input()
+                if is_dir:
+                    compare_generator = self.generate_tree_compare(prepared_target, input_generator)
+                else:
+                    compare_generator=self.generate_file_compare(prepared_target, input_generator)
+                errors=self.print_errors(compare_generator)
+            #run as generator
             else:
-                errors=0
-                input_generator=self.input_parser(self.args.check)
-                for i in self.generate(input_generator):
-                        errors=errors+1
+                if is_dir:
+                    hash_generator = self.generate_tree_hashes(prepared_target)
+                else:
+                    hash_generator=self.generate_file_hashes(prepared_target)
 
-                        if len(i)==4:
-                            (file_name, chunk_nr, compare_hexdigest, actual_hexdigest)=i
-                            print("{}: Chunk {} failed: {} {}".format(file_name, chunk_nr, compare_hexdigest, actual_hexdigest))
-                        else:
-                            (chunk_nr, compare_hexdigest, actual_hexdigest) = i
-                            print("Chunk {} failed: {} {}".format(chunk_nr, compare_hexdigest, actual_hexdigest))
-
-                        sys.stdout.flush()
-
-                self.verbose("Total errors: {}".format(errors))
-
-                self.clear_progress()
-                return min(255,errors)
+                errors=self.print_hashes(hash_generator)
 
         except Exception as e:
             self.error("Exception: " + str(e))
@@ -292,12 +280,26 @@ class ZfsCheck(CliBase):
             self.error("Aborted")
             return 255
 
+        finally:
+            #important to call check_output so that cleanup still functions in case of a broken pipe:
+            # util.check_output()
+
+            #close generators, to make sure files are not in use anymore when cleaning up
+            if hash_generator is not None:
+                hash_generator.close()
+            if compare_generator is not None:
+                compare_generator.close()
+            self.cleanup_target()
+
+        return errors
+
+
 def cli():
     import sys
     signal(SIGPIPE, sigpipe_handler)
 
     sys.exit(ZfsCheck(sys.argv[1:], False).run())
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     cli()

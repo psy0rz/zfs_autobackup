@@ -19,7 +19,7 @@ import sys
 
 
 def tmp_name(suffix=""):
-    """create temporary name unique to this process and node"""
+    """create temporary name unique to this process and node. always retruns the same result during the same execution"""
 
     #we could use uuids but those are ugly and confusing
     name="{}-{}-{}".format(
@@ -48,3 +48,18 @@ def output_redir():
 def sigpipe_handler(sig, stack):
     #redir output so we dont get more SIGPIPES during cleanup. (which my try to write to stdout)
     output_redir()
+    deb('redir')
+
+# def check_output():
+#     """make sure stdout still functions. if its broken, this will trigger a SIGPIPE which will be handled by the sigpipe_handler."""
+#     try:
+#         print(" ")
+#         sys.stdout.flush()
+#     except Exception as e:
+#         pass
+
+# def deb(txt):
+#     with open('/tmp/debug.log', 'a') as fh:
+#         fh.write("DEB: "+txt+"\n")
+
+

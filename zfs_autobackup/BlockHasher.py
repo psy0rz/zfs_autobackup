@@ -70,11 +70,11 @@ class BlockHasher():
 
         with open(fname, "rb") as fh:
 
-            fsize = fh.seek(0, os.SEEK_END)
+            fh.seek(0, os.SEEK_END)
+            fsize=fh.tell()
             fh.seek(0)
 
             while fh.tell()<fsize:
-
                 chunk_nr=self._seek_next_chunk(fh, fsize)
                 if chunk_nr is False:
                     return
