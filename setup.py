@@ -20,6 +20,7 @@ setuptools.setup(
             [
                 'zfs-autobackup = zfs_autobackup.ZfsAutobackup:cli',
                 'zfs-autoverify = zfs_autobackup.ZfsAutoverify:cli',
+                'zfs-check = zfs_autobackup.ZfsCheck:cli',
             ]
     },
     packages=setuptools.find_packages(),
