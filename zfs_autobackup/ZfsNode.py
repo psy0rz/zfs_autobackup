@@ -180,7 +180,7 @@ class ZfsNode(ExecuteNode):
         self.logger.debug("{} {}".format(self.description, txt))
 
     def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmds=[],
-                            post_snapshot_cmds=[], snapshot_property=None):
+                            post_snapshot_cmds=[], set_snapshot_properties=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
         """
 
@@ -218,7 +218,7 @@ class ZfsNode(ExecuteNode):
             # create consistent snapshot per pool
             for (pool_name, snapshots) in pools.items():
                 cmd = ["zfs", "snapshot"]
-                if snapshot_property:
+                for snapshot_property in set_snapshot_properties
                     cmd += ['-o', snapshot_property]
 
                 cmd.extend(map(lambda snapshot_: str(snapshot_), snapshots))
