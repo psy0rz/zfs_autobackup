@@ -67,8 +67,8 @@ class ZfsAutobackup(ZfsAuto):
                            help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
         group.add_argument('--other-snapshots', action='store_true',
                            help='Send over other snapshots as well, not just the ones created by this tool.')
-        group.add_argument('--snapshot-property', metavar='PROPERTY=VALUE', default=None,
-                           help='Property to set during snapshot (argument to zfs snapshot)')
+        group.add_argument('--set-snapshot-properties', metavar='PROPERTY=VALUE,...', type=str,
+                           help='List of properties to set on the snapshot.')
 
 
         group = parser.add_argument_group("Transfer options")
@@ -385,6 +385,15 @@ class ZfsAutobackup(ZfsAuto):
 
         return set_properties
 
+    def set_snapshot_properties_list(self):
+
+        if self.args.set_snapshot_properties:
+            set_snapshot_properties = self.args.set_snapshot_properties.split(",")
+        else:
+            set_snapshot_properties = []
+
+        return set_snapshot_properties
+
     def run(self):
 
         try:
@@ -421,7 +430,7 @@ class ZfsAutobackup(ZfsAuto):
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
                                                 post_snapshot_cmds=self.args.post_snapshot_cmd,
-                                                snapshot_property=self.args.snapshot_property)
+                                                set_snapshot_properties=self.set_snapshot_properties_list())
 
             ################# sync
             # if target is specified, we sync the datasets, otherwise we just thin the source. (e.g. snapshot mode)
