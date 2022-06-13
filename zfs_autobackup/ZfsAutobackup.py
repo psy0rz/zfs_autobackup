@@ -70,6 +70,9 @@ class ZfsAutobackup(ZfsAuto):
                            help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
         group.add_argument('--other-snapshots', action='store_true',
                            help='Send over other snapshots as well, not just the ones created by this tool.')
+        group.add_argument('--snapshot-property', metavar='PROPERTY=VALUE', default=None,
+                           help='Property to set during snapshot (argument to zfs snapshot)')
+
 
         group = parser.add_argument_group("Transfer options")
         group.add_argument('--no-send', action='store_true',
@@ -446,7 +449,8 @@ class ZfsAutobackup(ZfsAuto):
                 source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
-                                                post_snapshot_cmds=self.args.post_snapshot_cmd)
+                                                post_snapshot_cmds=self.args.post_snapshot_cmd,
+                                                snapshot_property=self.args.snapshot_property)
 
             ################# sync
             # if target is specified, we sync the datasets, otherwise we just thin the source. (e.g. snapshot mode)
