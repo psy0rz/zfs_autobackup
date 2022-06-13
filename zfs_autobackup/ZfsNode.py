@@ -218,7 +218,7 @@ class ZfsNode(ExecuteNode):
             # create consistent snapshot per pool
             for (pool_name, snapshots) in pools.items():
                 cmd = ["zfs", "snapshot"]
-                for snapshot_property in set_snapshot_properties
+                for snapshot_property in set_snapshot_properties:
                     cmd += ['-o', snapshot_property]
 
                 cmd.extend(map(lambda snapshot_: str(snapshot_), snapshots))
