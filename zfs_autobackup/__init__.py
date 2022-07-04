@@ -6,4 +6,5 @@ def cli():
     from .ZfsAutobackup import ZfsAutobackup
 
     zfs_autobackup = ZfsAutobackup(sys.argv[1:], False)
-    sys.exit(zfs_autobackup.run())
+    failed_datasets=zfs_autobackup.run()
+    sys.exit(max(failed_datasets,255))
