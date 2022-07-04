@@ -1,4 +1,6 @@
 import re
+from datetime import datetime
+import sys
 import time
 
 from .CachedProperty import CachedProperty
@@ -375,9 +377,22 @@ class ZfsDataset:
         """get timestamp from snapshot name. Only works for our own snapshots
         with the correct format.
         """
-
-        time_secs = time.mktime(time.strptime(self.snapshot_name, self.zfs_node.snapshot_time_format))
-        return time_secs
+        dt = datetime.strptime(self.snapshot_name, self.zfs_node.snapshot_time_format)
+        if sys.version_info[0] >= 3:
+            from datetime import timezone
+            if self.zfs_node.utc:
+                dt = dt.replace(tzinfo=timezone.utc)
+            seconds = dt.timestamp()
+        else:
+            # python2 has no good functions to deal with UTC. Yet the unix timestamp
+            # must be in UTC to allow comparison against `time.time()` in on other parts
+            # of this project (e.g. Thinner.py). If we are handling UTC timestamps,
+            # we must adjust for that here.
+            if self.zfs_node.utc:
+                seconds = (dt - datetime(1970, 1, 1)).total_seconds()
+            else:
+                seconds = time.mktime(dt.timetuple())
+        return seconds
 
     def from_names(self, names):
         """convert a list of names to a list ZfsDatasets for this zfs_node

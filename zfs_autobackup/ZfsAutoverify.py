@@ -231,7 +231,8 @@ class ZfsAutoverify(ZfsAuto):
             self.set_title("Source settings")
 
             description = "[Source]"
-            source_node = ZfsNode(snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name, logger=self,
+            source_node = ZfsNode(utc=self.args.utc,
+                                  snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name, logger=self,
                                   ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description)
@@ -249,7 +250,8 @@ class ZfsAutoverify(ZfsAuto):
 
             # create target_node
             self.set_title("Target settings")
-            target_node = ZfsNode(snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name,
+            target_node = ZfsNode(utc=self.args.utc,
+                                  snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name,
                                   logger=self, ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_target,
                                   readonly=self.args.test, debug_output=self.args.debug_output,

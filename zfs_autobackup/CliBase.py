@@ -80,6 +80,8 @@ class CliBase(object):
                             help='show zfs progress output. Enabled automaticly on ttys. (use --no-progress to disable)')
         group.add_argument('--no-progress', action='store_true',
                             help=argparse.SUPPRESS)  # needed to workaround a zfs recv -v bug
+        group.add_argument('--utc', action='store_true',
+                            help='Use UTC instead of local time when dealing with timestamps for both formatting and parsing. To snapshot in an ISO 8601 compliant time format you may for example specify --snapshot-format "%Y-%m-%dT%H:%M:%SZ". Changing this parameter after-the-fact (existing snapshots) will cause their timestamps to be interpreted as a different time than before.')
         group.add_argument('--version', action='store_true',
                             help='Show version.')
 

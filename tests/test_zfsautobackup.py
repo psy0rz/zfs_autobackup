@@ -892,7 +892,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         r = shelltest("zfs snapshot test_source1@test")
 
         l=LogConsole(show_verbose=True, show_debug=False, color=False)
-        n=ZfsNode(snapshot_time_format="bla", hold_name="bla", logger=l)
+        n=ZfsNode(utc=False, snapshot_time_format="bla", hold_name="bla", logger=l)
         d=ZfsDataset(n,"test_source1@test")
 
         sp=d.send_pipe([], prev_snapshot=None, resume_token=None, show_progress=True, raw=False, send_pipes=[], send_properties=True, write_embedded=True, zfs_compressed=True)

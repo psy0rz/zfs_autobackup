@@ -17,10 +17,11 @@ from .ExecuteNode import ExecuteError
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, logger, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None, readonly=False,
+    def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None, readonly=False,
                  description="",
                  debug_output=False, thinner=None):
 
+        self.utc = utc
         self.snapshot_time_format = snapshot_time_format
         self.hold_name = hold_name
 

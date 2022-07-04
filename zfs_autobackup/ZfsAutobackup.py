@@ -1,6 +1,7 @@
 import time
 
 import argparse
+from datetime import datetime
 from signal import signal, SIGPIPE
 from .util import output_redir, sigpipe_handler
 
@@ -12,7 +13,6 @@ from .Thinner import Thinner
 from .ZfsDataset import ZfsDataset
 from .ZfsNode import ZfsNode
 from .ThinnerRule import ThinnerRule
-import os.path
 
 class ZfsAutobackup(ZfsAuto):
     """The main zfs-autobackup class. Start here, at run() :)"""
@@ -435,7 +435,8 @@ class ZfsAutobackup(ZfsAuto):
                 source_thinner = None
             else:
                 source_thinner = Thinner(self.args.keep_source)
-            source_node = ZfsNode(snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name, logger=self,
+            source_node = ZfsNode(utc=self.args.utc,
+                                  snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name, logger=self,
                                   ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner)
@@ -454,7 +455,8 @@ class ZfsAutobackup(ZfsAuto):
             ################# snapshotting
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
-                snapshot_name = time.strftime(self.snapshot_time_format)
+                dt = datetime.utcnow() if self.args.utc else datetime.now()
+                snapshot_name = dt.strftime(self.snapshot_time_format)
                 source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
@@ -471,7 +473,8 @@ class ZfsAutobackup(ZfsAuto):
                     target_thinner = None
                 else:
                     target_thinner = Thinner(self.args.keep_target)
-                target_node = ZfsNode(snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name,
+                target_node = ZfsNode(utc=self.args.utc,
+                                      snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name,
                                       logger=self, ssh_config=self.args.ssh_config,
                                       ssh_to=self.args.ssh_target,
                                       readonly=self.args.test, debug_output=self.args.debug_output,
