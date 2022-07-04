@@ -12,7 +12,7 @@ class TestZfsNode(unittest2.TestCase):
     def test_consistent_snapshot(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+        node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
 
         with self.subTest("first snapshot"):
             node.consistent_snapshot(node.selected_datasets(property_name="autobackup:test",exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=200000), "test-20101111000001", 100000)
@@ -74,7 +74,7 @@ test_target1
     def test_consistent_snapshot_prepostcmds(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode(snapshot_time_format="test", hold_name="test", logger=logger, description=description, debug_output=True)
+        node = ZfsNode(utc=False, snapshot_time_format="test", hold_name="test", logger=logger, description=description, debug_output=True)
 
         with self.subTest("Test if all cmds are executed correctly (no failures)"):
             with OutputIO() as buf:
@@ -137,7 +137,7 @@ test_target1
 
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+        node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
         s = pformat(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=True, min_change=1))
         print(s)
 
@@ -150,7 +150,7 @@ test_target1
     def test_validcommand(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+        node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
 
         with self.subTest("test invalid option"):
             self.assertFalse(node.valid_command(["zfs", "send", "--invalid-option", "nonexisting"]))
@@ -160,7 +160,7 @@ test_target1
     def test_supportedsendoptions(self):
         logger = LogStub()
         description = "[Source]"
-        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+        node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
         # -D propably always supported
         self.assertGreater(len(node.supported_send_options), 0)
 
@@ -168,7 +168,7 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         # NOTE: this could hang via ssh if we dont close filehandles properly. (which was a previous bug)
-        node = ZfsNode(snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description, ssh_to='localhost')
+        node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description, ssh_to='localhost')
         self.assertIsInstance(node.supported_recv_options, list)
 
 

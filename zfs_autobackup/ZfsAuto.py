@@ -61,6 +61,7 @@ class ZfsAuto(CliBase):
         self.verbose("")
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
+        self.verbose("Timezone                   : {}".format("UTC" if args.utc else "Local"))
 
         return args
 
