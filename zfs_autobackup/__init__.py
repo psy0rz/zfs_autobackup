@@ -7,4 +7,4 @@ def cli():
 
     zfs_autobackup = ZfsAutobackup(sys.argv[1:], False)
     failed_datasets=zfs_autobackup.run()
-    sys.exit(max(failed_datasets,255))
+    sys.exit(min(failed_datasets,255))
