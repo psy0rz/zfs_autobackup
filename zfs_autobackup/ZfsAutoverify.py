@@ -306,8 +306,8 @@ def cli():
     import sys
 
     signal(SIGPIPE, sigpipe_handler)
-
-    sys.exit(ZfsAutoverify(sys.argv[1:], False).run())
+    failed = ZfsAutoverify(sys.argv[1:], False).run()
+    sys.exit(min(failed,255))
 
 
 if __name__ == "__main__":

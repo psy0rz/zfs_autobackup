@@ -302,8 +302,8 @@ class ZfsCheck(CliBase):
 def cli():
     import sys
     signal(SIGPIPE, sigpipe_handler)
-
-    sys.exit(ZfsCheck(sys.argv[1:], False).run())
+    failed=ZfsCheck(sys.argv[1:], False).run()
+    sys.exit(min(failed,255))
 
 
 if __name__ == "__main__":

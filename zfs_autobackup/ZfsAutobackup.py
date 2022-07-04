@@ -537,7 +537,8 @@ def cli():
 
     signal(SIGPIPE, sigpipe_handler)
 
-    sys.exit(ZfsAutobackup(sys.argv[1:], False).run())
+    failed_datasets=ZfsAutobackup(sys.argv[1:], False).run()
+    sys.exit(min(failed_datasets, 255))
 
 
 if __name__ == "__main__":
