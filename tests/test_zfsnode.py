@@ -124,6 +124,21 @@ test_target1
                 self.assertIn("STDOUT > post1", buf.getvalue())
                 self.assertIn("STDOUT > post2", buf.getvalue())
 
+    def test_timestamps(self):
+        # Assert that timestamps keep relative order both for utc and for localtime
+        logger = LogStub()
+        description = "[Source]"
+        node_local = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+        node_utc = ZfsNode(utc=True, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
+
+        for node in [node_local, node_utc]:
+            with self.subTest("timestamp ordering " + ("utc" if node == node_utc else "localtime")):
+                dataset_a = ZfsDataset(node,"test_source1@test-20101111000001")
+                dataset_b = ZfsDataset(node,"test_source1@test-20101111000002")
+                dataset_c = ZfsDataset(node,"test_source1@test-20240101020202")
+                self.assertGreater(dataset_b.timestamp, dataset_a.timestamp)
+                self.assertGreater(dataset_c.timestamp, dataset_b.timestamp)
+
 
     def test_getselected(self):
 
