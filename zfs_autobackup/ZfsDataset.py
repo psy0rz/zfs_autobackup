@@ -131,7 +131,7 @@ class ZfsDataset:
             :type exclude_unchanged: bool
             :type min_change: bool
 
-            :param value: Value of the zfs property ("false"/"true"/"child"/"-")
+            :param value: Value of the zfs property ("false"/"true"/"child"/parent/"-")
             :param source: Source of the zfs property ("local"/"received", "-")
             :param inherited: True of the value/source was inherited from a higher dataset.
         """
@@ -142,7 +142,7 @@ class ZfsDataset:
             raise (Exception(
                 "{} autobackup-property has illegal source: '{}' (possible BUG)".format(self.name, source)))
 
-        if value not in ["false", "true", "child", "-"]:
+        if value not in ["false", "true", "child", "parent", "-"]:
             # user error
             raise (Exception(
                 "{} autobackup-property has illegal value: '{}'".format(self.name, value)))
@@ -153,6 +153,10 @@ class ZfsDataset:
 
         # only select childs of this dataset, ignore
         if value == "child" and not inherited:
+            return False
+
+        # only select parent, no childs, ignore
+        if value == "parent" and inherited:
             return False
 
         # manually excluded by property

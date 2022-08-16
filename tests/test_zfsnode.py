@@ -146,6 +146,11 @@ test_target1
         shelltest("zfs create test_source1/fs1/subexcluded")
         shelltest("zfs set autobackup:test=false test_source1/fs1/subexcluded")
 
+        # only select parent
+        shelltest("zfs create test_source1/fs1/onlyparent")
+        shelltest("zfs create test_source1/fs1/onlyparent/child")
+        shelltest("zfs set autobackup:test=parent test_source1/fs1/onlyparent")
+
         # should be excluded by being unchanged
         shelltest("zfs create test_source1/fs1/unchanged")
         shelltest("zfs snapshot test_source1/fs1/unchanged@somesnapshot")
@@ -158,6 +163,7 @@ test_target1
 
         # basics
         self.assertEqual(s, """[(local): test_source1/fs1,
+ (local): test_source1/fs1/onlyparent,
  (local): test_source1/fs1/sub,
  (local): test_source2/fs2/sub]""")
 
