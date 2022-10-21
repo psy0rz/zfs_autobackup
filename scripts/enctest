@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#NOTE: usually the speed is the same, but the cpu usage is much higher for ccm
+
+set -e
+
+D=/enctest123
+DS=rpool$D
+
+echo sdflsakjfklsjfsda > key.txt
+
+dd if=/dev/urandom of=dump.bin bs=1M count=10000
+
+zfs destroy $DS || true
+
+zfs create $DS
+
+echo Unencrypted:
+sync
+time ( cp dump.bin $D/dump.bin;  sync )
+
+
+for E in aes-128-ccm aes-192-ccm aes-256-ccm aes-128-gcm aes-192-gcm aes-256-gcm; do
+ zfs destroy $DS
+ zfs create -o encryption=$E -o keylocation=file://`pwd`/key.txt -o keyformat=passphrase $DS
+ echo $E
+ sync
+ time ( cp dump.bin $D/dump.bin;  sync )
+done
+
