@@ -11,6 +11,9 @@ echo sdflsakjfklsjfsda > key.txt
 
 dd if=/dev/urandom of=dump.bin bs=1M count=10000
 
+#readcache
+cat dump.bin > /dev/null
+
 zfs destroy $DS || true
 
 zfs create $DS
