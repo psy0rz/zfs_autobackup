@@ -116,7 +116,7 @@ class ZfsAutobackup(ZfsAuto):
                            help='Use compression during transfer, defaults to zstd-fast if TYPE is not specified. ({})'.format(
                                ", ".join(compressors.choices())))
         group.add_argument('--rate', metavar='DATARATE', default=None,
-                           help='Limit data transfer rate (e.g. 128K. requires mbuffer.)')
+                           help='Limit data transfer rate in Bytes/sec (e.g. 128K. requires mbuffer.)')
         group.add_argument('--buffer', metavar='SIZE', default=None,
                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
         group.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
