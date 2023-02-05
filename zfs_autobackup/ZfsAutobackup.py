@@ -37,11 +37,11 @@ class ZfsAutobackup(ZfsAuto):
             args.rollback = True
 
         if args.resume:
-            self.warning("The --resume option isn't needed anymore (its autodetected now)")
+            self.warning("The --resume option isn't needed anymore (it's autodetected now)")
 
         if args.raw:
             self.warning(
-                "The --raw option isn't needed anymore (its autodetected now). Also see --encrypt and --decrypt.")
+                "The --raw option isn't needed anymore (it's autodetected now). Also see --encrypt and --decrypt.")
 
         if args.compress and args.ssh_source is None and args.ssh_target is None:
             self.warning("Using compression, but transfer is local.")
@@ -76,11 +76,11 @@ class ZfsAutobackup(ZfsAuto):
 
         group = parser.add_argument_group("Transfer options")
         group.add_argument('--no-send', action='store_true',
-                           help='Don\'t transfer snapshots (useful for cleanups, or if you want a serperate send-cronjob)')
+                           help='Don\'t transfer snapshots (useful for cleanups, or if you want a separate send-cronjob)')
         group.add_argument('--no-holds', action='store_true',
                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
         group.add_argument('--clear-refreservation', action='store_true',
-                           help='Filter "refreservation" property. (recommended, safes space. same as '
+                           help='Filter "refreservation" property. (recommended, saves space. same as '
                                 '--filter-properties refreservation)')
         group.add_argument('--clear-mountpoint', action='store_true',
                            help='Set property canmount=noauto for new datasets. (recommended, prevents mount '
@@ -95,7 +95,7 @@ class ZfsAutobackup(ZfsAuto):
                            help='Rollback changes to the latest target snapshot before starting. (normally you can '
                                 'prevent changes by setting the readonly property on the target_path to on)')
         group.add_argument('--force', '-F', action='store_true',
-                           help='Use zfs -F option to force overwrite/rollback. (Usefull with --strip-path=1, but use with care)')
+                           help='Use zfs -F option to force overwrite/rollback. (Useful with --strip-path=1, but use with care)')
         group.add_argument('--destroy-incompatible', action='store_true',
                            help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
         group.add_argument('--ignore-transfer-errors', action='store_true',
@@ -189,7 +189,7 @@ class ZfsAutobackup(ZfsAuto):
                         dataset.debug("Destroy missing: ignoring")
                     else:
                         dataset.verbose(
-                            "Destroy missing: has no snapshots made by us. (please destroy manually)")
+                            "Destroy missing: has no snapshots made by us (please destroy manually).")
                 else:
                     # past the deadline?
                     deadline_ttl = ThinnerRule("0s" + self.args.destroy_missing).ttl
