@@ -575,13 +575,14 @@ class ZfsDataset:
 
         # all kind of performance options:
         if 'large_blocks' in features and "-L" in self.zfs_node.supported_send_options:
-            cmd.append("--large-block")  # large block support (only if recordsize>128k which is seldomly used)
+            # large block support (only if recordsize>128k which is seldomly used)
+            cmd.append("-L") # --large-block
 
         if write_embedded and 'embedded_data' in features and "-e" in self.zfs_node.supported_send_options:
-            cmd.append("--embed")  # WRITE_EMBEDDED, more compact stream
+            cmd.append("-e")  # --embed; WRITE_EMBEDDED, more compact stream
 
         if zfs_compressed and "-c" in self.zfs_node.supported_send_options:
-            cmd.append("--compressed")  # use compressed WRITE records
+            cmd.append("-c")  # --compressed; use compressed WRITE records
 
         # raw? (send over encrypted data in its original encrypted form without decrypting)
         if raw:
@@ -589,8 +590,8 @@ class ZfsDataset:
 
         # progress output
         if show_progress:
-            cmd.append("--verbose")
-            cmd.append("--parsable")
+            cmd.append("-v") # --verbose
+            cmd.append("-P") # --parsable
 
         # resume a previous send? (don't need more parameters in that case)
         if resume_token:
@@ -599,7 +600,7 @@ class ZfsDataset:
         else:
             # send properties
             if send_properties:
-                cmd.append("--props")
+                cmd.append("-p") # --props
 
             # incremental?
             if prev_snapshot:
