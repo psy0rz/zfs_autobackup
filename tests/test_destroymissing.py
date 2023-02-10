@@ -117,7 +117,7 @@ class TestZfsNode(unittest2.TestCase):
 
                 print(buf.getvalue())
                 #on second run it sees the dangling ex-parent but doesnt know what to do with it (since it has no own snapshot)
-                self.assertIn("test_source1: Destroy missing: has no snapshots made by us.", buf.getvalue())
+                self.assertIn("test_source1: Destroy missing: has no snapshots made by us", buf.getvalue())
 
 
 
