@@ -21,7 +21,7 @@ An important feature that's missing from other tools is a reliable `--test` opti
 ## Features
 
 * Works across operating systems: Tested with **Linux**, **FreeBSD/FreeNAS** and **SmartOS**.
-* Low learning curve: no complex daemons or services, no additional software or networking needed. (Only read this page)   
+* Low learning curve: no complex daemons or services, no additional software or networking needed. 
 * Plays nicely with existing replication systems. (Like Proxmox HA)
 * Automatically selects filesystems to backup by looking at a simple ZFS property. 
 * Creates consistent snapshots. (takes all snapshots at once, atomicly.)
