@@ -31,6 +31,7 @@ An important feature that's missing from other tools is a reliable `--test` opti
   * "pull" remote data from a server via SSH and backup it locally.
   * "pull+push": Zero trust between source and target.
 * Can be scheduled via simple cronjob or run directly from commandline.
+* Also supports complex backup geometries.
 * ZFS encryption support: Can decrypt / encrypt or even re-encrypt datasets during transfer.
 * Supports sending with compression. (Using pigz, zstd etc)
 * IO buffering to speed up transfer.
