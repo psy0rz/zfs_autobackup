@@ -45,7 +45,8 @@ An important feature that's missing from other tools is a reliable `--test` opti
 * Automatic resuming of failed transfers.
 * Easy migration from other zfs backup systems to zfs-autobackup.
 * Gracefully handles datasets that no longer exist on source.
-* Complete and clean logging. 
+* Complete and clean logging.
+* All code is regression tested against actual ZFS environments.
 * Easy installation:
   * Just install zfs-autobackup via pip.
   * Only needs to be installed on one side.
