@@ -239,12 +239,11 @@ class ZfsAutoverify(ZfsAuto):
 
             ################# select source datasets
             self.set_title("Selecting")
-            source_datasets = source_node.selected_datasets(property_name=self.property_name,
+            ( source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
                                                             exclude_received=self.args.exclude_received,
                                                             exclude_paths=self.exclude_paths,
-                                                            exclude_unchanged=self.args.exclude_unchanged,
-                                                            min_change=0)
-            if not source_datasets:
+                                                            exclude_unchanged=self.args.exclude_unchanged)
+            if not source_datasets and not excluded_datasets:
                 self.print_error_sources()
                 return 255
 

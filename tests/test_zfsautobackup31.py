@@ -95,3 +95,25 @@ test_target1/fs1@test-20101111000000
 test_target1/fs1/sub@test-20101111000000
 test_target1/fs2/sub@test-20101111000000
 """)
+
+
+    def test_exclude_unchanged(self):
+
+        shelltest("zfs snapshot -r test_source1@somesnapshot")
+
+        with patch('time.strftime', return_value="test-20101111000000"):
+            self.assertFalse(
+                ZfsAutobackup(
+                    "test test_target1 --verbose --allow-empty --exclude-unchanged=1".split(" ")).run())
+
+        #everything should be excluded, but should not return an error (see #190)
+        with patch('time.strftime', return_value="test-20101111000001"):
+            self.assertFalse(
+                ZfsAutobackup(
+                    "test test_target1 --verbose --allow-empty --exclude-unchanged=1".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t snapshot test_target1")
+        self.assertMultiLineEqual(r, """
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+

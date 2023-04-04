@@ -98,8 +98,8 @@ class ZfsAuto(CliBase):
 
         group=parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
-        group.add_argument('--exclude-unchanged', action='store_true',
-                            help='Exclude datasets that have no changes since any last snapshot. (Useful in combination with proxmox HA replication)')
+        group.add_argument('--exclude-unchanged', metavar='BYTES', default=0, type=int,
+                            help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
         group.add_argument('--exclude-received', action='store_true',
                             help='Exclude datasets that have the origin of their autobackup: property as "received". '
                                  'This can avoid recursive replication between two backup partners.')

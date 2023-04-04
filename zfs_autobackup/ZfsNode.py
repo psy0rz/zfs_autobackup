@@ -235,10 +235,10 @@ class ZfsNode(ExecuteNode):
                 except Exception as e:
                     pass
 
-    def selected_datasets(self, property_name, exclude_received, exclude_paths, exclude_unchanged, min_change):
+    def selected_datasets(self, property_name, exclude_received, exclude_paths, exclude_unchanged):
         """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide
 
-           returns: list of ZfsDataset
+           returns: ( list of selected ZfsDataset, list of excluded ZfsDataset)
         """
 
         self.debug("Getting selected datasets")
@@ -249,8 +249,10 @@ class ZfsNode(ExecuteNode):
             property_name
         ])
 
+
         # The returnlist of selected ZfsDataset's:
         selected_filesystems = []
+        excluded_filesystems = []
 
         # list of sources, used to resolve inherited sources
         sources = {}
@@ -270,9 +272,14 @@ class ZfsNode(ExecuteNode):
                 source = raw_source
 
             # determine it
-            if dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
-                                   exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged,
-                                   min_change=min_change):
-                selected_filesystems.append(dataset)
+            selected=dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
+                                   exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged)
 
-        return selected_filesystems
+            if selected==True:
+                selected_filesystems.append(dataset)
+            elif selected==False:
+                excluded_filesystems.append(dataset)
+            #returns None when no property is set.
+
+
+        return ( selected_filesystems, excluded_filesystems)

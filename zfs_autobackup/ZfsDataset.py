@@ -118,7 +118,7 @@ class ZfsDataset:
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
 
-    def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged, min_change):
+    def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged):
         """determine if dataset should be selected for backup (called from
         ZfsNode)
 
@@ -128,12 +128,15 @@ class ZfsDataset:
             :type source: str
             :type inherited: bool
             :type exclude_received: bool
-            :type exclude_unchanged: bool
-            :type min_change: bool
+            :type exclude_unchanged: int
 
             :param value: Value of the zfs property ("false"/"true"/"child"/parent/"-")
             :param source: Source of the zfs property ("local"/"received", "-")
             :param inherited: True of the value/source was inherited from a higher dataset.
+
+        Returns: True : Selected
+                 False: Excluded
+                 None: No property found
         """
 
         # sanity checks
@@ -149,7 +152,7 @@ class ZfsDataset:
 
         # non specified, ignore
         if value == "-":
-            return False
+            return None
 
         # only select childs of this dataset, ignore
         if value == "child" and not inherited:
@@ -179,8 +182,8 @@ class ZfsDataset:
                 self.verbose("Excluded (dataset already received)")
                 return False
 
-        if exclude_unchanged and not self.is_changed(min_change):
-            self.verbose("Excluded (unchanged since last snapshot)")
+        if not self.is_changed(exclude_unchanged):
+            self.verbose("Excluded (by --exclude-unchanged)")
             return False
 
         self.verbose("Selected")

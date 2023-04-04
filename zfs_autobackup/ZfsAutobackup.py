@@ -67,7 +67,7 @@ class ZfsAutobackup(ZfsAuto):
                            help='Only create snapshot if enough bytes are changed. (default %('
                                 'default)s)')
         group.add_argument('--allow-empty', action='store_true',
-                           help='If nothing has changed, still create empty snapshots. (Faster. Same as --min-change=0)')
+                           help='If nothing has changed, still create empty snapshots. (Same as --min-change=0)')
         group.add_argument('--other-snapshots', action='store_true',
                            help='Send over other snapshots as well, not just the ones created by this tool.')
         group.add_argument('--set-snapshot-properties', metavar='PROPERTY=VALUE,...', type=str,
@@ -110,7 +110,7 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--zfs-compressed', action='store_true',
                            help='Transfer blocks that already have zfs-compression as-is.')
 
-        group = parser.add_argument_group("ZFS send/recv pipes")
+        group = parser.add_argument_group("Data transfer options")
         group.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-fast',
                            choices=compressors.choices(),
                            help='Use compression during transfer, defaults to zstd-fast if TYPE is not specified. ({})'.format(
@@ -443,12 +443,11 @@ class ZfsAutobackup(ZfsAuto):
 
             ################# select source datasets
             self.set_title("Selecting")
-            source_datasets = source_node.selected_datasets(property_name=self.property_name,
+            ( source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
                                                             exclude_received=self.args.exclude_received,
                                                             exclude_paths=self.exclude_paths,
-                                                            exclude_unchanged=self.args.exclude_unchanged,
-                                                            min_change=self.args.min_change)
-            if not source_datasets:
+                                                            exclude_unchanged=self.args.exclude_unchanged)
+            if not source_datasets and not excluded_datasets:
                 self.print_error_sources()
                 return 255
 
