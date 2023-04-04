@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3.5.0
 
       - name: Prepare
         run: sudo apt update && sudo apt install zfsutils-linux lzop pigz zstd gzip xz-utils lz4 mbuffer && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3.5.0
 
       - name: Set up Python 2.x
         uses: actions/setup-python@v2
