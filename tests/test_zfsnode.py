@@ -166,7 +166,9 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test", logger=logger, description=description)
-        s = pformat(node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=1))
+        (selected_datasets, excluded_datasets)=node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False,
+                               exclude_unchanged=1)
+        s = pformat(selected_datasets)
         print(s)
 
         # basics
