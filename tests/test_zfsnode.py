@@ -84,7 +84,7 @@ test_target1
         with self.subTest("Test if all cmds are executed correctly (no failures)"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    (selected_datasets, excluded_datasets) =node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1)
+                    (selected_datasets, excluded_datasets) =node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=0)
                     node.consistent_snapshot(selected_datasets, "test-1",
                                              0,
                                              pre_snapshot_cmds=["echo pre1", "echo pre2"],
@@ -101,7 +101,7 @@ test_target1
             with OutputIO() as buf:
                 with redirect_stdout(buf):
                     with self.assertRaises(ExecuteError):
-                        (selected_datasets, excluded_datasets) =node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1)
+                        (selected_datasets, excluded_datasets) =node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=0)
                         node.consistent_snapshot(selected_datasets, "test-1",
                                                  0,
                                                  pre_snapshot_cmds=["echo pre1", "false", "echo pre2"],
@@ -119,7 +119,7 @@ test_target1
                 with redirect_stdout(buf):
                     with self.assertRaises(ExecuteError):
                         #same snapshot name as before so it fails
-                        (selected_datasets, excluded_datasets) =node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=False, min_change=1)
+                        (selected_datasets, excluded_datasets) =node.selected_datasets(property_name="autobackup:test", exclude_paths=[], exclude_received=False, exclude_unchanged=0)
                         node.consistent_snapshot(selected_datasets, "test-1",
                                                  0,
                                                  pre_snapshot_cmds=["echo pre1", "echo pre2"],

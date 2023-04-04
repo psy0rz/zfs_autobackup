@@ -6,15 +6,12 @@ on: ["push", "pull_request"]
 
 
 jobs:
-
-  ubuntu20:
-    runs-on: ubuntu-20.04
+  ubuntu22:
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
-
-
 
       - name: Prepare
         run: sudo apt update && sudo apt install zfsutils-linux lzop pigz zstd gzip xz-utils lz4 mbuffer && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
@@ -29,17 +26,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github || true
 
-  ubuntu18:
-    runs-on: ubuntu-18.04
+  ubuntu20:
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2.3.4
 
-
-
       - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux python3-setuptools lzop pigz zstd gzip xz-utils liblz4-tool mbuffer && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+        run: sudo apt update && sudo apt install zfsutils-linux lzop pigz zstd gzip xz-utils lz4 mbuffer && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
 
 
       - name: Regression test
@@ -51,8 +46,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github || true
 
-  ubuntu18_python2:
-    runs-on: ubuntu-18.04
+  ubuntu20_python2:
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout
@@ -64,13 +59,16 @@ jobs:
           python-version: '2.x'
 
       - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux python-setuptools lzop pigz zstd gzip xz-utils liblz4-tool mbuffer && sudo -H pip install coverage unittest2 mock==3.0.5 coveralls colorama
+        run: sudo apt update && sudo apt install zfsutils-linux lzop pigz zstd gzip xz-utils lz4 mbuffer && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
+
 
       - name: Regression test
         run: sudo -E ./tests/run_tests
 
+
       - name: Coveralls
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github || true
+
+
