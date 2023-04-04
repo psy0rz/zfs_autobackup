@@ -2,6 +2,15 @@
 # To run tests as non-root, use this hack:
 # chmod 4755 /usr/sbin/zpool /usr/sbin/zfs
 
+import sys
+
+#dirty hack for this error:
+#AttributeError: module 'collections' has no attribute 'MutableMapping'
+
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    import collections
+    setattr(collections, "MutableMapping", collections.abc.MutableMapping)
+
 import subprocess
 import random
 
