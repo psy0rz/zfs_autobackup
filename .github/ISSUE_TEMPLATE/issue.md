@@ -1,6 +1,6 @@
 ---
 name: Issue
-about: 'Use this if you have issues or feature requests)'
+about: 'Use this if you have issues or feature requests'
 
 title: ''
 labels: ''
