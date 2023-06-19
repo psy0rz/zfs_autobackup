@@ -1,10 +1,10 @@
 ---
 name: Issue
-about: Please provide enough information.
+about: Please add the commandline that you use to the issue. Also at least add the output of --verbose. Sometimes it helps if you add the output of --debug-output instead, but its huge, so use an attachment for that.
+
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-(Show the used commandline, and add atleast the output of --verbose. Sometimes it helps if you add the output of --debug-output instead, but its huge.)
