@@ -119,6 +119,8 @@ class ZfsAutobackup(ZfsAuto):
                            help='Limit data transfer rate in Bytes/sec (e.g. 128K. requires mbuffer.)')
         group.add_argument('--buffer', metavar='SIZE', default=None,
                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
+        parser.add_argument('--chunk-size', metavar="CHUNKSIZE", default=None,
+                            help='Tune chunk size when mbuffer is used. (requires mbuffer.)')
         group.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
                            help='pipe zfs send output through COMMAND (can be used multiple times)')
         group.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
@@ -234,11 +236,22 @@ class ZfsAutobackup(ZfsAuto):
         """determine the zfs send pipe"""
 
         ret = []
+        _mbuffer = False
+        _buffer = "16M"
+        _cs = "128k"
+        _rate = False
 
         # IO buffer
         if self.args.buffer:
             logger("zfs send buffer        : {}".format(self.args.buffer))
-            ret.extend([ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m" + self.args.buffer])
+            _mbuffer = True
+            _buffer = self.args.buffer
+
+        # IO chunk size
+        if self.args.chunk_size:
+            logger("zfs send chunk size    : {}".format(self.args.chunk_size))
+            _mbuffer = True
+            _cs = self.args.chunk_size
 
         # custom pipes
         for send_pipe in self.args.send_pipe:
@@ -256,7 +269,14 @@ class ZfsAutobackup(ZfsAuto):
         # transfer rate
         if self.args.rate:
             logger("zfs send transfer rate : {}".format(self.args.rate))
-            ret.extend([ExecuteNode.PIPE, "mbuffer", "-q", "-s128k", "-m16M", "-R" + self.args.rate])
+            _mbuffer = True
+            _rate = self.args.rate
+
+        if _mbuffer:
+            cmd = [ExecuteNode.PIPE, "mbuffer", "-q", "-s{}".format(_cs), "-m{}".format(_buffer)]
+            if _rate:
+                cmd.append("-R{}".format(self.args.rate))
+            ret.extend(cmd)
 
         return ret
 
@@ -278,11 +298,19 @@ class ZfsAutobackup(ZfsAuto):
             logger("zfs recv custom pipe   : {}".format(recv_pipe))
 
         # IO buffer
-        if self.args.buffer:
+        if self.args.buffer or self.args.chunk_size:
+            _cs = "128k"
+            _buffer = "16M"
             # only add second buffer if its usefull. (e.g. non local transfer or other pipes active)
             if self.args.ssh_source != None or self.args.ssh_target != None or self.args.recv_pipe or self.args.send_pipe or self.args.compress != None:
                 logger("zfs recv buffer        : {}".format(self.args.buffer))
-                ret.extend(["mbuffer", "-q", "-s128k", "-m" + self.args.buffer, ExecuteNode.PIPE])
+
+                if self.args.chunk_size:
+                    _cs = self.args.chunk_size
+                if self.args.buffer:
+                    _buffer = self.args.buffer
+
+                ret.extend(["mbuffer", "-q", "-s{}".format(_cs), "-m{}".format(_buffer), ExecuteNode.PIPE])
 
         return ret
 
