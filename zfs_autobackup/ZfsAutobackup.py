@@ -123,6 +123,8 @@ class ZfsAutobackup(ZfsAuto):
                            help='pipe zfs send output through COMMAND (can be used multiple times)')
         group.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
                            help='pipe zfs recv input through COMMAND (can be used multiple times)')
+        group.add_argument('--send-delay', metavar='SECONDS', default=0, type=int,
+                           help='Add a delay to the zfs send command')
 
         group = parser.add_argument_group("Thinner options")
         group.add_argument('--no-thinning', action='store_true', help="Do not destroy any snapshots.")
@@ -360,7 +362,8 @@ class ZfsAutobackup(ZfsAuto):
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force)
+                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force,
+                                              send_delay=self.args.send_delay)
             except Exception as e:
                 # if self.args.progress:
                 #     self.clear_progress()

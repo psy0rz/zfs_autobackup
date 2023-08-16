@@ -4,7 +4,7 @@ import sys
 import time
 
 from .CachedProperty import CachedProperty
-from .ExecuteNode import ExecuteError
+from .ExecuteNode import ExecuteError, ExecuteNode
 
 
 class ZfsDataset:
@@ -556,7 +556,7 @@ class ZfsDataset:
 
         return self.from_names(names[1:])
 
-    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded, send_pipes, zfs_compressed):
+    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded, send_pipes, zfs_compressed, send_delay=0):
         """returns a pipe with zfs send output for this snapshot
 
         resume_token: resume sending from this token. (in that case we don't
@@ -573,6 +573,10 @@ class ZfsDataset:
         """
         # build source command
         cmd = []
+
+        # Pause before zfs send in case the zfs recv end needs to complete any setup, e.g. starting a netcat listener
+        if send_delay > 0:
+            cmd.extend(["sleep", str(send_delay), ExecuteNode.AND])
 
         cmd.extend(["zfs", "send", ])
 
@@ -691,7 +695,7 @@ class ZfsDataset:
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
-                          raw, send_properties, write_embedded, send_pipes, recv_pipes, zfs_compressed, force):
+                          raw, send_properties, write_embedded, send_pipes, recv_pipes, zfs_compressed, force, send_delay):
         """transfer this snapshot to target_snapshot. specify prev_snapshot for
         incremental transfer
 
@@ -709,6 +713,7 @@ class ZfsDataset:
             :type ignore_recv_exit_code: bool
             :type resume_token: str
             :type raw: bool
+            :type send_delay: int
         """
 
         if set_properties is None:
@@ -730,7 +735,8 @@ class ZfsDataset:
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
-                              resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, send_pipes=send_pipes, zfs_compressed=zfs_compressed)
+                              resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded,
+                              send_pipes=send_pipes, zfs_compressed=zfs_compressed, send_delay=send_delay)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
                                   set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, recv_pipes=recv_pipes, force=force)
 
@@ -1023,7 +1029,7 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, send_delay):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1042,6 +1048,7 @@ class ZfsDataset:
             :type also_other_snapshots: bool
             :type no_send: bool
             :type destroy_incompatible: bool
+            :type send_delay: int
         """
 
         self.verbose("sending to {}".format(target_dataset))
@@ -1110,7 +1117,8 @@ class ZfsDataset:
                                                   ignore_recv_exit_code=ignore_recv_exit_code,
                                                   resume_token=resume_token, write_embedded=write_embedded, raw=raw,
                                                   send_properties=send_properties, send_pipes=send_pipes,
-                                                  recv_pipes=recv_pipes, zfs_compressed=zfs_compressed, force=force)
+                                                  recv_pipes=recv_pipes, zfs_compressed=zfs_compressed, force=force,
+                                                  send_delay=send_delay)
 
                 resume_token = None
 

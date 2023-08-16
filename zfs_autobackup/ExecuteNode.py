@@ -18,6 +18,7 @@ class ExecuteNode(LogStub):
     """an endpoint to execute local or remote commands via ssh"""
 
     PIPE=1
+    AND=2
 
     def __init__(self, ssh_config=None, ssh_to=None, readonly=False, debug_output=False):
         """ssh_config: custom ssh config
@@ -53,6 +54,8 @@ class ExecuteNode(LogStub):
         """return quoted version of command. if it has value PIPE it will add an actual | """
         if cmd==self.PIPE:
             return('|')
+        elif cmd==self.AND:
+            return('&&')
         else:
             return cmd_quote(cmd)
 
