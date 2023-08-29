@@ -6,6 +6,7 @@ from .ZfsAuto import ZfsAuto
 from .ZfsNode import ZfsNode
 import sys
 
+raise("need to be rewritten to use zfs-check")
 
 # # try to be as unix compatible as possible, while still having decent performance
 # def compare_trees_find(source_node, source_path, target_node, target_path):

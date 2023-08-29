@@ -106,7 +106,7 @@ class ZfsCheck(CliBase):
 
             time.sleep(1)
 
-        raise (Exception("Timeout while waiting for /dev entry to appear. (looking in: {})".format(locations)))
+        raise (Exception("Timeout while waiting for /dev entry to appear. (looking in: {}). Hint: did you forget to load the encryption key?".format(locations)))
 
     def cleanup_zfs_volume(self, snapshot):
         """destroys temporary volume snapshot"""
