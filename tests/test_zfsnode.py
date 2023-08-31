@@ -173,9 +173,9 @@ test_target1
 
         # basics
         self.assertEqual(s, """[(local): test_source1/fs1,
- (local): test_source1/fs1/onlyparent,
  (local): test_source1/fs1/sub,
- (local): test_source2/fs2/sub]""")
+ (local): test_source2/fs2/sub,
+ (local): test_source1/fs1/onlyparent]""")
 
 
     def test_validcommand(self):
