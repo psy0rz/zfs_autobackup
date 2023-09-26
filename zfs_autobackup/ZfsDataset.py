@@ -707,6 +707,8 @@ class ZfsDataset:
     def automount(self):
         """mount the dataset as if one did a zfs mount -a, but only for this dataset"""
 
+
+
         self.debug("Auto mounting")
 
         if self.properties['type']!="filesystem":
@@ -775,7 +777,9 @@ class ZfsDataset:
         #try to automount it, if its the initial transfer
         if not prev_snapshot:
             target_snapshot.parent.force_exists=True
-            target_snapshot.parent.automount()
+            #in test mode it doesnt actually exist, so dont try to mount it/read properties
+            if not target_snapshot.zfs_node.readonly:
+                target_snapshot.parent.automount()
 
 
     def abort_resume(self):
