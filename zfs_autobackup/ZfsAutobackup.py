@@ -33,8 +33,8 @@ class ZfsAutobackup(ZfsAuto):
         if args.allow_empty:
             args.min_change = 0
 
-        if args.destroy_incompatible:
-            args.rollback = True
+        # if args.destroy_incompatible:
+        #     args.rollback = True
 
         if args.resume:
             self.warning("The --resume option isn't needed anymore (it's autodetected now)")
@@ -99,7 +99,7 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--force', '-F', action='store_true',
                            help='Use zfs -F option to force overwrite/rollback. (Useful with --strip-path=1, but use with care)')
         group.add_argument('--destroy-incompatible', action='store_true',
-                           help='Destroy incompatible snapshots on target. Use with care! (implies --rollback)')
+                           help='Destroy incompatible snapshots on target. Use with care! (also does rollback of dataset)')
         group.add_argument('--ignore-transfer-errors', action='store_true',
                            help='Ignore transfer errors (still checks if received filesystem exists. useful for '
                                 'acltype errors)')

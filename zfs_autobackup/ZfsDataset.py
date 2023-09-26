@@ -1038,6 +1038,9 @@ class ZfsDataset:
                     snapshot.destroy()
                     self.snapshots.remove(snapshot)
 
+                if len(incompatible_target_snapshots)>0:
+                    self.rollback()
+
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
