@@ -817,13 +817,15 @@ class ZfsDataset:
                 obsolete.destroy()
                 self.snapshots.remove(obsolete)
 
-    def find_common_snapshot(self, target_dataset):
+    def find_common_snapshot(self, target_dataset, guid_check):
         """find latest common snapshot between us and target returns None if its
         an initial transfer
 
         Args:
+            :type guid_check: bool
             :type target_dataset: ZfsDataset
         """
+
         if not target_dataset.snapshots:
             # target has nothing yet
             return None
@@ -831,7 +833,7 @@ class ZfsDataset:
             for source_snapshot in reversed(self.snapshots):
                 target_snapshot=target_dataset.find_snapshot(source_snapshot)
                 if target_snapshot:
-                    if source_snapshot.properties['guid']!=target_snapshot.properties['guid']:
+                    if guid_check and source_snapshot.properties['guid']!=target_snapshot.properties['guid']:
                         source_snapshot.warning("Common snapshot has invalid guid, ignoring.")
                     else:
                         source_snapshot.debug("common snapshot")
@@ -981,18 +983,19 @@ class ZfsDataset:
                 else:
                     return resume_token
 
-    def _plan_sync(self, target_dataset, also_other_snapshots):
+    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check):
         """plan where to start syncing and what to sync and what to keep
 
         Args:
             :rtype: ( ZfsDataset, ZfsDataset, list of ZfsDataset, list of ZfsDataset, list of ZfsDataset, list of ZfsDataset )
             :type target_dataset: ZfsDataset
             :type also_other_snapshots: bool
+            :type guid_check: bool
         """
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
-        common_snapshot = self.find_common_snapshot(target_dataset)
+        common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
         start_snapshot = self.find_start_snapshot(common_snapshot, also_other_snapshots)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot)
 
@@ -1034,7 +1037,7 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1052,14 +1055,14 @@ class ZfsDataset:
             :type decrypt: bool
             :type also_other_snapshots: bool
             :type no_send: bool
-            :type destroy_incompatible: bool
+            :type guid_check: bool
         """
 
         self.verbose("sending to {}".format(target_dataset))
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
-            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots)
+            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots, guid_check=guid_check)
 
         # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.

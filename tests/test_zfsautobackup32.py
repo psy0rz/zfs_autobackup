@@ -18,7 +18,10 @@ class TestZfsAutobackup32(unittest2.TestCase):
         shelltest("zfs snapshot test_target1/test_source1/fs1@invalid")
 
         with patch('time.strftime', return_value="test-20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+            #try the old way (without guid checking), and fail:
+            self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --no-guid-check".split(" ")).run(),1)
+            #new way should be ok:
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""
@@ -65,7 +68,10 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         shelltest("zfs snapshot test_target1/test_source1/fs1@invalid")
 
         with patch('time.strftime', return_value="test-20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible".split(" ")).run())
+            #try the old way and fail:
+            self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible --no-guid-check".split(" ")).run(),1)
+            #new way should be ok
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-snapshot --destroy-incompatible".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
             self.assertMultiLineEqual(r,"""

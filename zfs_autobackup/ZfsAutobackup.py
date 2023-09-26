@@ -72,6 +72,8 @@ class ZfsAutobackup(ZfsAuto):
                            help='Send over other snapshots as well, not just the ones created by this tool.')
         group.add_argument('--set-snapshot-properties', metavar='PROPERTY=VALUE,...', type=str,
                            help='List of properties to set on the snapshot.')
+        group.add_argument('--no-guid-check', action='store_true',
+                           help='Dont check guid of common snapshots. (faster)')
 
 
         group = parser.add_argument_group("Transfer options")
@@ -360,7 +362,7 @@ class ZfsAutobackup(ZfsAuto):
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force)
+                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force, guid_check=not self.args.no_guid_check)
             except Exception as e:
                 # if self.args.progress:
                 #     self.clear_progress()

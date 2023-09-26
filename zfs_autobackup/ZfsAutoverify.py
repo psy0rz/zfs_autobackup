@@ -186,7 +186,7 @@ class ZfsAutoverify(ZfsAuto):
                 target_dataset = target_node.get_dataset(target_name)
 
                 # find common snapshots to  verify
-                source_snapshot = source_dataset.find_common_snapshot(target_dataset)
+                source_snapshot = source_dataset.find_common_snapshot(target_dataset, True)
                 target_snapshot = target_dataset.find_snapshot(source_snapshot)
 
                 if source_snapshot is None or target_snapshot is None:
