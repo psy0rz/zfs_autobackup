@@ -191,3 +191,36 @@ test_target1/test_source2/fs2                                  encryptionroot  -
 test_target1/test_source2/fs2/sub                              encryptionroot  -                             -
 """)
 
+
+
+
+    def  test_raw_invalid_snapshot(self):
+        """in raw mode, its not allowed to have any newer snaphots on target, #219"""
+
+        self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
+
+        with patch('time.strftime', return_value="test-20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress".split(" ")).run())
+
+        #this is invalid in raw mode
+        shelltest("zfs snapshot test_target1/test_source1/fs1/encryptedsource@incompatible")
+
+        with patch('time.strftime', return_value="test-20101111000001"):
+            #should fail because of incompatble snapshot
+            self.assertEqual(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty".split(" ")).run(),1)
+            #should destroy incompatible and continue
+            self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --no-snapshot --destroy-incompatible".split(" ")).run())
+
+
+        r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
+        self.assertMultiLineEqual(r,"""
+NAME                                           PROPERTY        VALUE                                          SOURCE
+test_target1                                   encryptionroot  -                                              -
+test_target1/test_source1                      encryptionroot  -                                              -
+test_target1/test_source1/fs1                  encryptionroot  -                                              -
+test_target1/test_source1/fs1/encryptedsource  encryptionroot  test_target1/test_source1/fs1/encryptedsource  -
+test_target1/test_source1/fs1/sub              encryptionroot  -                                              -
+test_target1/test_source2                      encryptionroot  -                                              -
+test_target1/test_source2/fs2                  encryptionroot  -                                              -
+test_target1/test_source2/fs2/sub              encryptionroot  -                                              -
+""")

@@ -866,13 +866,16 @@ class ZfsDataset:
 
         return start_snapshot
 
-    def find_incompatible_snapshots(self, common_snapshot):
+    def find_incompatible_snapshots(self, common_snapshot, raw):
         """returns a list of snapshots that is incompatible for a zfs recv onto
         the common_snapshot. all direct followup snapshots with written=0 are
         compatible.
 
+        in raw-mode nothing is compatible. issue #219
+
         Args:
             :type common_snapshot: ZfsDataset
+            :type raw: bool
         """
 
         ret = []
@@ -880,7 +883,7 @@ class ZfsDataset:
         if common_snapshot and self.snapshots:
             followup = True
             for snapshot in self.snapshots[self.find_snapshot_index(common_snapshot) + 1:]:
-                if not followup or int(snapshot.properties['written']) != 0:
+                if raw or not followup or int(snapshot.properties['written']) != 0:
                     followup = False
                     ret.append(snapshot)
 
@@ -983,7 +986,7 @@ class ZfsDataset:
                 else:
                     return resume_token
 
-    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check):
+    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw):
         """plan where to start syncing and what to sync and what to keep
 
         Args:
@@ -991,13 +994,14 @@ class ZfsDataset:
             :type target_dataset: ZfsDataset
             :type also_other_snapshots: bool
             :type guid_check: bool
+            :type raw: bool
         """
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
         common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
         start_snapshot = self.find_start_snapshot(common_snapshot, also_other_snapshots)
-        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot)
+        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot, raw)
 
         # let thinner decide whats obsolete on source
         source_obsoletes = []
@@ -1058,11 +1062,26 @@ class ZfsDataset:
             :type guid_check: bool
         """
 
-        self.verbose("sending to {}".format(target_dataset))
+        # self.verbose("-> {}".format(target_dataset))
+
+        #defaults for these settings if there is no encryption stuff going on:
+        send_properties = True
+        raw = False
+        write_embedded = True
+
+        # source dataset encrypted?
+        if self.properties.get('encryption', 'off')!='off':
+            # user wants to send it over decrypted?
+            if decrypt:
+                # when decrypting, zfs cant send properties
+                send_properties=False
+            else:
+                # keep data encrypted by sending it raw (including properties)
+                raw=True
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
-            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots, guid_check=guid_check)
+            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots, guid_check=guid_check, raw=raw)
 
         # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
@@ -1084,22 +1103,8 @@ class ZfsDataset:
         if rollback:
             target_dataset.rollback()
 
-        #defaults for these settings if there is no encryption stuff going on:
-        send_properties = True
-        raw = False
-        write_embedded = True
 
         (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties, set_properties)
-
-        # source dataset encrypted?
-        if self.properties.get('encryption', 'off')!='off':
-            # user wants to send it over decrypted?
-            if decrypt:
-                # when decrypting, zfs cant send properties
-                send_properties=False
-            else:
-                # keep data encrypted by sending it raw (including properties)
-                raw=True
 
         # encrypt at target?
         if encrypt and not raw:
