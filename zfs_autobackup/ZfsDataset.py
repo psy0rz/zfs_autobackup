@@ -58,6 +58,13 @@ class ZfsDataset:
         """
         self.zfs_node.error("{}: {}".format(self.name, txt))
 
+    def warning(self, txt):
+        """
+        Args:
+            :type txt: str
+        """
+        self.zfs_node.warning("{}: {}".format(self.name, txt))
+
     def debug(self, txt):
         """
         Args:
@@ -822,9 +829,13 @@ class ZfsDataset:
             return None
         else:
             for source_snapshot in reversed(self.snapshots):
-                if target_dataset.find_snapshot(source_snapshot):
-                    source_snapshot.debug("common snapshot")
-                    return source_snapshot
+                target_snapshot=target_dataset.find_snapshot(source_snapshot)
+                if target_snapshot:
+                    if source_snapshot.properties['guid']!=target_snapshot.properties['guid']:
+                        source_snapshot.warning("Common snapshot has invalid guid, ignoring.")
+                    else:
+                        source_snapshot.debug("common snapshot")
+                        return source_snapshot
             target_dataset.error("Cant find common snapshot with source.")
             raise (Exception("You probably need to delete the target dataset to fix this."))
 
