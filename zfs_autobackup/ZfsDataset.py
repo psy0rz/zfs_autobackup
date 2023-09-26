@@ -1104,9 +1104,6 @@ class ZfsDataset:
         # check if we can resume
         resume_token = self._validate_resume_token(target_dataset, start_snapshot)
 
-        # rollback target to latest?
-        if rollback:
-            target_dataset.rollback()
 
 
         (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties, set_properties)
@@ -1121,11 +1118,17 @@ class ZfsDataset:
         # now actually transfer the snapshots
         prev_source_snapshot = common_snapshot
         source_snapshot = start_snapshot
+        do_rollback=rollback
         while source_snapshot:
             target_snapshot = target_dataset.find_snapshot(source_snapshot)  # still virtual
 
             # does target actually want it?
             if target_snapshot not in target_obsoletes:
+
+                #do the rollback, one time at first transfer
+                if do_rollback:
+                    target_dataset.rollback()
+                    do_rollback = False
 
                 source_snapshot.transfer_snapshot(target_snapshot, features=features,
                                                   prev_snapshot=prev_source_snapshot, show_progress=show_progress,
