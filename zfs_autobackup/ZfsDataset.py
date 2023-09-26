@@ -840,8 +840,8 @@ class ZfsDataset:
                     else:
                         target_snapshot.debug("common snapshot")
                         return source_snapshot
-            target_dataset.error("Cant find common snapshot with source.")
-            raise (Exception("You probably need to delete the target dataset to fix this."))
+            # target_dataset.error("Cant find common snapshot with source.")
+            raise (Exception("Cant find common snapshot with target."))
 
     def find_start_snapshot(self, common_snapshot, also_other_snapshots):
         """finds first snapshot to send :rtype: ZfsDataset or None if we cant
