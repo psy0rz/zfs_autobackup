@@ -127,7 +127,7 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
 
         with patch('time.strftime', return_value="test-20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received --force".split(" ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
         self.assertEqual(r, """
@@ -160,14 +160,14 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received --force".split(
                     " ")).run())
 
         with patch('time.strftime', return_value="test-20101111000001"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received --force".split(
                     " ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")

@@ -721,6 +721,9 @@ class ZfsDataset:
         if self.properties['mountpoint']=='none':
             return
 
+        if self.properties['encryption']!='off' and self.properties['keystatus']=='unavailable':
+            return
+
         self.zfs_node.run(["zfs", "mount", self.name])
 
 
