@@ -38,8 +38,9 @@ class TestZfsScaling(unittest2.TestCase):
 
 
             #this triggers if you make a change with an impact of more than O(snapshot_count/2)
-            expected_runs=343
-            print("ACTUAL RUNS: {}".format(run_counter))
+            expected_runs=336
+            print("EXPECTED RUNS: {}".format(expected_runs))
+            print("ACTUAL RUNS  : {}".format(run_counter))
             self.assertLess(abs(run_counter-expected_runs), snapshot_count/2)
 
 
@@ -51,8 +52,9 @@ class TestZfsScaling(unittest2.TestCase):
 
 
             #this triggers if you make a change with a performance impact of more than O(snapshot_count/2)
-            expected_runs=47
-            print("ACTUAL RUNS: {}".format(run_counter))
+            expected_runs=42
+            print("EXPECTED RUNS: {}".format(expected_runs))
+            print("ACTUAL RUNS  : {}".format(run_counter))
             self.assertLess(abs(run_counter-expected_runs), snapshot_count/2)
 
     def test_manydatasets(self):
@@ -77,7 +79,7 @@ class TestZfsScaling(unittest2.TestCase):
                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 
-            #this triggers if you make a change with an impact of more than O(snapshot_count/2)
+            #this triggers if you make a change with an impact of more than O(snapshot_count/2)`
             expected_runs=636
             print("EXPECTED RUNS: {}".format(expected_runs))
             print("ACTUAL RUNS: {}".format(run_counter))

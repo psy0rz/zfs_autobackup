@@ -263,10 +263,10 @@ class ZfsDataset:
         """
 
         if self.force_exists is not None:
-            self.debug("Checking if filesystem exists: was forced to {}".format(self.force_exists))
+            self.debug("Checking if dataset exists: was forced to {}".format(self.force_exists))
             return self.force_exists
         else:
-            self.debug("Checking if filesystem exists")
+            self.debug("Checking if dataset exists")
 
         return (self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True, valid_exitcodes=[0, 1],
                                   hide_errors=True) and True)
@@ -408,7 +408,7 @@ class ZfsDataset:
                 seconds = time.mktime(dt.timetuple())
         return seconds
 
-    def from_names(self, names):
+    def from_names(self, names, force_exists=None):
         """convert a list of names to a list ZfsDatasets for this zfs_node
 
         Args:
@@ -416,7 +416,7 @@ class ZfsDataset:
         """
         ret = []
         for name in names:
-            ret.append(self.zfs_node.get_dataset(name))
+            ret.append(self.zfs_node.get_dataset(name, force_exists))
 
         return ret
 
@@ -446,7 +446,7 @@ class ZfsDataset:
             "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
         ]
 
-        return self.from_names(self.zfs_node.run(cmd=cmd, readonly=True))
+        return self.from_names(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
 
     @property
     def our_snapshots(self):
@@ -545,7 +545,7 @@ class ZfsDataset:
             "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
         ])
 
-        return self.from_names(names[1:])
+        return self.from_names(names[1:], force_exists=True)
 
     @CachedProperty
     def datasets(self, types="filesystem,volume"):
@@ -561,7 +561,7 @@ class ZfsDataset:
             "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
         ])
 
-        return self.from_names(names[1:])
+        return self.from_names(names[1:], force_exists=True)
 
     def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded, send_pipes, zfs_compressed):
         """returns a pipe with zfs send output for this snapshot
