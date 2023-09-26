@@ -728,14 +728,14 @@ class ZfsDataset:
         self.debug("Transfer snapshot to {}".format(target_snapshot.filesystem_name))
 
         if resume_token:
-            target_snapshot.verbose("resuming")
+            self.verbose("resuming")
 
         # initial or increment
         if not prev_snapshot:
-            target_snapshot.verbose("<- {} (new)".format(self.filesystem_name))
+            self.verbose("-> {} (new)".format(target_snapshot.filesystem_name))
         else:
             # incremental
-            target_snapshot.verbose("<- {}".format(self.filesystem_name))
+            self.verbose("-> {}".format(target_snapshot.filesystem_name))
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
