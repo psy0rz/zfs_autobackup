@@ -1,5 +1,6 @@
 import argparse
 import sys
+from datetime import time, datetime
 
 from .CliBase import CliBase
 
@@ -58,7 +59,11 @@ class ZfsAuto(CliBase):
         self.snapshot_time_format = args.snapshot_format.format(args.backup_name)
         self.hold_name = args.hold_format.format(args.backup_name)
 
+        dt = datetime.utcnow() if args.utc else datetime.now()
+
         self.verbose("")
+        self.verbose("Current time {}           : {}".format(args.utc and "UTC" or "   ", dt.strftime("%Y-%m-%d %H:%M:%S")))
+
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
         self.verbose("Timezone                   : {}".format("UTC" if args.utc else "Local"))
