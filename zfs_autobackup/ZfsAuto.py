@@ -47,8 +47,8 @@ class ZfsAuto(CliBase):
                 self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
                 self.exclude_paths.append(args.target_path)
             else:
-                if not args.exclude_received:
-                    self.verbose("NOTE: Source and target are on the same host, adding --exclude-received to commandline.")
+                if not args.exclude_received and not args.include_received:
+                    self.verbose("NOTE: Source and target are on the same host, adding --exclude-received to commandline. (use --include-received to overrule)")
                     args.exclude_received = True
 
         if args.test:
@@ -108,6 +108,9 @@ class ZfsAuto(CliBase):
         group.add_argument('--exclude-received', action='store_true',
                             help='Exclude datasets that have the origin of their autobackup: property as "received". '
                                  'This can avoid recursive replication between two backup partners.')
+        group.add_argument('--include-received', action='store_true',
+                            help=argparse.SUPPRESS)
+
 
         return parser
 
