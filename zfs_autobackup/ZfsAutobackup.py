@@ -144,7 +144,10 @@ class ZfsAutobackup(ZfsAuto):
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def thin_missing_targets(self, target_dataset, used_target_datasets):
-        """thin target datasets that are missing on the source."""
+        """thin target datasets that are missing on the source.
+        :type used_target_datasets: list[ZfsDataset]
+        :type target_dataset: ZfsDataset
+        """
 
         self.debug("Thinning obsolete datasets")
         missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
@@ -152,6 +155,7 @@ class ZfsAutobackup(ZfsAuto):
 
         count = 0
         for dataset in missing_datasets:
+            self.debug("analyse missing {}".format(dataset))
 
             count = count + 1
             if self.args.progress:
@@ -169,7 +173,11 @@ class ZfsAutobackup(ZfsAuto):
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def destroy_missing_targets(self, target_dataset, used_target_datasets):
-        """destroy target datasets that are missing on the source and that meet the requirements"""
+        """destroy target datasets that are missing on the source and that meet the requirements
+        :type used_target_datasets: list[ZfsDataset]
+        :type target_dataset: ZfsDataset
+
+        """
 
         self.debug("Destroying obsolete datasets")
 
@@ -364,8 +372,6 @@ class ZfsAutobackup(ZfsAuto):
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed, force=self.args.force, guid_check=not self.args.no_guid_check)
             except Exception as e:
-                # if self.args.progress:
-                #     self.clear_progress()
 
                 fail_count = fail_count + 1
                 source_dataset.error("FAILED: " + str(e))
@@ -373,8 +379,6 @@ class ZfsAutobackup(ZfsAuto):
                     self.verbose("Debug mode, aborting on first error")
                     raise
 
-        # if self.args.progress:
-        #     self.clear_progress()
 
         target_path_dataset = target_node.get_dataset(self.args.target_path)
         if not self.args.no_thinning:
