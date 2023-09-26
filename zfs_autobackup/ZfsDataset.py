@@ -732,10 +732,10 @@ class ZfsDataset:
 
         # initial or increment
         if not prev_snapshot:
-            target_snapshot.verbose("receiving full".format(self.snapshot_name))
+            target_snapshot.verbose("<- {} (new)".format(self.filesystem_name))
         else:
             # incremental
-            target_snapshot.verbose("receiving incremental".format(self.snapshot_name))
+            target_snapshot.verbose("<- {}".format(self.filesystem_name))
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
