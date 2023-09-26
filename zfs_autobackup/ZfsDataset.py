@@ -435,7 +435,9 @@ class ZfsDataset:
 
     @CachedProperty
     def snapshots(self):
-        """get all snapshots of this dataset"""
+        """get all snapshots of this dataset
+        :rtype: ZfsDataset
+        """
 
         if not self.exists:
             return []
@@ -1023,7 +1025,7 @@ class ZfsDataset:
         what to do
 
         Args:
-            :type incompatible_target_snapshots: list of ZfsDataset
+            :type incompatible_target_snapshots: list[ZfsDataset]
             :type destroy_incompatible: bool
         """
 
@@ -1035,7 +1037,7 @@ class ZfsDataset:
             else:
                 for snapshot in incompatible_target_snapshots:
                     snapshot.verbose("Incompatible snapshot")
-                    snapshot.destroy()
+                    snapshot.destroy(fail_exception=True)
                     self.snapshots.remove(snapshot)
 
                 if len(incompatible_target_snapshots)>0:
