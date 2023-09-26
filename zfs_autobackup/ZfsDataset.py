@@ -130,7 +130,7 @@ class ZfsDataset:
         ZfsNode)
 
         Args:
-            :type exclude_paths: list of str
+            :type exclude_paths: list[str]
             :type value: str
             :type source: str
             :type inherited: bool
@@ -365,7 +365,7 @@ class ZfsDataset:
 
     @property
     def holds(self):
-        """get list of holds for dataset"""
+        """get list[holds] for dataset"""
 
         output = self.zfs_node.run(["zfs", "holds", "-H", self.name], valid_exitcodes=[0], tab_split=True,
                                    readonly=True)
@@ -409,10 +409,10 @@ class ZfsDataset:
         return seconds
 
     def from_names(self, names, force_exists=None):
-        """convert a list of names to a list ZfsDatasets for this zfs_node
+        """convert a list[names] to a list ZfsDatasets for this zfs_node
 
         Args:
-            :type names: list of str
+            :type names: list[str]
         """
         ret = []
         for name in names:
@@ -452,7 +452,7 @@ class ZfsDataset:
 
     @property
     def our_snapshots(self):
-        """get list of snapshots creates by us of this dataset"""
+        """get list[snapshots] creates by us of this dataset"""
         ret = []
         for snapshot in self.snapshots:
             if snapshot.is_ours():
@@ -573,8 +573,8 @@ class ZfsDataset:
 
         Args:
             :param send_pipes: output cmd array that will be added to actual zfs send command. (e.g. mbuffer or compression program)
-            :type send_pipes: list of str
-            :type features: list of str
+            :type send_pipes: list[str]
+            :type features: list[str]
             :type prev_snapshot: ZfsDataset
             :type resume_token: str
             :type show_progress: bool
@@ -636,9 +636,9 @@ class ZfsDataset:
         Args:
             :param recv_pipes: input cmd array that will be prepended to actual zfs recv command. (e.g. mbuffer or decompression program)
             :type pipe: subprocess.pOpen
-            :type features: list of str
-            :type filter_properties: list of str
-            :type set_properties: list of str
+            :type features: list[str]
+            :type filter_properties: list[str]
+            :type set_properties: list[str]
             :type ignore_exit_code: bool
         """
 
@@ -707,14 +707,14 @@ class ZfsDataset:
         connects a send_pipe() to recv_pipe()
 
         Args:
-            :type send_pipes: list of str
-            :type recv_pipes: list of str
+            :type send_pipes: list[str]
+            :type recv_pipes: list[str]
             :type target_snapshot: ZfsDataset
-            :type features: list of str
+            :type features: list[str]
             :type prev_snapshot: ZfsDataset
             :type show_progress: bool
-            :type filter_properties: list of str
-            :type set_properties: list of str
+            :type filter_properties: list[str]
+            :type set_properties: list[str]
             :type ignore_recv_exit_code: bool
             :type resume_token: str
             :type raw: bool
@@ -783,16 +783,16 @@ class ZfsDataset:
         return None
 
     def thin_list(self, keeps=None, ignores=None):
-        """determines list of snapshots that should be kept or deleted based on
+        """determines list[snapshots] that should be kept or deleted based on
         the thinning schedule. cull the herd!
 
         returns: ( keeps, obsoletes )
 
         Args:
-            :param keeps: list of snapshots to always keep (usually the last)
+            :param keeps: list[snapshots] to always keep (usually the last)
             :param ignores: snapshots to completely ignore (usually incompatible target snapshots that are going to be destroyed anyway)
-            :type keeps: list of ZfsDataset
-            :type ignores: list of ZfsDataset
+            :type keeps: list[ZfsDataset]
+            :type ignores: list[ZfsDataset]
         """
 
         if ignores is None:
@@ -869,7 +869,7 @@ class ZfsDataset:
         return start_snapshot
 
     def find_incompatible_snapshots(self, common_snapshot, raw):
-        """returns a list of snapshots that is incompatible for a zfs recv onto
+        """returns a list[snapshots] that is incompatible for a zfs recv onto
         the common_snapshot. all direct followup snapshots with written=0 are
         compatible.
 
@@ -895,8 +895,8 @@ class ZfsDataset:
         """only returns lists of allowed properties for this dataset type
 
         Args:
-            :type filter_properties: list of str
-            :type set_properties: list of str
+            :type filter_properties: list[str]
+            :type set_properties: list[str]
         """
 
         allowed_filter_properties = []
@@ -938,9 +938,9 @@ class ZfsDataset:
         Args:
             :type common_snapshot: ZfsDataset
             :type target_dataset: ZfsDataset
-            :type source_obsoletes: list of ZfsDataset
-            :type target_obsoletes: list of ZfsDataset
-            :type target_keeps: list of ZfsDataset
+            :type source_obsoletes: list[ZfsDataset]
+            :type target_obsoletes: list[ZfsDataset]
+            :type target_keeps: list[ZfsDataset]
         """
 
         # on source: destroy all obsoletes before common. (since we cant send them anyways)
@@ -992,7 +992,7 @@ class ZfsDataset:
         """plan where to start syncing and what to sync and what to keep
 
         Args:
-            :rtype: ( ZfsDataset, ZfsDataset, list of ZfsDataset, list of ZfsDataset, list of ZfsDataset, list of ZfsDataset )
+            :rtype: ( ZfsDataset, ZfsDataset, list[ZfsDataset], list[ZfsDataset], list[ZfsDataset], list[ZfsDataset] )
             :type target_dataset: ZfsDataset
             :type also_other_snapshots: bool
             :type guid_check: bool
@@ -1051,13 +1051,13 @@ class ZfsDataset:
         out old snapshots along the way.
 
         Args:
-            :type send_pipes: list of str
-            :type recv_pipes: list of str
+            :type send_pipes: list[str]
+            :type recv_pipes: list[str]
             :type target_dataset: ZfsDataset
-            :type features: list of str
+            :type features: list[str]
             :type show_progress: bool
-            :type filter_properties: list of str
-            :type set_properties: list of str
+            :type filter_properties: list[str]
+            :type set_properties: list[str]
             :type ignore_recv_exit_code: bool
             :type holds: bool
             :type rollback: bool
