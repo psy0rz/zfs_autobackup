@@ -206,6 +206,7 @@ class ZfsDataset:
         we cache this so everything in the parent that is cached also stays.
 
         returns None if there is no parent.
+        :rtype: ZfsDataset | None
         """
         if self.is_snapshot:
             return self.zfs_node.get_dataset(self.filesystem_name)
@@ -271,18 +272,24 @@ class ZfsDataset:
         return (self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True, valid_exitcodes=[0, 1],
                                   hide_errors=True) and True)
 
-    def create_filesystem(self, parents=False):
+    def create_filesystem(self, parents=False, unmountable=True):
         """create a filesystem
 
         Args:
             :type parents: bool
         """
-        if parents:
-            self.verbose("Creating filesystem and parents")
-            self.zfs_node.run(["zfs", "create", "-p", self.name])
-        else:
-            self.verbose("Creating filesystem")
-            self.zfs_node.run(["zfs", "create", self.name])
+
+        #recurse up
+        if parents and self.parent and not self.parent.exists:
+            self.parent.create_filesystem(parents, unmountable)
+
+        cmd=["zfs", "create"]
+
+        if unmountable:
+            cmd.extend( ["-o", "canmount=off"])
+
+        cmd.append(self.name)
+        self.zfs_node.run(cmd)
 
         self.force_exists = True
 
@@ -325,15 +332,13 @@ class ZfsDataset:
             "zfs", "get", "-H", "-o", "property,value", "-p", "all", self.name
         ]
 
-        if not self.exists:
-            return {}
-
         self.debug("Getting zfs properties")
 
         ret = {}
         for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
             if len(pair) == 2:
                 ret[pair[0]] = pair[1]
+
 
         return ret
 
@@ -655,7 +660,7 @@ class ZfsDataset:
 
         cmd.extend(["zfs", "recv"])
 
-        # don't mount filesystem that is received
+        # don't let zfs recv mount everything thats received (even with canmount=noauto!)
         cmd.append("-u")
 
         for property_ in filter_properties:
@@ -685,7 +690,7 @@ class ZfsDataset:
         # self.zfs_node.reset_progress()
         self.zfs_node.run(cmd, inp=pipe, valid_exitcodes=valid_exitcodes)
 
-        # invalidate cache, but we at least know we exist now
+        # invalidate cache
         self.invalidate()
 
         # in test mode we assume everything was ok and it exists
@@ -697,6 +702,27 @@ class ZfsDataset:
         if not self.exists:
             self.error("error during transfer")
             raise (Exception("Target doesn't exist after transfer, something went wrong."))
+
+
+    def automount(self):
+        """mount the dataset as if one did a zfs mount -a, but only for this dataset"""
+
+        self.debug("Auto mounting")
+
+        if self.properties['type']!="filesystem":
+            return
+
+        if self.properties['canmount']!='on':
+            return
+
+        if self.properties['mountpoint']=='legacy':
+            return
+
+        if self.properties['mountpoint']=='none':
+            return
+
+        self.zfs_node.run(["zfs", "mount", self.name])
+
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
@@ -742,6 +768,12 @@ class ZfsDataset:
                               resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, send_pipes=send_pipes, zfs_compressed=zfs_compressed)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
                                   set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, recv_pipes=recv_pipes, force=force)
+
+        #try to automount it, if its the initial transfer
+        if not prev_snapshot:
+            target_snapshot.parent.force_exists=True
+            target_snapshot.parent.automount()
+
 
     def abort_resume(self):
         """abort current resume state"""
@@ -974,7 +1006,7 @@ class ZfsDataset:
             :type start_snapshot: ZfsDataset
         """
 
-        if 'receive_resume_token' in target_dataset.properties:
+        if target_dataset.exists and 'receive_resume_token' in target_dataset.properties:
             if start_snapshot==None:
                 target_dataset.verbose("Aborting resume, its obsolete.")
                 target_dataset.abort_resume()

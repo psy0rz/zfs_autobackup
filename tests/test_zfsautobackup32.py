@@ -106,3 +106,34 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
 
+    #check consistent mounting behaviour, see issue #112
+    def test_mount_consitency_mounted(self):
+        """only filesystems that have canmount=on with a mountpoint should be mounted. """
+
+        shelltest("zfs create -V 10M test_source1/fs1/subvol")
+
+        with patch('time.strftime', return_value="test-20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+            r=shelltest("zfs mount |grep -o /test_target1.*")
+            self.assertMultiLineEqual(r,"""
+/test_target1
+/test_target1/test_source1/fs1
+/test_target1/test_source1/fs1/sub
+/test_target1/test_source2/fs2/sub
+""")
+
+
+    def test_mount_consitency_unmounted(self):
+        """only test_target1 should be mounted in this test"""
+
+        shelltest("zfs create -V 10M test_source1/fs1/subvol")
+
+        with patch('time.strftime', return_value="test-20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --clear-mountpoint".split(" ")).run())
+
+            r=shelltest("zfs mount |grep -o /test_target1.*")
+            self.assertMultiLineEqual(r,"""
+/test_target1
+""")
+

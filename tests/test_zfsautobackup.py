@@ -493,13 +493,13 @@ test_source2/fs2/sub@test-20101111000000               canmount  -         -
 test_source2/fs3                                       canmount  on        default
 test_source2/fs3/sub                                   canmount  on        default
 test_target1                                           canmount  on        default
-test_target1/test_source1                              canmount  on        default
+test_target1/test_source1                              canmount  off       local
 test_target1/test_source1/fs1                          canmount  noauto    local
 test_target1/test_source1/fs1@test-20101111000000      canmount  -         -
 test_target1/test_source1/fs1/sub                      canmount  noauto    local
 test_target1/test_source1/fs1/sub@test-20101111000000  canmount  -         -
-test_target1/test_source2                              canmount  on        default
-test_target1/test_source2/fs2                          canmount  on        default
+test_target1/test_source2                              canmount  off       local
+test_target1/test_source2/fs2                          canmount  off       local
 test_target1/test_source2/fs2/sub                      canmount  noauto    local
 test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
 """)
@@ -512,7 +512,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         #make change
-        r=shelltest("zfs mount test_target1/test_source1/fs1")
         r=shelltest("touch /test_target1/test_source1/fs1/change.txt")
 
         with patch('time.strftime', return_value="test-20101111000001"):
@@ -539,7 +538,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         #add incompatible snapshot by changing and snapshotting
-        r=shelltest("zfs mount test_target1/test_source1/fs1")
         r=shelltest("touch /test_target1/test_source1/fs1/change.txt")
         r=shelltest("zfs snapshot test_target1/test_source1/fs1@incompatible1")
 
