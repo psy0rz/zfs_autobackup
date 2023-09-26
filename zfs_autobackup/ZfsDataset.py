@@ -834,9 +834,9 @@ class ZfsDataset:
                 target_snapshot=target_dataset.find_snapshot(source_snapshot)
                 if target_snapshot:
                     if guid_check and source_snapshot.properties['guid']!=target_snapshot.properties['guid']:
-                        source_snapshot.warning("Common snapshot has invalid guid, ignoring.")
+                        target_snapshot.warning("Common snapshot has invalid guid, ignoring.")
                     else:
-                        source_snapshot.debug("common snapshot")
+                        target_snapshot.debug("common snapshot")
                         return source_snapshot
             target_dataset.error("Cant find common snapshot with source.")
             raise (Exception("You probably need to delete the target dataset to fix this."))
@@ -1031,7 +1031,7 @@ class ZfsDataset:
             if not destroy_incompatible:
                 for snapshot in incompatible_target_snapshots:
                     snapshot.error("Incompatible snapshot")
-                raise (Exception("Please destroy incompatible snapshots or use --destroy-incompatible."))
+                raise (Exception("Please destroy incompatible snapshots on target, or use --destroy-incompatible."))
             else:
                 for snapshot in incompatible_target_snapshots:
                     snapshot.verbose("Incompatible snapshot")
