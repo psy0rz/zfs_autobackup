@@ -36,7 +36,7 @@ class LogConsole:
     def warning(self, txt):
         self.clear_progress()
         if self.colorama:
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "  NOTE: " + txt + colorama.Style.RESET_ALL)
+            print(colorama.Fore.YELLOW + colorama.Style.NORMAL + "  NOTE: " + txt + colorama.Style.RESET_ALL)
         else:
             print("  NOTE: " + txt)
         sys.stdout.flush()
