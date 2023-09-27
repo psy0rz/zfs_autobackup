@@ -16,7 +16,7 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("local local pipe"):
             with patch('time.strftime', return_value="test-20101111000000"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress", "--clear-mountpoint",
                      "--send-pipe=dd bs=1M", "--recv-pipe=dd bs=2M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
