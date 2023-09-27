@@ -88,8 +88,8 @@ class ZfsDataset:
         Args:
             :type count: int
         """
-        components=self.split_path()
-        if count>len(components):
+        components = self.split_path()
+        if count > len(components):
             raise Exception("Trying to strip too much from path ({} items from {})".format(count, self.name))
 
         return "/".join(components[count:])
@@ -196,8 +196,7 @@ class ZfsDataset:
         self.verbose("Selected")
         return True
 
-
-    @CachedProperty
+    @property
     def parent(self):
         """get zfs-parent of this dataset. for snapshots this means it will get
         the filesystem/volume that it belongs to. otherwise it will return the
@@ -211,7 +210,7 @@ class ZfsDataset:
         if self.is_snapshot:
             return self.zfs_node.get_dataset(self.filesystem_name)
         else:
-            stripped=self.rstrip_path(1)
+            stripped = self.rstrip_path(1)
             if stripped:
                 return self.zfs_node.get_dataset(stripped)
             else:
@@ -258,19 +257,27 @@ class ZfsDataset:
         return None
 
     @CachedProperty
+    def exists_check(self):
+        """check on disk if it exists"""
+        self.debug("Checking if dataset exists")
+        return (len(self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
+                                      valid_exitcodes=[0, 1],
+                                      hide_errors=True)) > 0)
+
+    @property
     def exists(self):
-        """check if dataset exists. Use force to force a specific value to be
-        cached, if you already know. Useful for performance reasons
+        """returns True if dataset should exist.
+           Use force_exists to force a specific value, if you already know. Useful for performance and test reasons
         """
 
         if self.force_exists is not None:
-            self.debug("Checking if dataset exists: was forced to {}".format(self.force_exists))
+            if self.force_exists:
+                self.debug("Dataset should exist")
+            else:
+                self.debug("Dataset should not exist")
             return self.force_exists
         else:
-            self.debug("Checking if dataset exists")
-
-        return (self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True, valid_exitcodes=[0, 1],
-                                  hide_errors=True) and True)
+            return self.exists_check
 
     def create_filesystem(self, parents=False, unmountable=True):
         """create a filesystem
@@ -279,14 +286,14 @@ class ZfsDataset:
             :type parents: bool
         """
 
-        #recurse up
+        # recurse up
         if parents and self.parent and not self.parent.exists:
             self.parent.create_filesystem(parents, unmountable)
 
-        cmd=["zfs", "create"]
+        cmd = ["zfs", "create"]
 
         if unmountable:
-            cmd.extend( ["-o", "canmount=off"])
+            cmd.extend(["-o", "canmount=off"])
 
         cmd.append(self.name)
         self.zfs_node.run(cmd)
@@ -339,7 +346,6 @@ class ZfsDataset:
             if len(pair) == 2:
                 ret[pair[0]] = pair[1]
 
-
         return ret
 
     def is_changed(self, min_changed_bytes=1):
@@ -352,7 +358,6 @@ class ZfsDataset:
 
         if min_changed_bytes == 0:
             return True
-
 
         if int(self.properties['written']) < min_changed_bytes:
             return False
@@ -444,6 +449,7 @@ class ZfsDataset:
         :rtype: ZfsDataset
         """
 
+        #FIXME: dont check for existance. (currenlty needed for _add_virtual_snapshots)
         if not self.exists:
             return []
 
@@ -570,7 +576,8 @@ class ZfsDataset:
 
         return self.from_names(names[1:], force_exists=True)
 
-    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded, send_pipes, zfs_compressed):
+    def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded,
+                  send_pipes, zfs_compressed):
         """returns a pipe with zfs send output for this snapshot
 
         resume_token: resume sending from this token. (in that case we don't
@@ -593,7 +600,7 @@ class ZfsDataset:
         # all kind of performance options:
         if 'large_blocks' in features and "-L" in self.zfs_node.supported_send_options:
             # large block support (only if recordsize>128k which is seldomly used)
-            cmd.append("-L") # --large-block
+            cmd.append("-L")  # --large-block
 
         if write_embedded and 'embedded_data' in features and "-e" in self.zfs_node.supported_send_options:
             cmd.append("-e")  # --embed; WRITE_EMBEDDED, more compact stream
@@ -607,8 +614,8 @@ class ZfsDataset:
 
         # progress output
         if show_progress:
-            cmd.append("-v") # --verbose
-            cmd.append("-P") # --parsable
+            cmd.append("-v")  # --verbose
+            cmd.append("-P")  # --parsable
 
         # resume a previous send? (don't need more parameters in that case)
         if resume_token:
@@ -617,7 +624,7 @@ class ZfsDataset:
         else:
             # send properties
             if send_properties:
-                cmd.append("-p") # --props
+                cmd.append("-p")  # --props
 
             # incremental?
             if prev_snapshot:
@@ -631,7 +638,8 @@ class ZfsDataset:
 
         return output_pipe
 
-    def recv_pipe(self, pipe, features, recv_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False, force=False):
+    def recv_pipe(self, pipe, features, recv_pipes, filter_properties=None, set_properties=None, ignore_exit_code=False,
+                  force=False):
         """starts a zfs recv for this snapshot and uses pipe as input
 
         note: you can it both on a snapshot or filesystem object. The
@@ -703,31 +711,33 @@ class ZfsDataset:
             self.error("error during transfer")
             raise (Exception("Target doesn't exist after transfer, something went wrong."))
 
+        # at this point we're sure the actual dataset exists
+        self.parent.force_exists = True
 
     def automount(self):
-        """mount the dataset as if one did a zfs mount -a, but only for this dataset"""
+        """Mount the dataset as if one did a zfs mount -a, but only for this dataset
+        Failure to mount doesnt result in an exception, but outputs errors to STDERR.
 
-
+        """
 
         self.debug("Auto mounting")
 
-        if self.properties['type']!="filesystem":
+        if self.properties['type'] != "filesystem":
             return
 
-        if self.properties['canmount']!='on':
+        if self.properties['canmount'] != 'on':
             return
 
-        if self.properties['mountpoint']=='legacy':
+        if self.properties['mountpoint'] == 'legacy':
             return
 
-        if self.properties['mountpoint']=='none':
+        if self.properties['mountpoint'] == 'none':
             return
 
-        if self.properties['encryption']!='off' and self.properties['keystatus']=='unavailable':
+        if self.properties['encryption'] != 'off' and self.properties['keystatus'] == 'unavailable':
             return
 
-        self.zfs_node.run(["zfs", "mount", self.name])
-
+        self.zfs_node.run(["zfs", "mount", self.name], valid_exitcodes=[0,1])
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
@@ -770,17 +780,17 @@ class ZfsDataset:
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
-                              resume_token=resume_token, raw=raw, send_properties=send_properties, write_embedded=write_embedded, send_pipes=send_pipes, zfs_compressed=zfs_compressed)
+                              resume_token=resume_token, raw=raw, send_properties=send_properties,
+                              write_embedded=write_embedded, send_pipes=send_pipes, zfs_compressed=zfs_compressed)
         target_snapshot.recv_pipe(pipe, features=features, filter_properties=filter_properties,
-                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code, recv_pipes=recv_pipes, force=force)
+                                  set_properties=set_properties, ignore_exit_code=ignore_recv_exit_code,
+                                  recv_pipes=recv_pipes, force=force)
 
-        #try to automount it, if its the initial transfer
+        # try to automount it, if its the initial transfer
         if not prev_snapshot:
-            target_snapshot.parent.force_exists=True
-            #in test mode it doesnt actually exist, so dont try to mount it/read properties
+            # in test mode it doesnt actually exist, so dont try to mount it/read properties
             if not target_snapshot.zfs_node.readonly:
                 target_snapshot.parent.automount()
-
 
     def abort_resume(self):
         """abort current resume state"""
@@ -872,9 +882,9 @@ class ZfsDataset:
             return None
         else:
             for source_snapshot in reversed(self.snapshots):
-                target_snapshot=target_dataset.find_snapshot(source_snapshot)
+                target_snapshot = target_dataset.find_snapshot(source_snapshot)
                 if target_snapshot:
-                    if guid_check and source_snapshot.properties['guid']!=target_snapshot.properties['guid']:
+                    if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
                         target_snapshot.warning("Common snapshot has invalid guid, ignoring.")
                     else:
                         target_snapshot.debug("common snapshot")
@@ -967,7 +977,8 @@ class ZfsDataset:
         while snapshot:
             # create virtual target snapsho
             # NOTE: with force_exist we're telling the dataset it doesnt exist yet. (e.g. its virtual)
-            virtual_snapshot = self.zfs_node.get_dataset(self.filesystem_name + "@" + snapshot.snapshot_name, force_exists=False)
+            virtual_snapshot = self.zfs_node.get_dataset(self.filesystem_name + "@" + snapshot.snapshot_name,
+                                                         force_exists=False)
             self.snapshots.append(virtual_snapshot)
             snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
@@ -1001,7 +1012,7 @@ class ZfsDataset:
         # on target: destroy everything thats obsolete, except common_snapshot
         for target_snapshot in target_dataset.snapshots:
             if (target_snapshot in target_obsoletes) \
-                    and ( not common_snapshot or (target_snapshot.snapshot_name != common_snapshot.snapshot_name)):
+                    and (not common_snapshot or (target_snapshot.snapshot_name != common_snapshot.snapshot_name)):
                 if target_snapshot.exists:
                     target_snapshot.destroy()
 
@@ -1014,7 +1025,7 @@ class ZfsDataset:
         """
 
         if target_dataset.exists and 'receive_resume_token' in target_dataset.properties:
-            if start_snapshot==None:
+            if start_snapshot == None:
                 target_dataset.verbose("Aborting resume, its obsolete.")
                 target_dataset.abort_resume()
             else:
@@ -1079,9 +1090,8 @@ class ZfsDataset:
                     snapshot.destroy(fail_exception=True)
                     self.snapshots.remove(snapshot)
 
-                if len(incompatible_target_snapshots)>0:
+                if len(incompatible_target_snapshots) > 0:
                     self.rollback()
-
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
@@ -1108,24 +1118,25 @@ class ZfsDataset:
 
         # self.verbose("-> {}".format(target_dataset))
 
-        #defaults for these settings if there is no encryption stuff going on:
+        # defaults for these settings if there is no encryption stuff going on:
         send_properties = True
         raw = False
         write_embedded = True
 
         # source dataset encrypted?
-        if self.properties.get('encryption', 'off')!='off':
+        if self.properties.get('encryption', 'off') != 'off':
             # user wants to send it over decrypted?
             if decrypt:
                 # when decrypting, zfs cant send properties
-                send_properties=False
+                send_properties = False
             else:
                 # keep data encrypted by sending it raw (including properties)
-                raw=True
+                raw = True
 
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
-            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots, guid_check=guid_check, raw=raw)
+            self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
+                            guid_check=guid_check, raw=raw)
 
         # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
@@ -1143,28 +1154,26 @@ class ZfsDataset:
         # check if we can resume
         resume_token = self._validate_resume_token(target_dataset, start_snapshot)
 
-
-
-        (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties, set_properties)
+        (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties,
+                                                                                        set_properties)
 
         # encrypt at target?
         if encrypt and not raw:
             # filter out encryption properties to let encryption on the target take place
-            active_filter_properties.extend(["keylocation","pbkdf2iters","keyformat", "encryption"])
-            write_embedded=False
-
+            active_filter_properties.extend(["keylocation", "pbkdf2iters", "keyformat", "encryption"])
+            write_embedded = False
 
         # now actually transfer the snapshots
         prev_source_snapshot = common_snapshot
         source_snapshot = start_snapshot
-        do_rollback=rollback
+        do_rollback = rollback
         while source_snapshot:
             target_snapshot = target_dataset.find_snapshot(source_snapshot)  # still virtual
 
             # does target actually want it?
             if target_snapshot not in target_obsoletes:
 
-                #do the rollback, one time at first transfer
+                # do the rollback, one time at first transfer
                 if do_rollback:
                     target_dataset.rollback()
                     do_rollback = False
@@ -1229,7 +1238,6 @@ class ZfsDataset:
             "umount", self.name
         ]
 
-
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
     def clone(self, name):
@@ -1270,4 +1278,3 @@ class ZfsDataset:
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
         self.invalidate()
-

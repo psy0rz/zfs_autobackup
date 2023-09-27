@@ -63,7 +63,6 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 
         #create 2 snapshots with the same name, which are invalid as common snapshot
         shelltest("zfs snapshot test_source1/fs1@invalid")
-        shelltest("zfs mount test_target1/test_source1/fs1")
         shelltest("touch /test_target1/test_source1/fs1/shouldnotbeHere")
         shelltest("zfs snapshot test_target1/test_source1/fs1@invalid")
 
@@ -136,4 +135,20 @@ test_target1/test_source2/fs2/sub@test-20101111000001
             self.assertMultiLineEqual(r,"""
 /test_target1
 """)
+
+
+    # def test_stuff(self):
+    #
+    #
+    #     shelltest("zfs set autobackup:test=true test_source2")
+    #     # shelltest("zfs set readonly=on test_target1")
+    #
+    #     with patch('time.strftime', return_value="test-20101111000000"):
+    #         self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --clear-mountpoint".split(" ")).run())
+    #
+    #     # shelltest("zfs mount test_target1/test_source2/fs2/sub" )
+    #
+    #     with patch('time.strftime', return_value="test-20101111000001"):
+    #         self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --rollback".split(" ")).run())
+
 

@@ -352,6 +352,7 @@ class ZfsAutobackup(ZfsAuto):
                         and target_dataset.parent \
                         and target_dataset.parent not in target_datasets \
                         and not target_dataset.parent.exists:
+                    target_dataset.debug("Creating unmountable parents")
                     target_dataset.parent.create_filesystem(parents=True)
 
                 # determine common zpool features (cached, so no problem we call it often)
