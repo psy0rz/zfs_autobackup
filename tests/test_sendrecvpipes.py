@@ -85,8 +85,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with self.subTest("local local pipe"):
             with patch('time.strftime', return_value="test-20101111000000"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress", "--clear-mountpoint"
-                     "--buffer=1M"]).run())
+                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress", "--clear-mountpoint", "--buffer=1M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
 
