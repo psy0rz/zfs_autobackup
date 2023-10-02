@@ -85,7 +85,7 @@ class TestThinner(unittest2.TestCase):
             if random.random()>=0.5:
                 things.append(Thing(now))
 
-            (keeps, removes)=thinner.thin(things, now=now)
+            (keeps, removes)=thinner.thin(things, keep_objects=[], now=now)
             things=keeps
 
 
@@ -143,7 +143,7 @@ class TestThinner(unittest2.TestCase):
             if random.random()>=0.5:
                 things.append(Thing(now))
 
-        (things, removes)=thinner.thin(things, now=now)
+        (things, removes)=thinner.thin(things, keep_objects=[], now=now)
 
         result=[]
         for thing in things:

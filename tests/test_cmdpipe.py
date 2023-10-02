@@ -9,11 +9,11 @@ class TestCmdPipe(unittest2.TestCase):
         p=CmdPipe(readonly=False, inp=None)
         err=[]
         out=[]
-        p.add(CmdItem(["ls", "-d", "/", "/", "/nonexistent"], stderr_handler=lambda line: err.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,2), stdout_handler=lambda line: out.append(line)))
+        p.add(CmdItem(["sh", "-c", "echo out1;echo err1 >&2; echo out2; echo err2 >&2"], stderr_handler=lambda line: err.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,0), stdout_handler=lambda line: out.append(line)))
         executed=p.execute()
 
-        self.assertEqual(err, ["ls: cannot access '/nonexistent': No such file or directory"])
-        self.assertEqual(out, ["/","/"])
+        self.assertEqual(out, ["out1", "out2"])
+        self.assertEqual(err, ["err1","err2"])
         self.assertIsNone(executed)
 
     def test_input(self):
@@ -56,16 +56,16 @@ class TestCmdPipe(unittest2.TestCase):
         err2=[]
         err3=[]
         out=[]
-        p.add(CmdItem(["ls", "/nonexistent1"], stderr_handler=lambda line: err1.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,2)))
-        p.add(CmdItem(["ls", "/nonexistent2"], stderr_handler=lambda line: err2.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,2)))
-        p.add(CmdItem(["ls", "/nonexistent3"], stderr_handler=lambda line: err3.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,2), stdout_handler=lambda line: out.append(line)))
+        p.add(CmdItem(["sh", "-c", "echo err1 >&2"], stderr_handler=lambda line: err1.append(line), ))
+        p.add(CmdItem(["sh", "-c", "echo err2 >&2"], stderr_handler=lambda line: err2.append(line), ))
+        p.add(CmdItem(["sh", "-c", "echo err3 >&2"], stderr_handler=lambda line: err3.append(line), stdout_handler=lambda line: out.append(line)))
         executed=p.execute()
 
-        self.assertEqual(err1, ["ls: cannot access '/nonexistent1': No such file or directory"])
-        self.assertEqual(err2, ["ls: cannot access '/nonexistent2': No such file or directory"])
-        self.assertEqual(err3, ["ls: cannot access '/nonexistent3': No such file or directory"])
+        self.assertEqual(err1, ["err1"])
+        self.assertEqual(err2, ["err2"])
+        self.assertEqual(err3, ["err3"])
         self.assertEqual(out, [])
-        self.assertIsNone(executed)
+        self.assertTrue(executed)
 
     def test_exitcode(self):
         """test piped exitcodes """
@@ -74,9 +74,9 @@ class TestCmdPipe(unittest2.TestCase):
         err2=[]
         err3=[]
         out=[]
-        p.add(CmdItem(["bash", "-c", "exit 1"], stderr_handler=lambda line: err1.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,1)))
-        p.add(CmdItem(["bash", "-c", "exit 2"], stderr_handler=lambda line: err2.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,2)))
-        p.add(CmdItem(["bash", "-c", "exit 3"], stderr_handler=lambda line: err3.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,3), stdout_handler=lambda line: out.append(line)))
+        p.add(CmdItem(["sh", "-c", "exit 1"], stderr_handler=lambda line: err1.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,1)))
+        p.add(CmdItem(["sh", "-c", "exit 2"], stderr_handler=lambda line: err2.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,2)))
+        p.add(CmdItem(["sh", "-c", "exit 3"], stderr_handler=lambda line: err3.append(line), exit_handler=lambda exit_code: self.assertEqual(exit_code,3), stdout_handler=lambda line: out.append(line)))
         executed=p.execute()
 
         self.assertEqual(err1, [])

@@ -18,6 +18,8 @@ if ! [ -e /root/.ssh/id_rsa ]; then
     ssh -oStrictHostKeyChecking=no localhost true || exit 1
 fi
 
+modprobe brd rd_size=512000
+
 umount /tmp/ZfsCheck*
 
 coverage run --branch --source zfs_autobackup -m unittest discover -vvvvf $SCRIPTDIR $@ 2>&1

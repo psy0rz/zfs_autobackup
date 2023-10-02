@@ -34,14 +34,13 @@ import datetime
 
 
 TEST_POOLS="test_source1 test_source2 test_target1"
-ZFS_USERSPACE=  subprocess.check_output("dpkg-query -W zfsutils-linux |cut -f2", shell=True).decode('utf-8').rstrip()
-ZFS_KERNEL=     subprocess.check_output("modinfo zfs|grep ^version |sed 's/.* //'", shell=True).decode('utf-8').rstrip()
+# ZFS_USERSPACE=  subprocess.check_output("dpkg-query -W zfsutils-linux |cut -f2", shell=True).decode('utf-8').rstrip()
+# ZFS_KERNEL=     subprocess.check_output("modinfo zfs|grep ^version |sed 's/.* //'", shell=True).decode('utf-8').rstrip()
 
 print("###########################################")
 print("#### Unit testing against:")
-print("#### Python                :"+sys.version.replace("\n", " "))
-print("#### ZFS userspace         :"+ZFS_USERSPACE)
-print("#### ZFS kernel            :"+ZFS_KERNEL)
+print("#### Python                : "+sys.version.replace("\n", " "))
+print("#### ZFS version           : "+subprocess.check_output("zfs --version", shell=True).decode('utf-8').rstrip().replace('\n', ' '))
 print("#############################################")
 
 
@@ -78,7 +77,7 @@ def redirect_stderr(target):
 def shelltest(cmd):
     """execute and print result as nice copypastable string for unit tests (adds extra newlines on top/bottom)"""
 
-    ret=(subprocess.check_output("SUDO_ASKPASS=./password.sh sudo -A "+cmd , shell=True).decode('utf-8'))
+    ret=(subprocess.check_output(cmd , shell=True).decode('utf-8'))
 
     print("######### result of: {}".format(cmd))
     print(ret)
@@ -90,7 +89,7 @@ def prepare_zpools():
     print("Preparing zfs filesystems...")
 
     #need ram blockdevice
-    subprocess.check_call("modprobe brd rd_size=512000", shell=True)
+    # subprocess.check_call("modprobe brd rd_size=512000", shell=True)
 
     #remove old stuff
     subprocess.call("zpool destroy test_source1 2>/dev/null", shell=True)

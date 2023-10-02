@@ -10,10 +10,10 @@ class TestZfsAutobackup31(unittest2.TestCase):
 
     def test_no_thinning(self):
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --keep-target=0 --keep-source=0 --no-thinning".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t all "+TEST_POOLS)
@@ -54,10 +54,10 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         shelltest("zfs create test_target1/a")
         shelltest("zfs create test_target1/b")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1/a --no-progress --verbose --debug".split(" ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1/b --no-progress --verbose".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t snapshot test_target1")
@@ -75,7 +75,7 @@ test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000000
 
     def test_zfs_compressed(self):
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(
                 ZfsAutobackup("test test_target1 --no-progress --verbose --debug --zfs-compressed".split(" ")).run())
 
@@ -84,7 +84,7 @@ test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000000
 
         shelltest("zfs set autobackup:test=true test_source1")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(
                 ZfsAutobackup("test test_target1 --no-progress --verbose --debug --force --strip-path=1".split(" ")).run())
 
@@ -101,13 +101,13 @@ test_target1/fs2/sub@test-20101111000000
 
         shelltest("zfs snapshot -r test_source1@somesnapshot")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(
                 ZfsAutobackup(
                     "test test_target1 --verbose --allow-empty --exclude-unchanged=1".split(" ")).run())
 
         #everything should be excluded, but should not return an error (see #190)
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(
                 ZfsAutobackup(
                     "test test_target1 --verbose --allow-empty --exclude-unchanged=1".split(" ")).run())

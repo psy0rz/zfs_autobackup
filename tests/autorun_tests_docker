@@ -1,0 +1,3 @@
+#!/bin/sh
+
+find tests zfs_autobackup -name '*.py' |entr  ./tests/run_tests_docker $@

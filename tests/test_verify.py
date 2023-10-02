@@ -38,7 +38,7 @@ class TestZfsVerify(unittest2.TestCase):
         shelltest("dd if=/dev/urandom of=/dev/zvol/test_source1/fs1/bad_zvol count=1 bs=512k")
 
         #create backup
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --no-holds".split(" ")).run())
 
         #Do an ugly hack to create a fault in the bad filesystem

@@ -9,14 +9,14 @@ class TestZfsAutobackup32(unittest2.TestCase):
 
     def test_invalid_common_snapshot(self):
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         #create 2 snapshots with the same name, which are invalid as common snapshot
         shelltest("zfs snapshot test_source1/fs1@invalid")
         shelltest("zfs snapshot test_target1/test_source1/fs1@invalid")
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             #try the old way (without guid checking), and fail:
             self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --no-guid-check".split(" ")).run(),1)
             #new way should be ok:
@@ -57,7 +57,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 
     def test_invalid_common_snapshot_with_data(self):
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
         #create 2 snapshots with the same name, which are invalid as common snapshot
@@ -65,7 +65,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         shelltest("touch /test_target1/test_source1/fs1/shouldnotbeHere")
         shelltest("zfs snapshot test_target1/test_source1/fs1@invalid")
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             #try the old way and fail:
             self.assertEqual(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible --no-guid-check".split(" ")).run(),1)
             #new way should be ok
@@ -110,7 +110,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 
         shelltest("zfs create -V 10M test_source1/fs1/subvol")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
             r=shelltest("zfs mount |grep -o /test_target1.*")
@@ -127,7 +127,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 
         shelltest("zfs create -V 10M test_source1/fs1/subvol")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --clear-mountpoint".split(" ")).run())
 
             r=shelltest("zfs mount |grep -o /test_target1.*")
@@ -149,13 +149,13 @@ test_target1/test_source2/fs2/sub@test-20101111000001
             print(datetime_now(False))
             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint --verbose".split(" ")).run())
 
-#         with patch('time.strftime', return_value="test-20001101000000"):
+#         with mocktime("20001101000000"):
 #             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint test_target1 --no-progress --allow-empty --clear-mountpoint".split(" ")).run())
 #
-#         with patch('time.strftime', return_value="test-20001201000000"):
+#         with mocktime("20001201000000"):
 #             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint".split(" ")).run())
 #
-#         with patch('time.strftime', return_value="test-20001202000000"):
+#         with mocktime("20001202000000"):
 #             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint".split(" ")).run())
 #
 #         time_str="test-20001203000000"

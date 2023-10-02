@@ -86,8 +86,8 @@ def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, 
             raise(Exception("program errror, unknown method"))
 
     finally:
-        source_snapshot.unmount()
-        target_snapshot.unmount()
+        source_snapshot.unmount(source_mnt)
+        target_snapshot.unmount(target_mnt)
 
 
 # def hash_dev(node, dev):

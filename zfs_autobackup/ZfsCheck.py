@@ -74,7 +74,7 @@ class ZfsCheck(CliBase):
 
     def cleanup_zfs_filesystem(self, snapshot):
         mnt = "/tmp/" + tmp_name()
-        snapshot.unmount()
+        snapshot.unmount(mnt)
         self.debug("Cleaning up temporary mount point")
         self.node.run(["rmdir", mnt], hide_errors=True, valid_exitcodes=[])
 

@@ -49,11 +49,11 @@ class TestZfsEncryption(unittest2.TestCase):
         self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsourcekeyless", unload_key=True) # raw mode shouldn't need a key
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --no-snapshot --exclude-received".split(" ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --no-snapshot --exclude-received".split(" ")).run())
 
@@ -86,11 +86,11 @@ test_target1/test_source2/fs2/sub                                     encryption
         self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received".split(" ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received".split(" ")).run())
 
@@ -121,11 +121,11 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
         self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received --clear-mountpoint".split(" ")).run())
             self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received --clear-mountpoint".split(" ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received --clear-mountpoint".split(" ")).run())
             self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received --clear-mountpoint".split(" ")).run())
 
@@ -156,14 +156,14 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
         self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received --clear-mountpoint".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
                 "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received --clear-mountpoint".split(
                     " ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
@@ -199,13 +199,13 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
 
         self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress".split(" ")).run())
 
         #this is invalid in raw mode
         shelltest("zfs snapshot test_target1/test_source1/fs1/encryptedsource@incompatible")
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             #should fail because of incompatble snapshot
             self.assertEqual(ZfsAutobackup("test test_target1 --verbose --no-progress --allow-empty".split(" ")).run(),1)
             #should destroy incompatible and continue

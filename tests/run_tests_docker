@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+#remove stuff from previous local tests
+zpool destroy test_source1 2>/dev/null || true
+zpool destroy test_source2 2>/dev/null || true
+zpool destroy test_target1 2>/dev/null || true
+
+#is needed
+modprobe brd rd_size=512000 || true
+
+# builds and starts a docker container to run the test suite
+docker build -t zfs-autobackup-test -f tests/Dockerfile .
+docker run --name zfs-autobackup-test --privileged --rm -it -v .:/app zfs-autobackup-test $@
+

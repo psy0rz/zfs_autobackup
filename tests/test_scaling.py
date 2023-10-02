@@ -33,7 +33,7 @@ class TestZfsScaling(unittest2.TestCase):
         run_counter=0
         with patch.object(ExecuteNode,'run', run_count) as p:
 
-            with patch('time.strftime', return_value="test-20101112000000"):
+            with mocktime("20101112000000"):
                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=10000 --keep-target=10000 --no-holds --allow-empty".split(" ")).run())
 
 
@@ -47,7 +47,7 @@ class TestZfsScaling(unittest2.TestCase):
         run_counter=0
         with patch.object(ExecuteNode,'run', run_count) as p:
 
-            with patch('time.strftime', return_value="test-20101112000001"):
+            with mocktime("20101112000001"):
                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=10000 --keep-target=10000 --no-holds --allow-empty".split(" ")).run())
 
 
@@ -75,7 +75,7 @@ class TestZfsScaling(unittest2.TestCase):
         run_counter=0
         with patch.object(ExecuteNode,'run', run_count) as p:
 
-            with patch('time.strftime', return_value="test-20101112000000"):
+            with mocktime("20101112000000"):
                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 
@@ -90,7 +90,7 @@ class TestZfsScaling(unittest2.TestCase):
         run_counter=0
         with patch.object(ExecuteNode,'run', run_count) as p:
 
-            with patch('time.strftime', return_value="test-20101112000001"):
+            with mocktime("20101112000001"):
                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 

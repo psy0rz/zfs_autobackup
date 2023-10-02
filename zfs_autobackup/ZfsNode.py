@@ -61,7 +61,7 @@ class ZfsNode(ExecuteNode):
         # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
         if self.__thinner is not None:
 
-            return self.__thinner.thin(objects, keep_objects, datetime_now(self.utc))
+            return self.__thinner.thin(objects, keep_objects, datetime_now(self.utc).timestamp())
         else:
             return (keep_objects, [])
 

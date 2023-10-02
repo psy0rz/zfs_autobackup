@@ -1,0 +1,27 @@
+#!/bin/sh
+
+#NOTE: This script will started inside the test docker container
+
+set -e
+
+if ! [ -e /dev/ram0 ]; then
+    echo "Please run this outside container:" >&2
+    echo "sudo modprobe brd rd_size=512000" >&2
+    exit 1
+
+fi
+
+#start sshd and other stuff
+ssh-keygen -A
+/usr/sbin/sshd
+udevd -d
+
+#test ssh localhost
+if ! [ -e /root/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -f /root/.ssh/id_rsa -P ''
+fi
+cat /root/.ssh/id_rsa.pub  >> /root/.ssh/authorized_keys 
+ssh -oStrictHostKeyChecking=no localhost 'echo SSH OK' 
+
+cd /app
+python -m unittest discover /app/tests -vvvvf $@

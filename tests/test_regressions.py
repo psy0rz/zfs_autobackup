@@ -11,17 +11,17 @@ class TestZfsNode(unittest2.TestCase):
     def test_keepsource0target10queuedsend(self):
         """Test if thinner doesnt destroy too much early on if there are no common snapshots YET. Issue #84"""
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty --no-send".split(
                     " ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000001"):
+        with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty --no-send".split(
                     " ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000002"):
+        with mocktime("20101111000002"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty".split(
                     " ")).run())
@@ -65,7 +65,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         shelltest("zfs set autobackup:test=true test_target1/target_shouldnotbeexcluded")
         shelltest("zfs create test_target1/target")
 
-        with patch('time.strftime', return_value="test-20101111000000"):
+        with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1/target --no-progress --verbose --allow-empty".split(
                     " ")).run())

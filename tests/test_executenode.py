@@ -33,9 +33,9 @@ class TestExecuteNode(unittest2.TestCase):
 
         #return std err as well, trigger stderr by listing something non existing
         with self.subTest("stderr return"):
-            (stdout, stderr)=node.run(["ls", "nonexistingfile"], return_stderr=True, valid_exitcodes=[2])
+            (stdout, stderr)=node.run(["sh", "-c", "echo bla >&2"], return_stderr=True, valid_exitcodes=[0])
             self.assertEqual(stdout,[])
-            self.assertRegex(stderr[0],"nonexistingfile")
+            self.assertRegex(stderr[0],"bla")
 
         #slow command, make sure things dont exit too early
         with self.subTest("early exit test"):
@@ -110,17 +110,15 @@ class TestExecuteNode(unittest2.TestCase):
 
         with self.subTest("check stderr on pipe output side"):
             output=nodea.run(["true"], pipe=True, valid_exitcodes=[0])
-            (stdout, stderr)=nodeb.run(["ls", "nonexistingfile"], inp=output, return_stderr=True, valid_exitcodes=[2])
+            (stdout, stderr)=nodeb.run(["sh", "-c", "echo bla >&2"], inp=output, return_stderr=True, valid_exitcodes=[0])
             self.assertEqual(stdout,[])
-            self.assertRegex(stderr[0], "nonexistingfile" )
+            self.assertRegex(stderr[0], "bla" )
 
         with self.subTest("check stderr on pipe input side (should be only printed)"):
-            output=nodea.run(["ls", "nonexistingfile"], pipe=True, valid_exitcodes=[2])
+            output=nodea.run(["sh", "-c", "echo bla >&2"], pipe=True, valid_exitcodes=[0])
             (stdout, stderr)=nodeb.run(["true"], inp=output, return_stderr=True, valid_exitcodes=[0])
             self.assertEqual(stdout,[])
             self.assertEqual(stderr,[])
-
-
 
 
     def test_pipe_local_local(self):
@@ -209,5 +207,3 @@ class TestExecuteNode(unittest2.TestCase):
 
 
 
-if __name__ == '__main__':
-    unittest.main()

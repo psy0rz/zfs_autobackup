@@ -1230,12 +1230,12 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-    def unmount(self):
+    def unmount(self, mount_point):
 
         self.debug("Unmounting")
 
         cmd = [
-            "umount", self.name
+            "umount", mount_point
         ]
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])

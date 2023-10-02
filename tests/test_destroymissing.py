@@ -13,10 +13,10 @@ class TestZfsNode(unittest2.TestCase):
     def  test_destroymissing(self):
 
         #initial backup
-        with patch('time.strftime', return_value="test-19101111000000"): #1000 years in past
+        with mocktime("19101111000000"): #1000 years in past
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds".split(" ")).run())
 
-        with patch('time.strftime', return_value="test-20101111000000"): #far in past
+        with mocktime("20101111000000"): #far in past
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --no-holds --allow-empty".split(" ")).run())
 
 

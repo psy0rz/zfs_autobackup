@@ -1,3 +1,5 @@
+from os.path import exists
+
 from basetest import *
 from zfs_autobackup.BlockHasher import BlockHasher
 
@@ -9,6 +11,10 @@ class TestZfsCheck(unittest2.TestCase):
 
 
     def test_volume(self):
+
+        if exists("/.dockerenv"):
+            self.skipTest("FIXME: zfscheck volumes not supported in docker yet")
+
         prepare_zpools()
 
         shelltest("zfs create -V200M test_source1/vol")
@@ -50,7 +56,7 @@ class TestZfsCheck(unittest2.TestCase):
         shelltest("mkfifo /test_source1/f")
 
         shelltest("zfs snapshot test_source1@test")
-
+        ZfsCheck("test_source1@test --debug".split(" "), print_arguments=False).run()
         with self.subTest("Generate"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
@@ -178,15 +184,16 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
         shelltest("cp tests/data/whole /test_source1/testfile")
         shelltest("zfs snapshot test_source1@test")
 
-        #breaks pipe when grep exists:
+        #breaks pipe when head exists
         #important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
-        shelltest("python -m zfs_autobackup.ZfsCheck test_source1@test --debug | grep -m1 'Hashing tree'")
-        # time.sleep(5)
+        shelltest("python -m zfs_autobackup.ZfsCheck test_source1@test --debug | head -n1")
 
         #should NOT be mounted anymore if cleanup went ok:
         self.assertNotRegex(shelltest("mount"), "test_source1@test")
 
     def test_brokenpipe_cleanup_volume(self):
+        if exists("/.dockerenv"):
+            self.skipTest("FIXME: zfscheck volumes not supported in docker yet")
 
         prepare_zpools()
         shelltest("zfs create -V200M test_source1/vol")
@@ -194,7 +201,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
 
         #breaks pipe when grep exists:
         #important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
-        shelltest("python -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug | grep -m1 'Hashing file'")
+        shelltest("python -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug| grep -m1 'Hashing file'")
         # time.sleep(1)
 
         r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
