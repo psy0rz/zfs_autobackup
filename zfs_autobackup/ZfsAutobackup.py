@@ -1,9 +1,7 @@
-import time
 
 import argparse
-from datetime import datetime
 from signal import signal, SIGPIPE
-from .util import output_redir, sigpipe_handler
+from .util import output_redir, sigpipe_handler, datetime_now
 
 from .ZfsAuto import ZfsAuto
 
@@ -203,7 +201,7 @@ class ZfsAutobackup(ZfsAuto):
                 else:
                     # past the deadline?
                     deadline_ttl = ThinnerRule("0s" + self.args.destroy_missing).ttl
-                    now = int(time.time())
+                    now = datetime_now(self.args.utc).timestamp()
                     if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
                         dataset.verbose("Destroy missing: Waiting for deadline.")
                     else:
@@ -461,8 +459,7 @@ class ZfsAutobackup(ZfsAuto):
             ################# snapshotting
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
-                dt = datetime.utcnow() if self.args.utc else datetime.now()
-                snapshot_name = dt.strftime(self.snapshot_time_format)
+                snapshot_name = datetime_now(self.args.utc).strftime(self.snapshot_time_format)
                 source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,

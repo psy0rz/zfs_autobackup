@@ -1,4 +1,3 @@
-import time
 
 from .ThinnerRule import ThinnerRule
 
@@ -37,7 +36,7 @@ class Thinner:
 
         return ret
 
-    def thin(self, objects, keep_objects=None, now=None):
+    def thin(self, objects, keep_objects, now):
         """thin list of objects with current schedule rules. objects: list of
         objects to thin. every object should have timestamp attribute.
 
@@ -49,8 +48,6 @@ class Thinner:
             now: if specified, use this time as current time
         """
 
-        if not keep_objects:
-            keep_objects = []
 
         # always keep a number of the last objets?
         if self.always_keep:
@@ -67,9 +64,6 @@ class Thinner:
         time_blocks = {}
         for rule in self.rules:
             time_blocks[rule.period] = {}
-
-        if not now:
-            now = int(time.time())
 
         keeps = []
         removes = []

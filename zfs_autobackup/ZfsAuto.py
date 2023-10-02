@@ -1,8 +1,8 @@
 import argparse
 import sys
-from datetime import time, datetime
 
 from .CliBase import CliBase
+from .util import datetime_now
 
 
 class ZfsAuto(CliBase):
@@ -59,7 +59,7 @@ class ZfsAuto(CliBase):
         self.snapshot_time_format = args.snapshot_format.format(args.backup_name)
         self.hold_name = args.hold_format.format(args.backup_name)
 
-        dt = datetime.utcnow() if args.utc else datetime.now()
+        dt = datetime_now(args.utc)
 
         self.verbose("")
         self.verbose("Current time {}           : {}".format(args.utc and "UTC" or "   ", dt.strftime("%Y-%m-%d %H:%M:%S")))

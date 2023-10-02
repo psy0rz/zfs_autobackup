@@ -12,6 +12,7 @@ from .CachedProperty import CachedProperty
 from .ZfsPool import ZfsPool
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
+from .util import datetime_now
 
 
 class ZfsNode(ExecuteNode):
@@ -59,7 +60,8 @@ class ZfsNode(ExecuteNode):
     def thin(self, objects, keep_objects):
         # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
         if self.__thinner is not None:
-            return self.__thinner.thin(objects, keep_objects)
+
+            return self.__thinner.thin(objects, keep_objects, datetime_now(self.utc))
         else:
             return (keep_objects, [])
 

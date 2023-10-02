@@ -1,21 +1,9 @@
-# root@psyt14s:/home/psy/zfs_autobackup# ls -lh /home/psy/Downloads/carimage.zip
-# -rw-rw-r-- 1 psy psy 990M Nov 26  2020 /home/psy/Downloads/carimage.zip
-# root@psyt14s:/home/psy/zfs_autobackup# time sha1sum /home/psy/Downloads/carimage.zip
-# a682e1a36e16fe0d0c2f011104f4a99004f19105  /home/psy/Downloads/carimage.zip
-#
-# real	0m2.558s
-# user	0m2.105s
-# sys	0m0.448s
-# root@psyt14s:/home/psy/zfs_autobackup# time python3 -m zfs_autobackup.ZfsCheck
-#
-# real	0m1.459s
-# user	0m0.993s
-# sys	0m0.462s
 
 # NOTE: surprisingly sha1 in via python3 is faster than the native sha1sum utility, even in the way we use below!
 import os
 import platform
 import sys
+from datetime import datetime
 
 
 def tmp_name(suffix=""):
@@ -48,7 +36,7 @@ def output_redir():
 def sigpipe_handler(sig, stack):
     #redir output so we dont get more SIGPIPES during cleanup. (which my try to write to stdout)
     output_redir()
-    deb('redir')
+    #deb('redir')
 
 # def check_output():
 #     """make sure stdout still functions. if its broken, this will trigger a SIGPIPE which will be handled by the sigpipe_handler."""
@@ -63,3 +51,13 @@ def sigpipe_handler(sig, stack):
 #         fh.write("DEB: "+txt+"\n")
 
 
+# This should be the only source of trueth for the current datetime.
+# This function will be mocked during unit testing.
+
+
+datetime_now_mock=None
+def datetime_now(utc):
+    if datetime_now_mock is None:
+        return( datetime.utcnow() if utc else datetime.now())
+    else:
+        return datetime_now_mock

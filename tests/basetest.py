@@ -4,6 +4,8 @@
 
 import sys
 
+import zfs_autobackup.util
+
 #dirty hack for this error:
 #AttributeError: module 'collections' has no attribute 'MutableMapping'
 
@@ -27,6 +29,9 @@ from mock import *
 import contextlib
 import sys
 import io
+
+import datetime
+
 
 TEST_POOLS="test_source1 test_source2 test_target1"
 ZFS_USERSPACE=  subprocess.check_output("dpkg-query -W zfsutils-linux |cut -f2", shell=True).decode('utf-8').rstrip()
@@ -105,3 +110,18 @@ def prepare_zpools():
     subprocess.check_call("zfs set autobackup:test=child test_source2/fs2", shell=True)
 
     print("Prepare done")
+
+
+
+@contextlib.contextmanager
+def mocktime(time_str, format="%Y%m%d%H%M%S"):
+
+    def fake_datetime_now():
+        return datetime.datetime.strptime(time_str, format)
+
+    with patch.object(zfs_autobackup.util,'datetime_now_mock', fake_datetime_now()):
+        yield
+
+
+
+
