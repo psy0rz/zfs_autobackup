@@ -18,6 +18,15 @@ if ! [ -e /root/.ssh/id_rsa ]; then
     ssh -oStrictHostKeyChecking=no localhost true || exit 1
 fi
 
+cat >> ~/.ssh/config <<EOF
+Host *
+    addkeystoagent yes
+    controlpath ~/.ssh/control-master-%r@%h:%p
+    controlmaster auto
+    controlpersist 3600
+EOF
+
+
 modprobe brd rd_size=512000
 
 umount /tmp/ZfsCheck*
