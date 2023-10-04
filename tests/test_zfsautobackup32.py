@@ -138,37 +138,63 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 
 
 
-    #XXX: VERBERTERING VAN ADD VIRTUALSNAPSHOTS IN GIT STASH!
-    def test_thinning(self):
+    def test_transfer_thinning(self):
+        # test pre/post/during transfer thinning and efficient transfer (no transerring of stuff that gets deleted on target)
 
-        # time_str = "20111112000000"  # month in the "future"
-        # future_timestamp = time_secs = time.mktime(time.strptime(time_str, "%Y%m%d%H%M%S"))
-        # with patch('time.time', return_value=future_timestamp):
+        #less output
+        shelltest("zfs set autobackup:test2=true test_source1/fs1/sub")
 
-        with  mocktime("20001001000000"):
-            print(datetime_now(False))
-            self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint --verbose".split(" ")).run())
+        # nobody wants this one, will be destroyed before transferring (over a year ago)
+        with mocktime("20000101000000"):
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
 
-#         with mocktime("20001101000000"):
-#             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint test_target1 --no-progress --allow-empty --clear-mountpoint".split(" ")).run())
-#
-#         with mocktime("20001201000000"):
-#             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint".split(" ")).run())
-#
-#         with mocktime("20001202000000"):
-#             self.assertFalse(ZfsAutobackup("test --allow-empty --clear-mountpoint".split(" ")).run())
-#
-#         time_str="test-20001203000000"
-#         with patch('time.time', return_value=time.mktime(time.strptime(time_str, "test-%Y%m%d%H%M%S"))):
-#             with patch('time.strftime', return_value=time_str):
-#                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --allow-empty --clear-mountpoint --keep-source=1d2d".split(" ")).run())
-#
-#
-#
-#             r=shelltest("zfs list -H -o name -r -t snapshot test_source1 test_target1")
-#             self.assertMultiLineEqual(r,"""
-# /test_target1
-# /test_target1/test_source1/fs1
-# /test_target1/test_source1/fs1/sub
-# /test_target1/test_source2/fs2/sub
-# """)
+        # only target wants this one (monthlys)
+        with mocktime("20010101000000"):
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+
+        # both want this one (dayly + monthly)
+        # other snapshots should influence the middle one that we actually want.
+        with mocktime("20010201000000"):
+            shelltest("zfs snapshot test_source1/fs1/sub@other1")
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+            shelltest("zfs snapshot test_source1/fs1/sub@other2")
+
+        # only source wants this one (dayly)
+        with mocktime("20010202000000"):
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+
+        #will become common snapshot
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                with mocktime("20010203000000"):
+                    self.assertFalse(ZfsAutobackup("--keep-source=1d10d --keep-target=1m10m --allow-empty --verbose --clear-mountpoint --other-snapshots test2 test_target1".split(" ")).run())
+
+
+            print(buf.getvalue())
+            self.assertIn(
+"""
+  [Source] test_source1/fs1/sub@test2-20000101000000: Destroying
+  [Source] test_source1/fs1/sub@test2-20010101000000: -> test_target1/test_source1/fs1/sub (new)
+  [Source] test_source1/fs1/sub@other1: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@test2-20010101000000: Destroying
+  [Source] test_source1/fs1/sub@test2-20010201000000: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@other2: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@test2-20010203000000: -> test_target1/test_source1/fs1/sub
+""", buf.getvalue())
+
+
+        r=shelltest("zfs list -H -o name -r -t snapshot test_source1 test_target1")
+        self.assertMultiLineEqual(r,"""
+test_source1/fs1/sub@other1
+test_source1/fs1/sub@test2-20010201000000
+test_source1/fs1/sub@other2
+test_source1/fs1/sub@test2-20010202000000
+test_source1/fs1/sub@test2-20010203000000
+test_target1/test_source1/fs1/sub@test2-20010101000000
+test_target1/test_source1/fs1/sub@other1
+test_target1/test_source1/fs1/sub@test2-20010201000000
+test_target1/test_source1/fs1/sub@other2
+test_target1/test_source1/fs1/sub@test2-20010203000000
+""")
+
+
