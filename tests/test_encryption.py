@@ -224,3 +224,66 @@ test_target1/test_source2                      encryptionroot  -                
 test_target1/test_source2/fs2                  encryptionroot  -                                              -
 test_target1/test_source2/fs2/sub              encryptionroot  -                                              -
 """)
+
+
+    def  test_resume_encrypt_with_no_key(self):
+        """test what happens if target encryption key not loaded (this led to a kernel crash of freebsd with 2.1.x i think) while trying to resume"""
+
+        self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
+        self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
+
+
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --encrypt --allow-empty --exclude-received --clear-mountpoint".split(" ")).run())
+
+        r = shelltest("zfs set compress=off test_source1 test_target1")
+
+        # big change on source
+        r = shelltest("dd if=/dev/zero of=/test_source1/fs1/data bs=250M count=1")
+
+        # waste space on target
+        r = shelltest("dd if=/dev/zero of=/test_target1/waste bs=250M count=1")
+
+        # should fail and leave resume token
+        with mocktime("20101111000001"):
+            self.assertTrue(ZfsAutobackup(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --exclude-received --allow-empty --clear-mountpoint".split(
+                    " ")).run())
+        #
+        # free up space
+        r = shelltest("rm /test_target1/waste")
+
+        # sync
+        r = shelltest("zfs umount test_target1")
+        r = shelltest("zfs mount test_target1")
+
+        #
+        # #unload key
+        shelltest("zfs unload-key test_target1/encryptedtarget")
+
+        # resume
+        with mocktime("20101111000001"):
+            self.assertEqual(ZfsAutobackup(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --exclude-received --allow-empty --no-snapshot --clear-mountpoint".split(
+                    " ")).run(),3)
+
+
+
+        r = shelltest("zfs get -r -t all encryptionroot test_target1")
+        self.assertEqual(r, """
+NAME                                                                               PROPERTY        VALUE                                                          SOURCE
+test_target1                                                                       encryptionroot  -                                                              -
+test_target1/encryptedtarget                                                       encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1                                          encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1/fs1                                      encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1/fs1@test-20101111000000                  encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1/fs1/encryptedsource                      encryptionroot  test_target1/encryptedtarget/test_source1/fs1/encryptedsource  -
+test_target1/encryptedtarget/test_source1/fs1/encryptedsource@test-20101111000000  encryptionroot  test_target1/encryptedtarget/test_source1/fs1/encryptedsource  -
+test_target1/encryptedtarget/test_source1/fs1/encryptedsource@test-20101111000001  encryptionroot  test_target1/encryptedtarget/test_source1/fs1/encryptedsource  -
+test_target1/encryptedtarget/test_source1/fs1/sub                                  encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source1/fs1/sub@test-20101111000000              encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2                                          encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2/fs2                                      encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2/fs2/sub                                  encryptionroot  test_target1/encryptedtarget                                   -
+test_target1/encryptedtarget/test_source2/fs2/sub@test-20101111000000              encryptionroot  test_target1/encryptedtarget                                   -
+""")
