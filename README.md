@@ -57,6 +57,8 @@ An important feature that's missing from other tools is a reliable `--test` opti
 
 Please look at our wiki to [Get started](https://github.com/psy0rz/zfs_autobackup/wiki).
 
+Or read the [Full manual](Manual)
+
 # Sponsor list
 
 This project was sponsorred by:
