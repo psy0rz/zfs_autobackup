@@ -10,6 +10,13 @@ from .ZfsNode import ZfsNode
 from .util import *
 from .CliBase import CliBase
 
+from hashlib import algorithms_available
+from copy import copy
+xxhash = None
+try:
+    import xxhash
+except:
+    pass
 
 class ZfsCheck(CliBase):
 
@@ -20,7 +27,17 @@ class ZfsCheck(CliBase):
 
         self.node = ZfsNode(self.log, utc=self.args.utc, readonly=self.args.test, debug_output=self.args.debug_output)
 
-        self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size, skip=self.args.skip)
+        self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size, skip=self.args.skip, hash_class=self.args.hash)
+
+    def determine_algorithms_available(self):
+        self.algorithms_available = copy(algorithms_available)
+        
+        if None != xxhash:
+            for value in ( 'xxh128', 'xxh32', 'xxh3_128', 'xxh3_64', 'xxh64' ):
+                self.algorithms_available.add(value)
+            self.hash_default = 'xxh3_64'
+        else:
+            self.hash_default = 'sha1'
 
     def get_parser(self):
 
@@ -42,6 +59,9 @@ class ZfsCheck(CliBase):
         group.add_argument('--skip', '-s', metavar="NUMBER", default=0, type=int,
                            help="Skip this number of chunks after every hash. %(default)s")
 
+        self.determine_algorithms_available()
+        group.add_argument('--hash', default=self.hash_default,
+                           help="Specify the hashing algorithm to use", choices=sorted([item for item in self.algorithms_available]))
         return parser
 
     def parse_args(self, argv):
