@@ -57,14 +57,7 @@ class ZfsNode(ExecuteNode):
 
         ExecuteNode.__init__(self, ssh_config=ssh_config, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
-    def thin_list(self, objects, keep_objects):
-        """
-
-        :return: ( keeps, removes )
-        :type objects: list[ZfsDataset]
-        :type keep_objects: list[ZfsDataset]
-        :rtype: ( list[ZfsDataset], list[ZfsDataset] )
-        """
+    def thin(self, objects, keep_objects):
         # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
         if self.__thinner is not None:
 
@@ -115,24 +108,9 @@ class ZfsNode(ExecuteNode):
         return self.__pools.setdefault(zpool_name, ZfsPool(self, zpool_name))
 
     def get_dataset(self, name, force_exists=None):
-        """get a ZfsDataset() object from name. stores objects internally to enable caching
-        :rtype: ZfsDataset
-        """
+        """get a ZfsDataset() object from name. stores objects internally to enable caching"""
 
         return self.__datasets.setdefault(name, ZfsDataset(self, name, force_exists))
-
-    def get_datasets(self, names, force_exists=None):
-        """get a list of ZfsDataset() object from names. stores objects internally to enable caching
-        :rtype: list[ZfsDataset]
-
-        """
-
-        ret=[]
-        for name in names:
-            ret.append(self.get_dataset(name, force_exists))
-
-        return ret
-
 
     # def reset_progress(self):
     #     """reset progress output counters"""

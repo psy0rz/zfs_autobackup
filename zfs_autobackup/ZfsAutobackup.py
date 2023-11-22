@@ -163,7 +163,7 @@ class ZfsAutobackup(ZfsAuto):
 
             try:
                 dataset.debug("Missing on source, thinning")
-                dataset.thin_list()
+                dataset.thin()
 
             except Exception as e:
                 dataset.error("Error during thinning of missing datasets ({})".format(str(e)))
@@ -421,7 +421,7 @@ class ZfsAutobackup(ZfsAuto):
         self.set_title("Thinning source")
 
         for source_dataset in source_datasets:
-            source_dataset.thin_list(skip_holds=True)
+            source_dataset.thin(skip_holds=True)
 
     def filter_properties_list(self):
 
