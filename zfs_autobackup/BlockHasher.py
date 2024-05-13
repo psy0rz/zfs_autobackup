@@ -1,6 +1,11 @@
 import hashlib
 import os
 
+xxhash = None
+try:
+    import xxhash
+except:
+    pass
 
 class BlockHasher():
     """This class was created to checksum huge files and blockdevices (TB's)
@@ -16,7 +21,7 @@ class BlockHasher():
 
     """
 
-    def __init__(self, count=10000, bs=4096, hash_class=hashlib.sha1, skip=0):
+    def __init__(self, count=10000, bs=4096, hash_class=None, skip=0):
         self.count = count
         self.bs = bs
         self.chunk_size=bs*count
@@ -28,6 +33,11 @@ class BlockHasher():
 
         self.stats_total_bytes=0
 
+    def hash_factory(self):
+        if self.hash_class in hashlib.algorithms_available:
+            return hashlib.new(self.hash_class)
+        if self.hash_class.startswith('xxh'):
+            return getattr(xxhash, self.hash_class)()
 
     def _seek_next_chunk(self, fh, fsize):
         """seek fh to next chunk and update skip counter.
@@ -80,7 +90,7 @@ class BlockHasher():
                     return
 
                 #read chunk
-                hash = self.hash_class()
+                hash = self.hash_factory()
                 block_nr = 0
                 while block_nr != self.count:
                     block=fh.read(self.bs)
@@ -105,7 +115,7 @@ class BlockHasher():
                     try:
 
                         checked = checked + 1
-                        hash = self.hash_class()
+                        hash = self.hash_factory()
                         f.seek(int(chunk_nr) * self.bs * self.count)
                         block_nr = 0
                         for block in iter(lambda: f.read(self.bs), b""):
