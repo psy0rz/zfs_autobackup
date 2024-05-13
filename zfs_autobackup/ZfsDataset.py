@@ -22,12 +22,13 @@ class ZfsDataset:
     def __init__(self, zfs_node, name, force_exists=None):
         """
         Args:
-            :type zfs_node: ZfsNode
+            :type zfs_node: ZfsNode.ZfsNode
             :type name: str
             :type force_exists: bool
         """
         self.zfs_node = zfs_node
         self.name = name  # full name
+        self._virtual_snapshots = []
         self.invalidate()
         self.force_exists = force_exists
 
@@ -35,7 +36,6 @@ class ZfsDataset:
         return "{}: {}".format(self.zfs_node, self.name)
 
     def __str__(self):
-
         return self.name
 
     def __eq__(self, obj):
@@ -76,6 +76,7 @@ class ZfsDataset:
         """clear caches"""
         CachedProperty.clear(self)
         self.force_exists = None
+        self._virtual_snapshots = []
 
     def split_path(self):
         """return the path elements as an array"""
@@ -364,7 +365,7 @@ class ZfsDataset:
             return True
 
     def is_ours(self):
-        """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
+        """return true if this snapshot name has format"""
         try:
             test = self.timestamp
         except ValueError as e:
@@ -417,6 +418,17 @@ class ZfsDataset:
                 seconds = time.mktime(dt.timetuple())
         return seconds
 
+    def from_names(self, names, force_exists=None):
+        """convert a list[names] to a list ZfsDatasets for this zfs_node
+
+        Args:
+            :type names: list[str]
+        """
+        ret = []
+        for name in names:
+            ret.append(self.zfs_node.get_dataset(name, force_exists))
+
+        return ret
 
     # def add_virtual_snapshot(self, snapshot):
     #     """pretend a snapshot exists (usefull in test mode)"""
@@ -437,13 +449,17 @@ class ZfsDataset:
         :rtype: ZfsDataset
         """
 
+        #FIXME: dont check for existance. (currenlty needed for _add_virtual_snapshots)
+        if not self.exists:
+            return []
+
         self.debug("Getting snapshots")
 
         cmd = [
             "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
         ]
 
-        return self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
+        return self.from_names(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
 
     @property
     def our_snapshots(self):
@@ -542,7 +558,7 @@ class ZfsDataset:
             "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
         ])
 
-        return self.zfs_node.get_datasets(names[1:], force_exists=True)
+        return self.from_names(names[1:], force_exists=True)
 
     @CachedProperty
     def datasets(self, types="filesystem,volume"):
@@ -558,7 +574,7 @@ class ZfsDataset:
             "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
         ])
 
-        return self.zfs_node.get_datasets(names[1:], force_exists=True)
+        return self.from_names(names[1:], force_exists=True)
 
     def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded,
                   send_pipes, zfs_compressed):
@@ -835,7 +851,7 @@ class ZfsDataset:
 
         snapshots = [snapshot for snapshot in self.our_snapshots if snapshot not in ignores]
 
-        return self.zfs_node.thin_list(snapshots, keep_objects=keeps)
+        return self.zfs_node.thin(snapshots, keep_objects=keeps)
 
     def thin(self, skip_holds=False):
         """destroys snapshots according to thin_list, except last snapshot
@@ -861,7 +877,7 @@ class ZfsDataset:
             :type target_dataset: ZfsDataset
         """
 
-        if not target_dataset.exists or not target_dataset.snapshots:
+        if not target_dataset.snapshots:
             # target has nothing yet
             return None
         else:
@@ -869,7 +885,7 @@ class ZfsDataset:
                 target_snapshot = target_dataset.find_snapshot(source_snapshot)
                 if target_snapshot:
                     if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
-                        target_snapshot.warning("Common snapshots have mismatching GUID, ignoring.")
+                        target_snapshot.warning("Common snapshot has invalid guid, ignoring.")
                     else:
                         target_snapshot.debug("common snapshot")
                         return source_snapshot
@@ -1023,12 +1039,7 @@ class ZfsDataset:
                     return resume_token
 
     def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw):
-        """Determine at what snapshot to start syncing and what to sync and what to keep.
-
-
-
-
-
+        """plan where to start syncing and what to sync and what to keep
 
         Args:
             :rtype: ( ZfsDataset, ZfsDataset, list[ZfsDataset], list[ZfsDataset], list[ZfsDataset], list[ZfsDataset] )
@@ -1036,16 +1047,6 @@ class ZfsDataset:
             :type also_other_snapshots: bool
             :type guid_check: bool
             :type raw: bool
-
-        Returns:
-            tuple: A tuple containing:
-                - ZfsDataset: The common snapshot
-                - ZfsDataset: The start snapshot
-                - list[ZfsDataset]: Our obsolete source snapshots, after transfer is done. (will be thinned asap)
-                - list[ZfsDataset]: Our obsolete target snapshots, after transfer is done. (will be thinned asap)
-                - list[ZfsDataset]: Target snapshots that should be kept. This is after the sync would be done, so there are snapshots in it that still need to be transferred.
-                - list[ZfsDataset]: Incompatible target snapshots. Target snapshots that are in the way, after the common snapshot. (need to be destroyed to continue)
-
         """
 
         # determine common and start snapshot
@@ -1054,32 +1055,18 @@ class ZfsDataset:
         start_snapshot = self.find_start_snapshot(common_snapshot, also_other_snapshots)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot, raw)
 
-        # let thinner decide whats obsolete on source after the transfer is done, keeping the last snapshot as common.
+        # let thinner decide whats obsolete on source
         source_obsoletes = []
         if self.our_snapshots:
             source_obsoletes = self.thin_list(keeps=[self.our_snapshots[-1]])[1]
 
-
-        # a list of all our possible target snapshots
-        possible_target_snapshots=[]
-
-        # start with snapshots that already exist, minus imcompatibles
-        if target_dataset.exists:
-            possible_target_snapshots = [snapshot for snapshot in target_dataset.our_snapshots if snapshot not in incompatible_target_snapshots]
-
-        #add our snaphots from the source to target list
-        source_snapshot = start_snapshot
-        while source_snapshot:
-            target_snapshot=target_dataset.zfs_node.get_dataset(target_dataset.filesystem_name + "@" + source_snapshot.snapshot_name, force_exists=False)
-            if target_snapshot.is_ours():
-                possible_target_snapshots.append(target_snapshot)
-            source_snapshot = self.find_next_snapshot(source_snapshot, False)
-
-        #let the thinner decide what it wants to keep after the transfer is done.
+        # let thinner decide keeps/obsoletes on target, AFTER the transfer would be done (by using virtual snapshots)
+        target_dataset._add_virtual_snapshots(self, start_snapshot, also_other_snapshots)
         target_keeps = []
         target_obsoletes = []
-        if possible_target_snapshots:
-            (target_keeps, target_obsoletes)=target_dataset.zfs_node.thin_list(possible_target_snapshots, keep_objects=[possible_target_snapshots[-1]])
+        if target_dataset.our_snapshots:
+            (target_keeps, target_obsoletes) = target_dataset.thin_list(keeps=[target_dataset.our_snapshots[-1]],
+                                                                        ignores=incompatible_target_snapshots)
 
         return common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps, incompatible_target_snapshots
 
@@ -1146,7 +1133,6 @@ class ZfsDataset:
                 # keep data encrypted by sending it raw (including properties)
                 raw = True
 
-        #note: only target_obsoletes is used during sync, to check if target doesnt want the snapshot
         (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_keeps,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,

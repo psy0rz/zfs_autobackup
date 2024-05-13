@@ -61,7 +61,8 @@ Or read the [Full manual](https://github.com/psy0rz/zfs_autobackup/wiki/Manual)
 
 # Sponsor list
 
-This project was sponsorred by:
+This project was sponsored by:
 
-* JetBrains (Provided me with a license for their whole professional product line, https://www.jetbrains.com/pycharm/ )
+* JetBrains 
+* https://rsync.net
 * [DatuX](https://www.datux.nl) 
