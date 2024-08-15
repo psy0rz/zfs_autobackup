@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 
 from .CliBase import CliBase
@@ -111,6 +112,14 @@ class ZfsAuto(CliBase):
         group.add_argument('--include-received', action='store_true',
                             help=argparse.SUPPRESS)
 
+
+        def regex_argument_type(input_line):
+            """Parses regex arguments into re.Pattern objects"""
+            try:
+                return re.compile(input_line)
+            except:
+                raise ValueError("Could not parse argument '{}' as a regular expression".format(input_line))
+        group.add_argument('--exclude-snapshot-pattern', action='append', default=[], type=regex_argument_type, help="Regular expression to match snapshots that will be ignored.")
 
         return parser
 

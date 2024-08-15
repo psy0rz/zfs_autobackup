@@ -20,7 +20,7 @@ class ZfsNode(ExecuteNode):
 
     def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None, readonly=False,
                  description="",
-                 debug_output=False, thinner=None):
+                 debug_output=False, thinner=None, exclude_snapshot_patterns=[]):
 
         self.utc = utc
         self.snapshot_time_format = snapshot_time_format
@@ -29,6 +29,8 @@ class ZfsNode(ExecuteNode):
         self.description = description
 
         self.logger = logger
+
+        self.exclude_snapshot_patterns = exclude_snapshot_patterns
 
         if ssh_config:
             self.verbose("Using custom SSH config: {}".format(ssh_config))
