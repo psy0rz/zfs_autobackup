@@ -472,7 +472,8 @@ class ZfsAutobackup(ZfsAuto):
                                   snapshot_time_format=self.snapshot_time_format, hold_name=self.hold_name, logger=self,
                                   ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
-                                  debug_output=self.args.debug_output, description=description, thinner=source_thinner)
+                                  debug_output=self.args.debug_output, description=description, thinner=source_thinner,
+                                  exclude_snapshot_patterns=self.args.exclude_snapshot_pattern)
 
             ################# select source datasets
             self.set_title("Selecting")

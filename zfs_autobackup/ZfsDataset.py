@@ -124,6 +124,20 @@ class ZfsDataset:
     def is_snapshot(self):
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
+    
+    @property
+    def is_excluded(self):
+        """true if this dataset is a snapshot and matches the exclude pattern"""
+        if not self.is_snapshot:
+            return False
+        
+
+        for pattern in self.zfs_node.exclude_snapshot_patterns:
+            if pattern.search(self.name) is not None:
+                self.debug("Excluded (path matches snapshot exclude pattern)")
+                return True
+        
+        
 
     def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged):
         """determine if dataset should be selected for backup (called from
@@ -1171,7 +1185,7 @@ class ZfsDataset:
             target_snapshot = target_dataset.find_snapshot(source_snapshot)  # still virtual
 
             # does target actually want it?
-            if target_snapshot not in target_obsoletes:
+            if target_snapshot not in target_obsoletes and not source_snapshot.is_excluded:
 
                 # do the rollback, one time at first transfer
                 if do_rollback:
