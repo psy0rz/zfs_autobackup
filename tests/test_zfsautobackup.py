@@ -886,7 +886,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         r=shelltest("dd if=/dev/zero of=/test_source1/data.txt bs=200000 count=1")
         r = shelltest("zfs snapshot test_source1@test")
 
-        l=LogConsole(show_verbose=True, show_debug=False, color=False)
+        l=LogConsole(show_verbose=True, show_debug=True, color=False)
         n=ZfsNode(utc=False, snapshot_time_format="bla", hold_name="bla", logger=l)
         d=ZfsDataset(n,"test_source1@test")
 
@@ -896,10 +896,10 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with OutputIO() as buf:
             with redirect_stderr(buf):
                 try:
-                    n.run(["sleep", "10"], inp=sp)
+                    n.run(["sleep", "3"], inp=sp)
                 except:
                     pass
 
-            print(buf.getvalue())
+            print(list(buf.getvalue()))
             # correct message?
             self.assertRegex(buf.getvalue(),".*>>> .*minutes left.*")
