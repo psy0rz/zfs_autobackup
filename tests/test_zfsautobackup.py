@@ -883,7 +883,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
 
     def test_progress(self):
 
-        r=shelltest("dd if=/dev/zero of=/test_source1/data.txt bs=200000 count=1")
+        r=shelltest("dd if=/dev/urandom of=/test_source1/data.txt bs=5M count=1")
         r = shelltest("zfs snapshot test_source1@test")
 
         l=LogConsole(show_verbose=True, show_debug=True, color=False)
@@ -893,10 +893,15 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         sp=d.send_pipe([], prev_snapshot=None, resume_token=None, show_progress=True, raw=False, send_pipes=[], send_properties=True, write_embedded=True, zfs_compressed=True)
 
 
+
+
         with OutputIO() as buf:
             with redirect_stderr(buf):
                 try:
-                    n.run(["sleep", "3"], inp=sp)
+
+                    p=n.run(["mbuffer", "-R1M", "-m4096", "-o" ,"/dev/null"], inp=sp)
+                    # p=n.run(["dd", "of=/dev/null"], inp=sp)
+
                 except:
                     pass
 
