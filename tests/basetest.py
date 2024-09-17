@@ -1,4 +1,4 @@
-
+import os
 # To run tests as non-root, use this hack:
 # chmod 4755 /usr/sbin/zpool /usr/sbin/zfs
 
@@ -50,6 +50,10 @@ if sys.version_info.major==2:
     OutputIO=io.BytesIO
 else:
     OutputIO=io.StringIO
+
+# for when we're using a suid-root python binary during development
+os.setuid(0)
+os.setgid(0)
 
 
 # for python2 compatibility (python 3 has this already)
