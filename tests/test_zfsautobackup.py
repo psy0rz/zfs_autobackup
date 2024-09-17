@@ -896,7 +896,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with OutputIO() as buf:
             with redirect_stderr(buf):
                 try:
-                    n.run(["sleep", "2"], inp=sp)
+                    n.run(["sleep", "10"], inp=sp)
                 except:
                     pass
 
