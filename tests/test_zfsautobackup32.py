@@ -163,9 +163,9 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         with mocktime("20010202000000"):
             self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
 
-        #will become common snapshot
         with OutputIO() as buf:
             with redirect_stdout(buf):
+                # now do thinning and transfer all at once
                 with mocktime("20010203000000"):
                     self.assertFalse(ZfsAutobackup("--keep-source=1d10d --keep-target=1m10m --allow-empty --verbose --clear-mountpoint --other-snapshots test2 test_target1".split(" ")).run())
 

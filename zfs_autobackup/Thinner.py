@@ -70,24 +70,30 @@ class Thinner:
 
         # traverse objects
         for thisobject in objects:
-            # important they are ints!
-            timestamp = int(thisobject.timestamp)
-            age = int(now) - timestamp
 
-            # store in the correct time blocks, per period-size, if not too old yet
-            # e.g.: look if there is ANY timeblock that wants to keep this object
-            keep = False
-            for rule in self.rules:
-                if age <= rule.ttl:
-                    block_nr = int(timestamp / rule.period)
-                    if block_nr not in time_blocks[rule.period]:
-                        time_blocks[rule.period][block_nr] = True
-                        keep = True
-
-            # keep it according to schedule, or keep it because it is in the keep_objects list
-            if keep or thisobject in keep_objects or thisobject in always_keep_objects:
+            #ignore stuff without timestamp, always keep those.
+            if thisobject.timestamp is None:
                 keeps.append(thisobject)
             else:
-                removes.append(thisobject)
+
+                # important they are ints!
+                timestamp = int(thisobject.timestamp)
+                age = int(now) - timestamp
+
+                # store in the correct time blocks, per period-size, if not too old yet
+                # e.g.: look if there is ANY timeblock that wants to keep this object
+                keep = False
+                for rule in self.rules:
+                    if age <= rule.ttl:
+                        block_nr = int(timestamp / rule.period)
+                        if block_nr not in time_blocks[rule.period]:
+                            time_blocks[rule.period][block_nr] = True
+                            keep = True
+
+                # keep it according to schedule, or keep it because it is in the keep_objects list
+                if keep or thisobject in keep_objects or thisobject in always_keep_objects:
+                    keeps.append(thisobject)
+                else:
+                    removes.append(thisobject)
 
         return keeps, removes
