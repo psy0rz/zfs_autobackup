@@ -379,12 +379,7 @@ class ZfsDataset:
 
     def is_ours(self):
         """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
-        try:
-            test = self.timestamp
-        except ValueError as e:
-            return False
-
-        return True
+        return self.timestamp is not None
 
     @property
     def holds(self):
@@ -417,10 +412,11 @@ class ZfsDataset:
         :rtype: int|None
         """
 
-        if not self.is_ours():
+        try:
+            dt = datetime.strptime(self.snapshot_name, self.zfs_node.snapshot_time_format)
+        except ValueError:
             return None
 
-        dt = datetime.strptime(self.snapshot_name, self.zfs_node.snapshot_time_format)
         if sys.version_info[0] >= 3:
             from datetime import timezone
             if self.zfs_node.utc:
@@ -1057,7 +1053,7 @@ class ZfsDataset:
         Returns:
             tuple: A tuple containing:
                 - ZfsDataset: The common snapshot
-                - ZfsDataset: The start snapshot
+                - ZfsDataset: The start snapshotplan_
                 - list[ZfsDataset]: Our obsolete source snapshots, after transfer is done. (will be thinned asap)
                 - list[ZfsDataset]: Our obsolete target snapshots, after transfer is done. (will be thinned asap)
                 - list[ZfsDataset]: Transfer target snapshots. These need to be transferred.
