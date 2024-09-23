@@ -123,20 +123,20 @@ class ZfsDataset:
     def is_snapshot(self):
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
-    
+
     @property
     def is_excluded(self):
         """true if this dataset is a snapshot and matches the exclude pattern"""
         if not self.is_snapshot:
             return False
-        
+
 
         for pattern in self.zfs_node.exclude_snapshot_patterns:
             if pattern.search(self.name) is not None:
                 self.debug("Excluded (path matches snapshot exclude pattern)")
                 return True
-        
-        
+
+
 
     def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged):
         """determine if dataset should be selected for backup (called from
@@ -450,7 +450,7 @@ class ZfsDataset:
     @CachedProperty
     def snapshots(self):
         """get all snapshots of this dataset
-        :rtype: ZfsDataset
+        :rtype: list[ZfsDataset]
         """
 
         self.debug("Getting snapshots")
@@ -471,12 +471,25 @@ class ZfsDataset:
 
         return ret
 
+    def find_snapshot_in_list(self, snapshots):
+        """return ZfsDataset from the list of snapshots, if it matches the snapshot_name. Otherwise None
+        Args:
+            :type snapshots: list[ZfsDataset]
+            :rtype: ZfsDataset|None
+        """
+
+        for snapshot in snapshots:
+            if snapshot.snapshot_name==self.snapshot_name:
+                return snapshot
+
+        return None
+
     def find_snapshot(self, snapshot):
-        """find snapshot by snapshot (can be a snapshot_name or a different
-        ZfsDataset )
+        """find snapshot by snapshot name (can be a snapshot_name or a different
+        ZfsDataset) Returns None if it cant find it.
 
         Args:
-            :rtype: ZfsDataset
+            :rtype: ZfsDataset|None
             :type snapshot: str or ZfsDataset
         """
 
@@ -984,39 +997,31 @@ class ZfsDataset:
     #         self.snapshots.append(virtual_snapshot)
     #         snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
-    def _pre_clean(self, common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
+    def _pre_clean(self, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
         """cleanup old stuff before starting snapshot syncing
 
         Args:
-            :type common_snapshot: ZfsDataset
+            :type source_common_snapshot: ZfsDataset
             :type target_dataset: ZfsDataset
             :type source_obsoletes: list[ZfsDataset]
             :type target_obsoletes: list[ZfsDataset]
             :type target_transfers: list[ZfsDataset]
         """
 
-        # on source: destroy all obsoletes before common. (since we cant send them anyways)
-        # But after common, only delete snapshots that target also doesn't want
-        if common_snapshot:
-            before_common = True
-        else:
-            before_common = False
-
+        # on source: delete all obsoletes that are not in target_transfers (except common snapshot)
         for source_snapshot in self.snapshots:
-            if common_snapshot and source_snapshot.snapshot_name == common_snapshot.snapshot_name:
-                before_common = False
-                # never destroy common snapshot
-            else:
-                target_snapshot = target_dataset.find_snapshot(source_snapshot)
-                if (source_snapshot in source_obsoletes) and (before_common or (target_snapshot not in target_transfers)):
-                    source_snapshot.destroy()
+            if (source_snapshot in source_obsoletes
+                    and source_common_snapshot!=source_snapshot
+                    and source_snapshot.find_snapshot_in_list(target_transfers) is None):
+                source_snapshot.destroy()
 
         # on target: destroy everything thats obsolete, except common_snapshot
-        for target_snapshot in target_dataset.snapshots:
-            if (target_snapshot in target_obsoletes) \
-                    and (not common_snapshot or (target_snapshot.snapshot_name != common_snapshot.snapshot_name)):
-                if target_snapshot.exists:
-                    target_snapshot.destroy()
+        if target_dataset.exists:
+            for target_snapshot in target_dataset.snapshots:
+                if (target_snapshot in target_obsoletes) \
+                        and (not source_common_snapshot or (target_snapshot.snapshot_name != source_common_snapshot.snapshot_name)):
+                    if target_snapshot.exists:
+                        target_snapshot.destroy()
 
     def _validate_resume_token(self, target_dataset, start_snapshot):
         """validate and get (or destory) resume token
@@ -1063,9 +1068,9 @@ class ZfsDataset:
 
         # determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
-        common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
-        start_snapshot = self.find_start_snapshot(common_snapshot, also_other_snapshots)
-        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(common_snapshot, raw)
+        source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
+        start_snapshot = self.find_start_snapshot(source_common_snapshot, also_other_snapshots)
+        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(source_common_snapshot, raw)
 
         # let thinner decide whats obsolete on source after the transfer is done, keeping the last snapshot as common.
         source_obsoletes = []
@@ -1084,7 +1089,7 @@ class ZfsDataset:
         #Add all snapshots from the source to the target list, as a virtual snapshot that doesnt exist yet (force_exist=False)
         source_snapshot = start_snapshot
         while source_snapshot:
-            if also_other_snapshots or source_snapshot.is_ours():
+            if (also_other_snapshots or source_snapshot.is_ours()) and not source_snapshot.is_excluded:
                 # virtual target snapshot
                 target_snapshot=target_dataset.zfs_node.get_dataset(target_dataset.filesystem_name + "@" + source_snapshot.snapshot_name, force_exists=False)
                 possible_target_snapshots.append(target_snapshot)
@@ -1099,7 +1104,7 @@ class ZfsDataset:
             if not target_keep.exists:
                 target_transfers.append(target_keep)
 
-        return common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_transfers, incompatible_target_snapshots
+        return source_common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_transfers, incompatible_target_snapshots
 
     def handle_incompatible_snapshots(self, incompatible_target_snapshots, destroy_incompatible):
         """destroy incompatbile snapshots on target before sync, or inform user
@@ -1165,7 +1170,7 @@ class ZfsDataset:
                 raw = True
 
         #note: only target_obsoletes is used during sync, to check if target doesnt want the snapshot
-        (common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_transfers,
+        (source_common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
                             guid_check=guid_check, raw=raw)
@@ -1173,7 +1178,7 @@ class ZfsDataset:
         # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
         self._pre_clean(
-            common_snapshot=common_snapshot, target_dataset=target_dataset,
+            source_common_snapshot=source_common_snapshot, target_dataset=target_dataset,
             target_transfers=target_transfers, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
 
         # handle incompatible stuff on target
@@ -1196,59 +1201,49 @@ class ZfsDataset:
             write_embedded = False
 
         # now actually transfer the snapshots
-        prev_source_snapshot = common_snapshot
+        prev_source_snapshot = source_common_snapshot
         source_snapshot = start_snapshot
         do_rollback = rollback
         while source_snapshot:
-            target_snapshot = target_dataset.find_snapshot(source_snapshot)  # still virtual
+            target_snapshot = source_snapshot.find_snapshot_in_list(target_transfers)
 
-            # does target actually want it?
-            if target_snapshot not in target_obsoletes and not source_snapshot.is_excluded:
+            # do the rollback, one time at first transfer
+            if do_rollback:
+                target_dataset.rollback()
+                do_rollback = False
 
-                # do the rollback, one time at first transfer
-                if do_rollback:
-                    target_dataset.rollback()
-                    do_rollback = False
+            source_snapshot.transfer_snapshot(target_snapshot, features=features,
+                                              prev_snapshot=prev_source_snapshot, show_progress=show_progress,
+                                              filter_properties=active_filter_properties,
+                                              set_properties=active_set_properties,
+                                              ignore_recv_exit_code=ignore_recv_exit_code,
+                                              resume_token=resume_token, write_embedded=write_embedded, raw=raw,
+                                              send_properties=send_properties, send_pipes=send_pipes,
+                                              recv_pipes=recv_pipes, zfs_compressed=zfs_compressed, force=force)
 
-                source_snapshot.transfer_snapshot(target_snapshot, features=features,
-                                                  prev_snapshot=prev_source_snapshot, show_progress=show_progress,
-                                                  filter_properties=active_filter_properties,
-                                                  set_properties=active_set_properties,
-                                                  ignore_recv_exit_code=ignore_recv_exit_code,
-                                                  resume_token=resume_token, write_embedded=write_embedded, raw=raw,
-                                                  send_properties=send_properties, send_pipes=send_pipes,
-                                                  recv_pipes=recv_pipes, zfs_compressed=zfs_compressed, force=force)
+            resume_token = None
 
-                resume_token = None
+            # hold the new common snapshots and release the previous ones
+            if holds:
+                target_snapshot.hold()
+                source_snapshot.hold()
 
-                # hold the new common snapshots and release the previous ones
+            if prev_source_snapshot:
                 if holds:
-                    target_snapshot.hold()
-                    source_snapshot.hold()
+                    prev_source_snapshot.release()
+                    target_dataset.find_snapshot(prev_source_snapshot).release()
 
-                if prev_source_snapshot:
-                    if holds:
-                        prev_source_snapshot.release()
-                        target_dataset.find_snapshot(prev_source_snapshot).release()
+            # we may now destroy the previous source snapshot if its obsolete
+            if prev_source_snapshot in source_obsoletes:
+                prev_source_snapshot.destroy()
 
-                # we may now destroy the previous source snapshot if its obsolete
-                if prev_source_snapshot in source_obsoletes:
-                    prev_source_snapshot.destroy()
+            # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
+            # the rest was already destroyed or will not be send)
+            prev_target_snapshot = target_dataset.find_snapshot(prev_source_snapshot)
+            if prev_target_snapshot in target_obsoletes:
+                prev_target_snapshot.destroy()
 
-                # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
-                # the rest was already destroyed or will not be send)
-                prev_target_snapshot = target_dataset.find_snapshot(prev_source_snapshot)
-                if prev_target_snapshot in target_obsoletes:
-                    prev_target_snapshot.destroy()
-
-                prev_source_snapshot = source_snapshot
-            else:
-                source_snapshot.debug("skipped (target doesn't need it)")
-                # was it actually a resume?
-                if resume_token:
-                    target_dataset.verbose("Aborting resume, we dont want that snapshot anymore.")
-                    target_dataset.abort_resume()
-                    resume_token = None
+            prev_source_snapshot = source_snapshot
 
             source_snapshot = self.find_next_snapshot(source_snapshot, also_other_snapshots)
 
