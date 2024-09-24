@@ -209,6 +209,8 @@ class ZfsNode(ExecuteNode):
     def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmds=[],
                             post_snapshot_cmds=[], set_snapshot_properties=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
+        Args:
+            :type datasets: list[ZfsDataset]
         """
 
         pools = {}
@@ -230,8 +232,9 @@ class ZfsNode(ExecuteNode):
             pools[pool].append(snapshot)
 
             # update cache, but try to prevent an unneeded zfs list
-            if self.readonly or CachedProperty.is_cached(dataset, 'snapshots'):
-                dataset.snapshots.append(snapshot)  # NOTE: this will trigger zfs list if its not cached
+            # if self.readonly or CachedProperty.is_cached(dataset, 'snapshots'):
+            #dataset.snapshots.append(snapshot)  # NOTE: this will trigger zfs list if its not cached
+            dataset.invalidate()
 
         if not pools:
             self.verbose("No changes anywhere: not creating snapshots.")

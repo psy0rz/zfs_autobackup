@@ -1,9 +1,9 @@
+
 import re
 from datetime import datetime
 import sys
 import time
 
-from .CachedProperty import CachedProperty
 from .ExecuteNode import ExecuteError
 
 
@@ -28,8 +28,29 @@ class ZfsDataset:
         """
         self.zfs_node = zfs_node
         self.name = name  # full name
+
+        #caching
+        self.__snapshots=None #type: None|list[ZfsDataset]
+        self.__written_since_ours=None #type: None|int
+        self.__exists_check=None #type: None|bool
+        self.__properties=None #type: None|dict[str,str]
+        self.__recursive_datasets=None #type: None|list[ZfsDataset]
+        self.__datasets=None #type: None|list[ZfsDataset]
+
         self.invalidate()
         self.force_exists = force_exists
+
+
+    def invalidate(self):
+        """clear caches"""
+        # CachedProperty.clear(self)
+        self.force_exists = None
+        self.__snapshots=None
+        self.__written_since_ours=None
+        self.__exists_check=None
+        self.__properties=None
+        self.__recursive_datasets=None
+        self.__datasets=None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -72,10 +93,6 @@ class ZfsDataset:
         """
         self.zfs_node.debug("{}: {}".format(self.name, txt))
 
-    def invalidate(self):
-        """clear caches"""
-        CachedProperty.clear(self)
-        self.force_exists = None
 
     def split_path(self):
         """return the path elements as an array"""
@@ -269,13 +286,17 @@ class ZfsDataset:
                 return self.snapshots[index]
         return None
 
-    @CachedProperty
+    @property
     def exists_check(self):
         """check on disk if it exists"""
-        self.debug("Checking if dataset exists")
-        return (len(self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
-                                      valid_exitcodes=[0, 1],
-                                      hide_errors=True)) > 0)
+
+        if self.__exists_check is None:
+            self.debug("Checking if dataset exists")
+            self.__exists_check=(len(self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
+                                          valid_exitcodes=[0, 1],
+                                          hide_errors=True)) > 0)
+
+        return self.__exists_check
 
     @property
     def exists(self):
@@ -344,22 +365,24 @@ class ZfsDataset:
             else:
                 raise
 
-    @CachedProperty
+    @property
     def properties(self):
         """all zfs properties"""
 
-        cmd = [
-            "zfs", "get", "-H", "-o", "property,value", "-p", "all", self.name
-        ]
+        if self.__properties is None:
 
-        self.debug("Getting zfs properties")
+            cmd = [
+                "zfs", "get", "-H", "-o", "property,value", "-p", "all", self.name
+            ]
 
-        ret = {}
-        for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
-            if len(pair) == 2:
-                ret[pair[0]] = pair[1]
+            self.debug("Getting zfs properties")
 
-        return ret
+            self.__properties = {}
+            for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
+                if len(pair) == 2:
+                    self.__properties[pair[0]] = pair[1]
+
+        return self.__properties
 
     def is_changed(self, min_changed_bytes=1):
         """dataset is changed since ANY latest snapshot ?
@@ -447,24 +470,32 @@ class ZfsDataset:
     #         print ("ADDED VIRT")
     #         self._virtual_snapshots.append(snapshot)
 
-    @CachedProperty
+    @property
     def snapshots(self):
         """get all snapshots of this dataset
         :rtype: list[ZfsDataset]
         """
 
-        self.debug("Getting snapshots")
+        #cached?
+        if self.__snapshots is None:
 
-        cmd = [
-            "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
-        ]
 
-        return self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
+            self.debug("Getting snapshots")
+
+            cmd = [
+                "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
+            ]
+
+            self.__snapshots=self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
+
+
+        return self.__snapshots
 
     @property
     def our_snapshots(self):
         """get list[snapshots] creates by us of this dataset"""
         ret = []
+
         for snapshot in self.snapshots:
             if snapshot.is_ours():
                 ret.append(snapshot)
@@ -525,18 +556,22 @@ class ZfsDataset:
 
         return None
 
-    @CachedProperty
+    @property
     def written_since_ours(self):
         """get number of bytes written since our last snapshot"""
 
-        latest_snapshot = self.our_snapshots[-1]
+        if self.__written_since_ours is None:
 
-        self.debug("Getting bytes written since our last snapshot")
-        cmd = ["zfs", "get", "-H", "-ovalue", "-p", "written@" + str(latest_snapshot), self.name]
+            latest_snapshot = self.our_snapshots[-1]
 
-        output = self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0])
+            self.debug("Getting bytes written since our last snapshot")
+            cmd = ["zfs", "get", "-H", "-ovalue", "-p", "written@" + str(latest_snapshot), self.name]
 
-        return int(output[0])
+            output = self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0])
+
+            self.__written_since_ours=int(output[0])
+
+        return self.__written_since_ours
 
     def is_changed_ours(self, min_changed_bytes=1):
         """dataset is changed since OUR latest snapshot?
@@ -557,23 +592,28 @@ class ZfsDataset:
 
         return True
 
-    @CachedProperty
+    @property
     def recursive_datasets(self, types="filesystem,volume"):
         """get all (non-snapshot) datasets recursively under us
 
         Args:
             :type types: str
+            :rtype: list[ZfsDataset]
         """
 
-        self.debug("Getting all recursive datasets under us")
+        if self.__recursive_datasets is None:
 
-        names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
-            "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
-        ])
+            self.debug("Getting all recursive datasets under us")
 
-        return self.zfs_node.get_datasets(names[1:], force_exists=True)
+            names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
+                "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
+            ])
 
-    @CachedProperty
+            self.__recursive_datasets=self.zfs_node.get_datasets(names[1:], force_exists=True)
+
+        return self.__recursive_datasets
+
+    @property
     def datasets(self, types="filesystem,volume"):
         """get all (non-snapshot) datasets directly under us
 
@@ -581,13 +621,17 @@ class ZfsDataset:
             :type types: str
         """
 
-        self.debug("Getting all datasets under us")
+        if self.__datasets is None:
 
-        names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
-            "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
-        ])
+            self.debug("Getting all datasets under us")
 
-        return self.zfs_node.get_datasets(names[1:], force_exists=True)
+            names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
+                "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
+            ])
+
+            self.__datasets=self.zfs_node.get_datasets(names[1:], force_exists=True)
+
+        return self.__datasets
 
     def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded,
                   send_pipes, zfs_compressed):
