@@ -236,7 +236,7 @@ class ZfsNode(ExecuteNode):
 
             pools[pool].append(snapshot)
 
-            dataset.cache_snapshot(snapshot)
+            dataset.cache_snapshot(snapshot, force=self.readonly)
 
         if not pools:
             self.verbose("No changes anywhere: not creating snapshots.")

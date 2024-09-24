@@ -465,13 +465,16 @@ class ZfsDataset:
 
         return self.__snapshots
 
-    def cache_snapshot(self, snapshot):
-        """Update our snapshot cache (if we have any)
+    def cache_snapshot(self, snapshot, force=False):
+        """Update our snapshot cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
         Args:
             :type snapshot: ZfsDataset
         """
 
-        if self.__snapshots is not None:
+        if force:
+            self.snapshots.append(snapshot)
+
+        elif self.__snapshots is not None:
             self.__snapshots.append(snapshot)
 
     @property
