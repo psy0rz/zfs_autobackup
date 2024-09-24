@@ -1140,7 +1140,10 @@ class ZfsDataset:
         if source_common_snapshot:
             source_snapshot=self.find_next_snapshot(source_common_snapshot )
         else:
-            source_snapshot=self.snapshots[0]
+            if self.snapshots:
+                source_snapshot=self.snapshots[0]
+            else:
+                source_snapshot=None
 
         while source_snapshot:
             # we want it?
@@ -1243,7 +1246,7 @@ class ZfsDataset:
         target_dataset.handle_incompatible_snapshots(incompatible_target_snapshots, destroy_incompatible)
 
         # now actually transfer the snapshots, if we want
-        if no_send:
+        if no_send or len(target_transfers)==0:
             return
 
         # check if we can resume
@@ -1269,7 +1272,6 @@ class ZfsDataset:
         for target_snapshot in target_transfers:
 
             source_snapshot=self.find_snapshot(target_snapshot)
-
 
             # do the rollback, one time at first transfer
             if do_rollback:
