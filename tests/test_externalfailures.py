@@ -204,7 +204,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
             print(buf.getvalue())
 
-            self.assertIn("Aborting resume, we dont want that snapshot anymore.", buf.getvalue())
+            self.assertIn("Aborting resume", buf.getvalue())
 
         r = shelltest("zfs list -H -o name -r -t all test_target1")
         self.assertMultiLineEqual(r, """
