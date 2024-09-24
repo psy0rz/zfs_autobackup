@@ -37,11 +37,11 @@ class ZfsDataset:
         self.__recursive_datasets=None #type: None|list[ZfsDataset]
         self.__datasets=None #type: None|list[ZfsDataset]
 
-        self.invalidate()
+        self.invalidate_cache()
         self.force_exists = force_exists
 
 
-    def invalidate(self):
+    def invalidate_cache(self):
         """clear caches"""
         # CachedProperty.clear(self)
         self.force_exists = None
@@ -354,7 +354,7 @@ class ZfsDataset:
             else:
                 self.zfs_node.run(["zfs", "destroy", self.name])
 
-            self.invalidate()
+            self.invalidate_cache()
             self.force_exists = False
             return True
         except ExecuteError:
@@ -766,7 +766,7 @@ class ZfsDataset:
         self.zfs_node.run(cmd, inp=pipe, valid_exitcodes=valid_exitcodes)
 
         # invalidate cache
-        self.invalidate()
+        self.invalidate_cache()
 
         # in test mode we assume everything was ok and it exists
         if self.zfs_node.readonly:
