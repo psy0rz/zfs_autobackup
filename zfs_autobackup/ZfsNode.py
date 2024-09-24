@@ -224,7 +224,7 @@ class ZfsNode(ExecuteNode):
         # self.debug(datasets)
         for dataset in datasets:
             if not dataset.is_changed_ours(min_changed_bytes):
-                dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
+                dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].suffix))
                 continue
 
             # force_exist, since we're making it
