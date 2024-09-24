@@ -55,23 +55,44 @@ test_target1/test_source2/fs2/sub@test-20101111000001
         shelltest("zfs create test_target1/b")
 
         with mocktime("20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1/a --no-progress --verbose --debug".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/a --no-progress --verbose --debug --allow-empty".split(" ")).run())
+
+        #NOTE: since v3.4 this changed. autobackup: properties are filtered. So its up to the admin to reset this property on the other side:
+        shelltest("zfs set autobackup:test=true test_target1/a")
 
         with mocktime("20101111000001"):
-            self.assertFalse(ZfsAutobackup("test test_target1/b --no-progress --verbose".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1/b --no-progress --verbose --allow-empty".split(" ")).run())
 
             r=shelltest("zfs list -H -o name -r -t snapshot test_target1")
             #NOTE: it wont backup test_target1/a/test_source2/fs2/sub to test_target1/b since it doesnt have the zfs_autobackup property anymore.
-            self.assertMultiLineEqual(r,"""
+            self.assertMultiLineEqual("""
+test_target1/a@test-20101111000001
+test_target1/a/test_source1@test-20101111000001
 test_target1/a/test_source1/fs1@test-20101111000000
+test_target1/a/test_source1/fs1@test-20101111000001
 test_target1/a/test_source1/fs1/sub@test-20101111000000
+test_target1/a/test_source1/fs1/sub@test-20101111000001
+test_target1/a/test_source2@test-20101111000001
+test_target1/a/test_source2/fs2@test-20101111000001
 test_target1/a/test_source2/fs2/sub@test-20101111000000
+test_target1/a/test_source2/fs2/sub@test-20101111000001
 test_target1/b/test_source1/fs1@test-20101111000000
+test_target1/b/test_source1/fs1@test-20101111000001
 test_target1/b/test_source1/fs1/sub@test-20101111000000
+test_target1/b/test_source1/fs1/sub@test-20101111000001
 test_target1/b/test_source2/fs2/sub@test-20101111000000
+test_target1/b/test_source2/fs2/sub@test-20101111000001
+test_target1/b/test_target1/a@test-20101111000001
+test_target1/b/test_target1/a/test_source1@test-20101111000001
 test_target1/b/test_target1/a/test_source1/fs1@test-20101111000000
+test_target1/b/test_target1/a/test_source1/fs1@test-20101111000001
 test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000000
-""")
+test_target1/b/test_target1/a/test_source1/fs1/sub@test-20101111000001
+test_target1/b/test_target1/a/test_source2@test-20101111000001
+test_target1/b/test_target1/a/test_source2/fs2@test-20101111000001
+test_target1/b/test_target1/a/test_source2/fs2/sub@test-20101111000000
+test_target1/b/test_target1/a/test_source2/fs2/sub@test-20101111000001
+""",r)
 
     def test_zfs_compressed(self):
 

@@ -1188,6 +1188,11 @@ class ZfsDataset:
         (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties,
                                                                                         set_properties)
 
+        # always filter properties that start with 'autobackup:' (https://github.com/psy0rz/zfs_autobackup/issues/221)
+        for property in self.properties:
+            if property.startswith('autobackup:'):
+                active_filter_properties.append(property)
+
         # encrypt at target?
         if encrypt and not raw:
             # filter out encryption properties to let encryption on the target take place

@@ -50,6 +50,8 @@ class ZfsAutobackup(ZfsAuto):
         if args.decrypt:
             self.warning("Properties will not be sent over for datasets that will be decrypted. (zfs bug https://github.com/openzfs/zfs/issues/16275)")
 
+
+
         return args
 
     def get_parser(self):
@@ -93,6 +95,7 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--set-properties', metavar='PROPERTY=VALUE,...', type=str,
                            help='List of propererties to override when receiving filesystems. (you can still restore '
                                 'them with zfs inherit -S)')
+
         group.add_argument('--rollback', action='store_true',
                            help='Rollback changes to the latest target snapshot before starting. (normally you can '
                                 'prevent changes by setting the readonly property on the target_path to on)')
@@ -438,6 +441,7 @@ class ZfsAutobackup(ZfsAuto):
 
         if self.args.clear_refreservation:
             filter_properties.append("refreservation")
+
 
         return filter_properties
 

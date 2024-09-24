@@ -41,17 +41,14 @@ class ZfsAuto(CliBase):
         # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
         # recursive replication of a zvol that is currently being received in another session (as it will have changes).
 
+        # Follow up note: This isnt a problem anymore since v3.4, we now filter the autobackup-property by default to prevent these difficult issues.
+
         self.exclude_paths = []
         if args.ssh_source == args.ssh_target:
             if args.target_path:
                 # target and source are the same, make sure to exclude target_path
                 self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
                 self.exclude_paths.append(args.target_path)
-            else:
-                if not args.exclude_received and not args.include_received:
-                    self.verbose(
-                        "NOTE: Source and target are on the same host, adding --exclude-received to commandline. (use --include-received to overrule)")
-                    args.exclude_received = True
 
         if args.test:
             self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
@@ -107,10 +104,9 @@ class ZfsAuto(CliBase):
         group.add_argument('--exclude-unchanged', metavar='BYTES', default=0, type=int,
                            help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
         group.add_argument('--exclude-received', action='store_true',
-                           help='Exclude datasets that have the origin of their autobackup: property as "received". '
-                                'This can avoid recursive replication between two backup partners.')
-        group.add_argument('--include-received', action='store_true',
-                           help=argparse.SUPPRESS)
+                           help='Exclude datasets that have the origin of their autobackup: property as "received".' , )
+        # group.add_argument('--include-received', action='store_true',
+        #                    help=argparse.SUPPRESS)
 
         def regex_argument_type(input_line):
             """Parses regex arguments into re.Pattern objects"""
@@ -126,9 +122,8 @@ class ZfsAuto(CliBase):
 
     def print_error_sources(self):
         self.error(
-            "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
-            "you want to select.".format(
-                self.args.backup_name))
+            "No source filesystems selected, please do a 'zfs set {}=true' on the source datasets "
+            "you want to select.".format(self.property_name))
 
     def make_target_name(self, source_dataset):
         """make target_name from a source_dataset"""
