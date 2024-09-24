@@ -1312,7 +1312,8 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-        self.invalidate()
+        #invalidate cache
+        self.__properties=None
 
     def inherit(self, prop):
         """inherit zfs property"""
@@ -1325,4 +1326,5 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-        self.invalidate()
+        #invalidate cache
+        self.__properties=None
