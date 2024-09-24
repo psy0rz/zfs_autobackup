@@ -76,14 +76,14 @@ def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, 
         source_snapshot.mount(source_mnt)
         target_snapshot.mount(target_mnt)
 
-        if method=='rsync':
+        if method == 'rsync':
             compare_trees_rsync(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         # elif method == 'tar':
         #     compare_trees_tar(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         elif method == 'find':
             compare_trees_find(source_snapshot.zfs_node, source_mnt, target_snapshot.zfs_node, target_mnt)
         else:
-            raise(Exception("program errror, unknown method"))
+            raise (Exception("program errror, unknown method"))
 
     finally:
         source_snapshot.unmount(source_mnt)
@@ -109,7 +109,6 @@ def verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, 
 #     return hashed
 
 
-
 # def deacitvate_volume_snapshot(snapshot):
 #     clone_name=get_tmp_clone_name(snapshot)
 #     clone=snapshot.zfs_node.get_dataset(clone_name)
@@ -119,13 +118,13 @@ def verify_volume(source_dataset, source_snapshot, target_dataset, target_snapsh
     """compare the contents of two zfs volume snapshots"""
 
     # try:
-    source_dev= activate_volume_snapshot(source_snapshot)
-    target_dev= activate_volume_snapshot(target_snapshot)
+    source_dev = activate_volume_snapshot(source_snapshot)
+    target_dev = activate_volume_snapshot(target_snapshot)
 
-    source_hash= hash_dev(source_snapshot.zfs_node, source_dev)
-    target_hash= hash_dev(target_snapshot.zfs_node, target_dev)
+    source_hash = hash_dev(source_snapshot.zfs_node, source_dev)
+    target_hash = hash_dev(target_snapshot.zfs_node, target_dev)
 
-    if source_hash!=target_hash:
+    if source_hash != target_hash:
         raise Exception("md5hash difference: {} != {}".format(source_hash, target_hash))
 
     # finally:
@@ -150,7 +149,7 @@ class ZfsAutoverify(ZfsAuto):
     def parse_args(self, argv):
         """do extra checks on common args"""
 
-        args=super(ZfsAutoverify, self).parse_args(argv)
+        args = super(ZfsAutoverify, self).parse_args(argv)
 
         if args.target_path == None:
             self.log.error("Please specify TARGET-PATH")
@@ -161,17 +160,17 @@ class ZfsAutoverify(ZfsAuto):
     def get_parser(self):
         """extend common parser with  extra stuff needed for zfs-autobackup"""
 
-        parser=super(ZfsAutoverify, self).get_parser()
+        parser = super(ZfsAutoverify, self).get_parser()
 
-        group=parser.add_argument_group("Verify options")
+        group = parser.add_argument_group("Verify options")
         group.add_argument('--fs-compare', metavar='METHOD', default="find", choices=["find", "rsync"],
-                            help='Compare method to use for filesystems. (find, rsync) Default: %(default)s ')
+                           help='Compare method to use for filesystems. (find, rsync) Default: %(default)s ')
 
         return parser
 
     def verify_datasets(self, source_mnt, source_datasets, target_node, target_mnt):
 
-        fail_count=0
+        fail_count = 0
         count = 0
         for source_dataset in source_datasets:
 
@@ -190,16 +189,17 @@ class ZfsAutoverify(ZfsAuto):
                 target_snapshot = target_dataset.find_snapshot(source_snapshot)
 
                 if source_snapshot is None or target_snapshot is None:
-                    raise(Exception("Cant find common snapshot"))
+                    raise (Exception("Cant find common snapshot"))
 
                 target_snapshot.verbose("Verifying...")
 
-                if source_dataset.properties['type']=="filesystem":
+                if source_dataset.properties['type'] == "filesystem":
                     verify_filesystem(source_snapshot, source_mnt, target_snapshot, target_mnt, self.args.fs_compare)
-                elif source_dataset.properties['type']=="volume":
+                elif source_dataset.properties['type'] == "volume":
                     verify_volume(source_dataset, source_snapshot, target_dataset, target_snapshot)
                 else:
-                    raise(Exception("{} has unknown type {}".format(source_dataset, source_dataset.properties['type'])))
+                    raise (
+                        Exception("{} has unknown type {}".format(source_dataset, source_dataset.properties['type'])))
 
 
             except Exception as e:
@@ -219,11 +219,10 @@ class ZfsAutoverify(ZfsAuto):
 
     def run(self):
 
-        source_node=None
-        source_mnt=None
-        target_node=None
-        target_mnt=None
-
+        source_node = None
+        source_mnt = None
+        target_node = None
+        target_mnt = None
 
         try:
 
@@ -240,10 +239,10 @@ class ZfsAutoverify(ZfsAuto):
 
             ################# select source datasets
             self.set_title("Selecting")
-            ( source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
-                                                            exclude_received=self.args.exclude_received,
-                                                            exclude_paths=self.exclude_paths,
-                                                            exclude_unchanged=self.args.exclude_unchanged)
+            (source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
+                                                                                 exclude_received=self.args.exclude_received,
+                                                                                 exclude_paths=self.exclude_paths,
+                                                                                 exclude_unchanged=self.args.exclude_unchanged)
             if not source_datasets and not excluded_datasets:
                 self.print_error_sources()
                 return 255
@@ -260,7 +259,7 @@ class ZfsAutoverify(ZfsAuto):
 
             self.set_title("Verifying")
 
-            source_mnt, target_mnt= create_mountpoints(source_node, target_node)
+            source_mnt, target_mnt = create_mountpoints(source_node, target_node)
 
             fail_count = self.verify_datasets(
                 source_mnt=source_mnt,
@@ -302,15 +301,13 @@ class ZfsAutoverify(ZfsAuto):
                 cleanup_mountpoint(target_node, target_mnt)
 
 
-
-
 def cli():
     import sys
 
-    raise(Exception("This program is incomplete, dont use it yet."))
+    raise (Exception("This program is incomplete, dont use it yet."))
     signal(SIGPIPE, sigpipe_handler)
     failed = ZfsAutoverify(sys.argv[1:], False).run()
-    sys.exit(min(failed,255))
+    sys.exit(min(failed, 255))
 
 
 if __name__ == "__main__":

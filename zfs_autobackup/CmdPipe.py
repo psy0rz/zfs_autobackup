@@ -41,7 +41,7 @@ class CmdItem:
         self.exit_handler = exit_handler
         self.shell = shell
         self.process = None
-        self.next = None #next item in pipe, set by CmdPipe
+        self.next = None  # next item in pipe, set by CmdPipe
 
     def __str__(self):
         """return copy-pastable version of command."""
@@ -126,7 +126,7 @@ class CmdPipe:
         success = True
         for item in self.items:
             if item.exit_handler is not None:
-                success=item.exit_handler(item.process.returncode) and success
+                success = item.exit_handler(item.process.returncode) and success
 
         return success
 
@@ -159,15 +159,12 @@ class CmdPipe:
                     else:
                         eof_count = eof_count + 1
 
-
                 if item.process.poll() is not None:
                     done_count = done_count + 1
 
             # all filehandles are eof and all processes are done (poll() is not None)
             if eof_count == len(selectors) and done_count == len(self.items):
                 break
-
-
 
     def __create(self):
         """create actual processes, do piping and return selectors."""

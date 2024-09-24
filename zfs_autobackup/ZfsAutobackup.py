@@ -1,4 +1,3 @@
-
 import argparse
 from signal import signal, SIGPIPE
 from .util import output_redir, sigpipe_handler, datetime_now
@@ -11,6 +10,7 @@ from .Thinner import Thinner
 from .ZfsDataset import ZfsDataset
 from .ZfsNode import ZfsNode
 from .ThinnerRule import ThinnerRule
+
 
 class ZfsAutobackup(ZfsAuto):
     """The main zfs-autobackup class. Start here, at run() :)"""
@@ -72,7 +72,6 @@ class ZfsAutobackup(ZfsAuto):
                            help='List of properties to set on the snapshot.')
         group.add_argument('--no-guid-check', action='store_true',
                            help='Dont check guid of common snapshots. (faster)')
-
 
         group = parser.add_argument_group("Transfer options")
         group.add_argument('--no-send', action='store_true',
@@ -324,8 +323,8 @@ class ZfsAutobackup(ZfsAuto):
 
     def make_target_name(self, source_dataset):
         """make target_name from a source_dataset"""
-        stripped=source_dataset.lstrip_path(self.args.strip_path)
-        if stripped!="":
+        stripped = source_dataset.lstrip_path(self.args.strip_path)
+        if stripped != "":
             return self.args.target_path + "/" + stripped
         else:
             return self.args.target_path
@@ -334,16 +333,20 @@ class ZfsAutobackup(ZfsAuto):
         """check all target names for collesions etc due to strip-options"""
 
         self.debug("Checking target names:")
-        target_datasets={}
+        target_datasets = {}
         for source_dataset in source_datasets:
 
             target_name = self.make_target_name(source_dataset)
             source_dataset.debug("-> {}".format(target_name))
 
             if target_name in target_datasets:
-                raise Exception("Target collision: Target path {} encountered twice, due to: {} and {}".format(target_name, source_dataset, target_datasets[target_name]))
+                raise Exception(
+                    "Target collision: Target path {} encountered twice, due to: {} and {}".format(target_name,
+                                                                                                   source_dataset,
+                                                                                                   target_datasets[
+                                                                                                       target_name]))
 
-            target_datasets[target_name]=source_dataset
+            target_datasets[target_name] = source_dataset
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def sync_datasets(self, source_node, source_datasets, target_node):
@@ -397,7 +400,8 @@ class ZfsAutobackup(ZfsAuto):
                                               destroy_incompatible=self.args.destroy_incompatible,
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force, guid_check=not self.args.no_guid_check)
+                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force,
+                                              guid_check=not self.args.no_guid_check)
             except Exception as e:
 
                 fail_count = fail_count + 1
@@ -405,7 +409,6 @@ class ZfsAutobackup(ZfsAuto):
                 if self.args.debug:
                     self.verbose("Debug mode, aborting on first error")
                     raise
-
 
         target_path_dataset = target_node.get_dataset(self.args.target_path)
         if not self.args.no_thinning:
@@ -477,10 +480,10 @@ class ZfsAutobackup(ZfsAuto):
 
             ################# select source datasets
             self.set_title("Selecting")
-            ( source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
-                                                            exclude_received=self.args.exclude_received,
-                                                            exclude_paths=self.exclude_paths,
-                                                            exclude_unchanged=self.args.exclude_unchanged)
+            (source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
+                                                                                 exclude_received=self.args.exclude_received,
+                                                                                 exclude_paths=self.exclude_paths,
+                                                                                 exclude_unchanged=self.args.exclude_unchanged)
             if not source_datasets and not excluded_datasets:
                 self.print_error_sources()
                 return 255
@@ -572,7 +575,7 @@ def cli():
 
     signal(SIGPIPE, sigpipe_handler)
 
-    failed_datasets=ZfsAutobackup(sys.argv[1:], False).run()
+    failed_datasets = ZfsAutobackup(sys.argv[1:], False).run()
     sys.exit(min(failed_datasets, 255))
 
 

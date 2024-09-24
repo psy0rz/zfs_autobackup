@@ -1,4 +1,3 @@
-
 from .ThinnerRule import ThinnerRule
 
 
@@ -48,7 +47,6 @@ class Thinner:
             now: if specified, use this time as current time
         """
 
-
         # always keep a number of the last objets?
         if self.always_keep:
             # all of them
@@ -71,7 +69,7 @@ class Thinner:
         # traverse objects
         for thisobject in objects:
 
-            #ignore stuff without timestamp, always keep those.
+            # ignore stuff without timestamp, always keep those.
             if thisobject.timestamp is None:
                 keeps.append(thisobject)
             else:

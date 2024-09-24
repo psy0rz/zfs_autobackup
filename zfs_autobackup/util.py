@@ -1,4 +1,3 @@
-
 # NOTE: surprisingly sha1 in via python3 is faster than the native sha1sum utility, even in the way we use below!
 import os
 import platform
@@ -9,19 +8,18 @@ from datetime import datetime
 def tmp_name(suffix=""):
     """create temporary name unique to this process and node. always retruns the same result during the same execution"""
 
-    #we could use uuids but those are ugly and confusing
-    name="{}-{}-{}".format(
-        os.path.basename(sys.argv[0]).replace(" ","_"),
+    # we could use uuids but those are ugly and confusing
+    name = "{}-{}-{}".format(
+        os.path.basename(sys.argv[0]).replace(" ", "_"),
         platform.node(),
         os.getpid())
-    name=name+suffix
+    name = name + suffix
     return name
 
 
 def get_tmp_clone_name(snapshot):
-    pool=snapshot.zfs_node.get_pool(snapshot)
-    return pool.name+"/"+tmp_name()
-
+    pool = snapshot.zfs_node.get_pool(snapshot)
+    return pool.name + "/" + tmp_name()
 
 
 def output_redir():
@@ -33,10 +31,12 @@ def output_redir():
     os.dup2(devnull, sys.stdout.fileno())
     os.dup2(devnull, sys.stderr.fileno())
 
+
 def sigpipe_handler(sig, stack):
-    #redir output so we dont get more SIGPIPES during cleanup. (which my try to write to stdout)
+    # redir output so we dont get more SIGPIPES during cleanup. (which my try to write to stdout)
     output_redir()
-    #deb('redir')
+    # deb('redir')
+
 
 # def check_output():
 #     """make sure stdout still functions. if its broken, this will trigger a SIGPIPE which will be handled by the sigpipe_handler."""
@@ -55,9 +55,11 @@ def sigpipe_handler(sig, stack):
 # This function will be mocked during unit testing.
 
 
-datetime_now_mock=None
+datetime_now_mock = None
+
+
 def datetime_now(utc):
     if datetime_now_mock is None:
-        return( datetime.utcnow() if utc else datetime.now())
+        return (datetime.utcnow() if utc else datetime.now())
     else:
         return datetime_now_mock

@@ -1,4 +1,3 @@
-
 import re
 from datetime import datetime
 import sys
@@ -29,28 +28,27 @@ class ZfsDataset:
         self.zfs_node = zfs_node
         self.name = name  # full name
 
-        #caching
-        self.__snapshots=None #type: None|list[ZfsDataset]
-        self.__written_since_ours=None #type: None|int
-        self.__exists_check=None #type: None|bool
-        self.__properties=None #type: None|dict[str,str]
-        self.__recursive_datasets=None #type: None|list[ZfsDataset]
-        self.__datasets=None #type: None|list[ZfsDataset]
+        # caching
+        self.__snapshots = None  # type: None|list[ZfsDataset]
+        self.__written_since_ours = None  # type: None|int
+        self.__exists_check = None  # type: None|bool
+        self.__properties = None  # type: None|dict[str,str]
+        self.__recursive_datasets = None  # type: None|list[ZfsDataset]
+        self.__datasets = None  # type: None|list[ZfsDataset]
 
         self.invalidate_cache()
         self.force_exists = force_exists
-
 
     def invalidate_cache(self):
         """clear caches"""
         # CachedProperty.clear(self)
         self.force_exists = None
-        self.__snapshots=None
-        self.__written_since_ours=None
-        self.__exists_check=None
-        self.__properties=None
-        self.__recursive_datasets=None
-        self.__datasets=None
+        self.__snapshots = None
+        self.__written_since_ours = None
+        self.__exists_check = None
+        self.__properties = None
+        self.__recursive_datasets = None
+        self.__datasets = None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -92,7 +90,6 @@ class ZfsDataset:
             :type txt: str
         """
         self.zfs_node.debug("{}: {}".format(self.name, txt))
-
 
     def split_path(self):
         """return the path elements as an array"""
@@ -147,13 +144,10 @@ class ZfsDataset:
         if not self.is_snapshot:
             return False
 
-
         for pattern in self.zfs_node.exclude_snapshot_patterns:
             if pattern.search(self.name) is not None:
                 self.debug("Excluded (path matches snapshot exclude pattern)")
                 return True
-
-
 
     def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged):
         """determine if dataset should be selected for backup (called from
@@ -290,9 +284,9 @@ class ZfsDataset:
 
         if self.__exists_check is None:
             self.debug("Checking if dataset exists")
-            self.__exists_check=(len(self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
-                                          valid_exitcodes=[0, 1],
-                                          hide_errors=True)) > 0)
+            self.__exists_check = (len(self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
+                                                         valid_exitcodes=[0, 1],
+                                                         hide_errors=True)) > 0)
 
         return self.__exists_check
 
@@ -454,7 +448,6 @@ class ZfsDataset:
                 seconds = time.mktime(dt.timetuple())
         return seconds
 
-
     # def add_virtual_snapshot(self, snapshot):
     #     """pretend a snapshot exists (usefull in test mode)"""
     #
@@ -474,18 +467,15 @@ class ZfsDataset:
         :rtype: list[ZfsDataset]
         """
 
-        #cached?
+        # cached?
         if self.__snapshots is None:
-
-
             self.debug("Getting snapshots")
 
             cmd = [
                 "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
             ]
 
-            self.__snapshots=self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
-
+            self.__snapshots = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
 
         return self.__snapshots
 
@@ -517,7 +507,7 @@ class ZfsDataset:
         """
 
         for snapshot in snapshots:
-            if snapshot.snapshot_name==self.snapshot_name:
+            if snapshot.snapshot_name == self.snapshot_name:
                 return snapshot
 
         return None
@@ -571,7 +561,6 @@ class ZfsDataset:
         """get number of bytes written since our last snapshot"""
 
         if self.__written_since_ours is None:
-
             latest_snapshot = self.our_snapshots[-1]
 
             self.debug("Getting bytes written since our last snapshot")
@@ -579,7 +568,7 @@ class ZfsDataset:
 
             output = self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0])
 
-            self.__written_since_ours=int(output[0])
+            self.__written_since_ours = int(output[0])
 
         return self.__written_since_ours
 
@@ -612,14 +601,13 @@ class ZfsDataset:
         """
 
         if self.__recursive_datasets is None:
-
             self.debug("Getting all recursive datasets under us")
 
             names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
                 "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
             ])
 
-            self.__recursive_datasets=self.zfs_node.get_datasets(names[1:], force_exists=True)
+            self.__recursive_datasets = self.zfs_node.get_datasets(names[1:], force_exists=True)
 
         return self.__recursive_datasets
 
@@ -632,14 +620,13 @@ class ZfsDataset:
         """
 
         if self.__datasets is None:
-
             self.debug("Getting all datasets under us")
 
             names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
                 "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
             ])
 
-            self.__datasets=self.zfs_node.get_datasets(names[1:], force_exists=True)
+            self.__datasets = self.zfs_node.get_datasets(names[1:], force_exists=True)
 
         return self.__datasets
 
@@ -804,7 +791,7 @@ class ZfsDataset:
         if self.properties['encryption'] != 'off' and self.properties['keystatus'] == 'unavailable':
             return
 
-        self.zfs_node.run(["zfs", "mount", self.name], valid_exitcodes=[0,1])
+        self.zfs_node.run(["zfs", "mount", self.name], valid_exitcodes=[0, 1])
 
     def transfer_snapshot(self, target_snapshot, features, prev_snapshot, show_progress,
                           filter_properties, set_properties, ignore_recv_exit_code, resume_token,
@@ -960,7 +947,6 @@ class ZfsDataset:
             # target_dataset.error("Cant find common snapshot with source.")
             raise (Exception("Cant find common snapshot with target."))
 
-
     def find_incompatible_snapshots(self, common_snapshot, raw):
         """returns a list[snapshots] that is incompatible for a zfs recv onto
         the common_snapshot. all direct followup snapshots with written=0 are
@@ -1006,7 +992,6 @@ class ZfsDataset:
 
         return allowed_filter_properties, allowed_set_properties
 
-
     def _pre_clean(self, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
         """cleanup old stuff before starting snapshot syncing
 
@@ -1021,7 +1006,7 @@ class ZfsDataset:
         # on source: delete all obsoletes that are not in target_transfers (except common snapshot)
         for source_snapshot in self.snapshots:
             if (source_snapshot in source_obsoletes
-                    and source_common_snapshot!=source_snapshot
+                    and source_common_snapshot != source_snapshot
                     and source_snapshot.find_snapshot_in_list(target_transfers) is None):
                 source_snapshot.destroy()
 
@@ -1029,7 +1014,8 @@ class ZfsDataset:
         if target_dataset.exists:
             for target_snapshot in target_dataset.snapshots:
                 if (target_snapshot in target_obsoletes) \
-                        and (not source_common_snapshot or (target_snapshot.snapshot_name != source_common_snapshot.snapshot_name)):
+                        and (not source_common_snapshot or (
+                        target_snapshot.snapshot_name != source_common_snapshot.snapshot_name)):
                     if target_snapshot.exists:
                         target_snapshot.destroy()
 
@@ -1089,36 +1075,40 @@ class ZfsDataset:
 
         # start with snapshots that already exist, minus imcompatibles
         if target_dataset.exists:
-            possible_target_snapshots = [snapshot for snapshot in target_dataset.snapshots if snapshot not in incompatible_target_snapshots]
+            possible_target_snapshots = [snapshot for snapshot in target_dataset.snapshots if
+                                         snapshot not in incompatible_target_snapshots]
         else:
             possible_target_snapshots = []
 
         # add all snapshots from the source, starting after the common snapshot if it exists
         if source_common_snapshot:
-            source_snapshot=self.find_next_snapshot(source_common_snapshot )
+            source_snapshot = self.find_next_snapshot(source_common_snapshot)
         else:
             if self.snapshots:
-                source_snapshot=self.snapshots[0]
+                source_snapshot = self.snapshots[0]
             else:
-                source_snapshot=None
+                source_snapshot = None
 
         while source_snapshot:
             # we want it?
             if (also_other_snapshots or source_snapshot.is_ours()) and not source_snapshot.is_excluded:
                 # create virtual target snapshot
-                target_snapshot=target_dataset.zfs_node.get_dataset(target_dataset.filesystem_name + "@" + source_snapshot.snapshot_name, force_exists=False)
+                target_snapshot = target_dataset.zfs_node.get_dataset(
+                    target_dataset.filesystem_name + "@" + source_snapshot.snapshot_name, force_exists=False)
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 
         ### 3: Let the thinner decide what it wants by looking at all the possible target_snaphots at once
         if possible_target_snapshots:
-            (target_keeps, target_obsoletes)=target_dataset.zfs_node.thin_list(possible_target_snapshots, keep_snapshots=[possible_target_snapshots[-1]])
+            (target_keeps, target_obsoletes) = target_dataset.zfs_node.thin_list(possible_target_snapshots,
+                                                                                 keep_snapshots=[
+                                                                                     possible_target_snapshots[-1]])
         else:
             target_keeps = []
             target_obsoletes = []
 
         ### 4: Look at what the thinner wants and create a list of snapshots we still need to transfer
-        target_transfers=[]
+        target_transfers = []
         for target_keep in target_keeps:
             if not target_keep.exists:
                 target_transfers.append(target_keep)
@@ -1188,7 +1178,7 @@ class ZfsDataset:
                 # keep data encrypted by sending it raw (including properties)
                 raw = True
 
-        (source_common_snapshot,  source_obsoletes, target_obsoletes, target_transfers,
+        (source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
                             guid_check=guid_check, raw=raw)
@@ -1203,7 +1193,7 @@ class ZfsDataset:
         target_dataset.handle_incompatible_snapshots(incompatible_target_snapshots, destroy_incompatible)
 
         # now actually transfer the snapshots, if we want
-        if no_send or len(target_transfers)==0:
+        if no_send or len(target_transfers) == 0:
             return
 
         # check if we can resume
@@ -1221,11 +1211,11 @@ class ZfsDataset:
         # now actually transfer the snapshots
 
         do_rollback = rollback
-        prev_source_snapshot=source_common_snapshot
-        prev_target_snapshot=target_dataset.find_snapshot(source_common_snapshot)
+        prev_source_snapshot = source_common_snapshot
+        prev_target_snapshot = target_dataset.find_snapshot(source_common_snapshot)
         for target_snapshot in target_transfers:
 
-            source_snapshot=self.find_snapshot(target_snapshot)
+            source_snapshot = self.find_snapshot(target_snapshot)
 
             # do the rollback, one time at first transfer
             if do_rollback:
@@ -1312,8 +1302,8 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-        #invalidate cache
-        self.__properties=None
+        # invalidate cache
+        self.__properties = None
 
     def inherit(self, prop):
         """inherit zfs property"""
@@ -1326,5 +1316,5 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-        #invalidate cache
-        self.__properties=None
+        # invalidate cache
+        self.__properties = None

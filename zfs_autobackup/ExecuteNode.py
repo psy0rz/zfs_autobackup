@@ -17,7 +17,7 @@ class ExecuteError(Exception):
 class ExecuteNode(LogStub):
     """an endpoint to execute local or remote commands via ssh"""
 
-    PIPE=1
+    PIPE = 1
 
     def __init__(self, ssh_config=None, ssh_to=None, readonly=False, debug_output=False):
         """ssh_config: custom ssh config
@@ -51,35 +51,35 @@ class ExecuteNode(LogStub):
 
     def _quote(self, cmd):
         """return quoted version of command. if it has value PIPE it will add an actual | """
-        if cmd==self.PIPE:
-            return('|')
+        if cmd == self.PIPE:
+            return ('|')
         else:
             return cmd_quote(cmd)
 
     def _shell_cmd(self, cmd, cwd):
         """prefix specified ssh shell to command and escape shell characters"""
 
-        ret=[]
+        ret = []
 
-        #add remote shell
+        # add remote shell
         if not self.is_local():
-            #note: dont escape this part (executed directly without shell)
-            ret=["ssh"]
+            # note: dont escape this part (executed directly without shell)
+            ret = ["ssh"]
 
             if self.ssh_config is not None:
                 ret.extend(["-F", self.ssh_config])
 
             ret.append(self.ssh_to)
 
-        #note: DO escape from here, executed in either local or remote shell.
+        # note: DO escape from here, executed in either local or remote shell.
 
-        shell_str=""
+        shell_str = ""
 
-        #add cwd change?
+        # add cwd change?
         if cwd is not None:
-            shell_str=shell_str + "cd " + self._quote(cwd) + "; "
+            shell_str = shell_str + "cd " + self._quote(cwd) + "; "
 
-        shell_str=shell_str + " ".join(map(self._quote, cmd))
+        shell_str = shell_str + " ".join(map(self._quote, cmd))
 
         ret.append(shell_str)
 
@@ -121,7 +121,7 @@ class ExecuteNode(LogStub):
 
         # stderr parser
         error_lines = []
-        returned_exit_code=None
+        returned_exit_code = None
 
         def stderr_handler(line):
             if tab_split:
@@ -139,7 +139,8 @@ class ExecuteNode(LogStub):
                 self.debug("EXIT   > {}".format(exit_code))
 
             if (valid_exitcodes != []) and (exit_code not in valid_exitcodes):
-                self.error("Command \"{}\" returned exit code {} (valid codes: {})".format(cmd_item, exit_code, valid_exitcodes))
+                self.error("Command \"{}\" returned exit code {} (valid codes: {})".format(cmd_item, exit_code,
+                                                                                           valid_exitcodes))
                 return False
 
             return True
@@ -149,7 +150,7 @@ class ExecuteNode(LogStub):
 
         if pipe:
             # dont specify output handler, so it will get piped to next process
-            stdout_handler=None
+            stdout_handler = None
         else:
             # handle output manually, dont pipe it
             def stdout_handler(line):
@@ -160,7 +161,8 @@ class ExecuteNode(LogStub):
                 self._parse_stdout(line)
 
         # add shell command and handlers to pipe
-        cmd_item=CmdItem(cmd=self._shell_cmd(cmd, cwd), readonly=readonly, stderr_handler=stderr_handler, exit_handler=exit_handler, shell=self.is_local(), stdout_handler=stdout_handler)
+        cmd_item = CmdItem(cmd=self._shell_cmd(cmd, cwd), readonly=readonly, stderr_handler=stderr_handler,
+                           exit_handler=exit_handler, shell=self.is_local(), stdout_handler=stdout_handler)
         cmd_pipe.add(cmd_item)
 
         # return CmdPipe instead of executing?
@@ -174,7 +176,7 @@ class ExecuteNode(LogStub):
 
         # execute and calls handlers in CmdPipe
         if not cmd_pipe.execute():
-            raise(ExecuteError("Last command returned error"))
+            raise (ExecuteError("Last command returned error"))
 
         if return_all:
             return output_lines, error_lines, cmd_item.process and cmd_item.process.returncode
@@ -183,7 +185,8 @@ class ExecuteNode(LogStub):
         else:
             return output_lines
 
-    def script(self, lines, inp=None, stdout_handler=None, stderr_handler=None, exit_handler=None, valid_exitcodes=None, readonly=False, hide_errors=False, pipe=False):
+    def script(self, lines, inp=None, stdout_handler=None, stderr_handler=None, exit_handler=None, valid_exitcodes=None,
+               readonly=False, hide_errors=False, pipe=False):
         """Run a multiline script on the node.
 
         This is much more low level than run() and allows for finer grained control.
@@ -212,14 +215,14 @@ class ExecuteNode(LogStub):
             # add stuff to existing pipe
             cmd_pipe = inp
 
-        internal_stdout_handler=None
+        internal_stdout_handler = None
         if stdout_handler is not None:
             if self.debug_output:
                 def internal_stdout_handler(line):
                     self.debug("STDOUT > " + line.rstrip())
                     stdout_handler(line)
             else:
-                internal_stdout_handler=stdout_handler
+                internal_stdout_handler = stdout_handler
 
         def internal_stderr_handler(line):
             self._parse_stderr(line, hide_errors)
@@ -243,12 +246,12 @@ class ExecuteNode(LogStub):
 
             return True
 
-        #build command
-        cmd=[]
+        # build command
+        cmd = []
 
-        #add remote shell
+        # add remote shell
         if not self.is_local():
-            #note: dont escape this part (executed directly without shell)
+            # note: dont escape this part (executed directly without shell)
             cmd.append("ssh")
 
             if self.ssh_config is not None:
@@ -260,7 +263,9 @@ class ExecuteNode(LogStub):
         cmd.append("\n".join(lines))
 
         # add shell command and handlers to pipe
-        cmd_item=CmdItem(cmd=cmd, readonly=readonly, stderr_handler=internal_stderr_handler, exit_handler=internal_exit_handler, stdout_handler=internal_stdout_handler, shell=self.is_local())
+        cmd_item = CmdItem(cmd=cmd, readonly=readonly, stderr_handler=internal_stderr_handler,
+                           exit_handler=internal_exit_handler, stdout_handler=internal_stdout_handler,
+                           shell=self.is_local())
         cmd_pipe.add(cmd_item)
 
         self.debug("SCRIPT > {}".format(cmd_pipe))

@@ -49,13 +49,14 @@ class ZfsAuto(CliBase):
                 self.exclude_paths.append(args.target_path)
             else:
                 if not args.exclude_received and not args.include_received:
-                    self.verbose("NOTE: Source and target are on the same host, adding --exclude-received to commandline. (use --include-received to overrule)")
+                    self.verbose(
+                        "NOTE: Source and target are on the same host, adding --exclude-received to commandline. (use --include-received to overrule)")
                     args.exclude_received = True
 
         if args.test:
             self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
-        #format all the names
+        # format all the names
         self.property_name = args.property_format.format(args.backup_name)
         self.snapshot_time_format = args.snapshot_format.format(args.backup_name)
         self.hold_name = args.hold_format.format(args.backup_name)
@@ -63,7 +64,8 @@ class ZfsAuto(CliBase):
         dt = datetime_now(args.utc)
 
         self.verbose("")
-        self.verbose("Current time {}           : {}".format(args.utc and "UTC" or "   ", dt.strftime("%Y-%m-%d %H:%M:%S")))
+        self.verbose(
+            "Current time {}           : {}".format(args.utc and "UTC" or "   ", dt.strftime("%Y-%m-%d %H:%M:%S")))
 
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
@@ -75,43 +77,40 @@ class ZfsAuto(CliBase):
 
         parser = super(ZfsAuto, self).get_parser()
 
-        #positional arguments
+        # positional arguments
         parser.add_argument('backup_name', metavar='BACKUP-NAME', default=None, nargs='?',
                             help='Name of the backup to select')
 
         parser.add_argument('target_path', metavar='TARGET-PATH', default=None, nargs='?',
                             help='Target ZFS filesystem (optional)')
 
-
-
         # SSH options
-        group=parser.add_argument_group("SSH options")
+        group = parser.add_argument_group("SSH options")
         group.add_argument('--ssh-config', metavar='CONFIG-FILE', default=None, help='Custom ssh client config')
         group.add_argument('--ssh-source', metavar='USER@HOST', default=None,
-                            help='Source host to pull backup from.')
+                           help='Source host to pull backup from.')
         group.add_argument('--ssh-target', metavar='USER@HOST', default=None,
-                            help='Target host to push backup to.')
+                           help='Target host to push backup to.')
 
-        group=parser.add_argument_group("String formatting options")
+        group = parser.add_argument_group("String formatting options")
         group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
-                            help='Dataset selection string format. Default: %(default)s')
+                           help='Dataset selection string format. Default: %(default)s')
         group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
-                            help='ZFS Snapshot string format. Default: %(default)s')
+                           help='ZFS Snapshot string format. Default: %(default)s')
         group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
-                            help='ZFS hold string format. Default: %(default)s')
+                           help='ZFS hold string format. Default: %(default)s')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
                            help='Number of directories to strip from target path.')
 
-        group=parser.add_argument_group("Selection options")
+        group = parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
         group.add_argument('--exclude-unchanged', metavar='BYTES', default=0, type=int,
-                            help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
+                           help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
         group.add_argument('--exclude-received', action='store_true',
-                            help='Exclude datasets that have the origin of their autobackup: property as "received". '
-                                 'This can avoid recursive replication between two backup partners.')
+                           help='Exclude datasets that have the origin of their autobackup: property as "received". '
+                                'This can avoid recursive replication between two backup partners.')
         group.add_argument('--include-received', action='store_true',
-                            help=argparse.SUPPRESS)
-
+                           help=argparse.SUPPRESS)
 
         def regex_argument_type(input_line):
             """Parses regex arguments into re.Pattern objects"""
@@ -119,7 +118,9 @@ class ZfsAuto(CliBase):
                 return re.compile(input_line)
             except:
                 raise ValueError("Could not parse argument '{}' as a regular expression".format(input_line))
-        group.add_argument('--exclude-snapshot-pattern', action='append', default=[], type=regex_argument_type, help="Regular expression to match snapshots that will be ignored.")
+
+        group.add_argument('--exclude-snapshot-pattern', action='append', default=[], type=regex_argument_type,
+                           help="Regular expression to match snapshots that will be ignored.")
 
         return parser
 

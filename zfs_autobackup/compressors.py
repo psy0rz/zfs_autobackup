@@ -7,69 +7,72 @@
 COMPRESS_CMDS = {
     'gzip': {
         'cmd': 'gzip',
-        'args': [ '-3' ],
+        'args': ['-3'],
         'dcmd': 'zcat',
         'dargs': [],
     },
     'pigz-fast': {
         'cmd': 'pigz',
-        'args': [ '-3' ],
+        'args': ['-3'],
         'dcmd': 'pigz',
-        'dargs': [ '-dc' ],
+        'dargs': ['-dc'],
     },
     'pigz-slow': {
         'cmd': 'pigz',
-        'args': [ '-9' ],
+        'args': ['-9'],
         'dcmd': 'pigz',
-        'dargs': [ '-dc' ],
+        'dargs': ['-dc'],
     },
     'zstd-fast': {
         'cmd': 'zstdmt',
-        'args': [ '-3' ],
+        'args': ['-3'],
         'dcmd': 'zstdmt',
-        'dargs': [ '-dc' ],
+        'dargs': ['-dc'],
     },
     'zstd-slow': {
         'cmd': 'zstdmt',
-        'args': [ '-19' ],
+        'args': ['-19'],
         'dcmd': 'zstdmt',
-        'dargs': [ '-dc' ],
+        'dargs': ['-dc'],
     },
     'zstd-adapt': {
         'cmd': 'zstdmt',
-        'args': [ '--adapt' ],
+        'args': ['--adapt'],
         'dcmd': 'zstdmt',
-        'dargs': [ '-dc' ],
+        'dargs': ['-dc'],
     },
     'xz': {
         'cmd': 'xz',
         'args': [],
         'dcmd': 'xz',
-        'dargs': [ '-d' ],
+        'dargs': ['-d'],
     },
     'lzo': {
         'cmd': 'lzop',
         'args': [],
         'dcmd': 'lzop',
-        'dargs': [ '-dfc' ],
+        'dargs': ['-dfc'],
     },
     'lz4': {
         'cmd': 'lz4',
         'args': [],
         'dcmd': 'lz4',
-        'dargs': [ '-dc' ],
+        'dargs': ['-dc'],
     },
 }
 
+
 def compress_cmd(compressor):
-    ret=[ COMPRESS_CMDS[compressor]['cmd'] ]
-    ret.extend( COMPRESS_CMDS[compressor]['args'])
+    ret = [COMPRESS_CMDS[compressor]['cmd']]
+    ret.extend(COMPRESS_CMDS[compressor]['args'])
     return ret
 
+
 def decompress_cmd(compressor):
-    ret= [ COMPRESS_CMDS[compressor]['dcmd'] ]
+    ret = [COMPRESS_CMDS[compressor]['dcmd']]
     ret.extend(COMPRESS_CMDS[compressor]['dargs'])
     return ret
+
 
 def choices():
     return COMPRESS_CMDS.keys()
