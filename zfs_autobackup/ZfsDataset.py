@@ -1119,10 +1119,9 @@ class ZfsDataset:
 
         """
 
-        # determine common and start snapshot
+        ### 1: determine common and start snapshot
         target_dataset.debug("Determining start snapshot")
         source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
-        # start_snapshot = self.find_start_snapshot(source_common_snapshot, also_other_snapshots)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(source_common_snapshot, raw)
 
         # let thinner decide whats obsolete on source after the transfer is done, keeping the last snapshot as common.
@@ -1130,13 +1129,15 @@ class ZfsDataset:
         if self.our_snapshots:
             source_obsoletes = self.thin_list(keeps=[self.our_snapshots[-1]])[1]
 
+        ### 2: Determine possible target snapshots
+
         # start with snapshots that already exist, minus imcompatibles
         if target_dataset.exists:
             possible_target_snapshots = [snapshot for snapshot in target_dataset.snapshots if snapshot not in incompatible_target_snapshots]
         else:
             possible_target_snapshots = []
 
-        #Add all snapshots from the source, starting after the common snapshot if it exists
+        # add all snapshots from the source, starting after the common snapshot if it exists
         if source_common_snapshot:
             source_snapshot=self.find_next_snapshot(source_common_snapshot )
         else:
@@ -1153,14 +1154,14 @@ class ZfsDataset:
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 
-        #Now the thinner can decide which snapshots we want on the target, by looking at the whole picture:
+        ### 3: Let the thinner decide what it wants by looking at all the possible target_snaphots at once
         if possible_target_snapshots:
             (target_keeps, target_obsoletes)=target_dataset.zfs_node.thin_list(possible_target_snapshots, keep_snapshots=[possible_target_snapshots[-1]])
         else:
             target_keeps = []
             target_obsoletes = []
 
-        #Create a list of all the target snapshots we want, that don't exist yet
+        ### 4: Look at what the thinner wants and create a list of snapshots we still need to transfer
         target_transfers=[]
         for target_keep in target_keeps:
             if not target_keep.exists:
