@@ -47,6 +47,9 @@ class ZfsAutobackup(ZfsAuto):
         if args.compress and args.zfs_compressed:
             self.warning("Using --compress with --zfs-compressed, might be inefficient.")
 
+        if args.decrypt:
+            self.warning("Properties will not be sent over for datasets that will be decrypted. (zfs bug https://github.com/openzfs/zfs/issues/16275)")
+
         return args
 
     def get_parser(self):
