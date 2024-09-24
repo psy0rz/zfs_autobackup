@@ -8,7 +8,6 @@ import time
 
 from .ExecuteNode import ExecuteNode
 from .Thinner import Thinner
-from .CachedProperty import CachedProperty
 from .ZfsPool import ZfsPool
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
@@ -18,7 +17,8 @@ from .util import datetime_now
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None, readonly=False,
+    def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None,
+                 readonly=False,
                  description="",
                  debug_output=False, thinner=None, exclude_snapshot_patterns=[]):
 
@@ -29,6 +29,9 @@ class ZfsNode(ExecuteNode):
         self.description = description
 
         self.logger = logger
+
+        self.__supported_send_options = None
+        self.__supported_recv_options = None
 
         self.exclude_snapshot_patterns = exclude_snapshot_patterns
 
@@ -74,27 +77,30 @@ class ZfsNode(ExecuteNode):
         else:
             return (keep_snapshots, [])
 
-    @CachedProperty
+    @property
     def supported_send_options(self):
         """list of supported options, for optimizing sends"""
         # not every zfs implementation supports them all
 
-        ret = []
-        for option in ["-L", "-e", "-c"]:
-            if self.valid_command(["zfs", "send", option, "zfs_autobackup_option_test"]):
-                ret.append(option)
-        return ret
+        if self.__supported_send_options is None:
+            self.__supported_send_options = []
+            for option in ["-L", "-e", "-c"]:
+                if self.valid_command(["zfs", "send", option, "zfs_autobackup_option_test"]):
+                    self.__supported_send_options.append(option)
+        return self.__supported_send_options
 
-    @CachedProperty
+    @property
     def supported_recv_options(self):
         """list of supported options"""
         # not every zfs implementation supports them all
 
-        ret = []
-        for option in ["-s"]:
-            if self.valid_command(["zfs", "recv", option, "zfs_autobackup_option_test"]):
-                ret.append(option)
-        return ret
+        if self.__supported_recv_options is None:
+            self.__supported_recv_options = []
+            for option in ["-s"]:
+                if self.valid_command(["zfs", "recv", option, "zfs_autobackup_option_test"]):
+                    self.__supported_recv_options.append(option)
+
+        return self.__supported_recv_options
 
     def valid_command(self, cmd):
         """test if a specified zfs options are valid exit code. use this to determine support options"""
@@ -129,12 +135,11 @@ class ZfsNode(ExecuteNode):
 
         """
 
-        ret=[]
+        ret = []
         for name in names:
             ret.append(self.get_dataset(name, force_exists))
 
         return ret
-
 
     # def reset_progress(self):
     #     """reset progress output counters"""
@@ -275,7 +280,6 @@ class ZfsNode(ExecuteNode):
             property_name
         ])
 
-
         # The returnlist of selected ZfsDataset's:
         selected_filesystems = []
         excluded_filesystems = []
@@ -298,14 +302,14 @@ class ZfsNode(ExecuteNode):
                 source = raw_source
 
             # determine it
-            selected=dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
-                                   exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged)
+            selected = dataset.is_selected(value=value, source=source, inherited=inherited,
+                                           exclude_received=exclude_received,
+                                           exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged)
 
-            if selected==True:
+            if selected == True:
                 selected_filesystems.append(dataset)
-            elif selected==False:
+            elif selected == False:
                 excluded_filesystems.append(dataset)
-            #returns None when no property is set.
+            # returns None when no property is set.
 
-
-        return ( selected_filesystems, excluded_filesystems)
+        return (selected_filesystems, excluded_filesystems)

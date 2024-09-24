@@ -1,6 +1,3 @@
-from .CachedProperty import CachedProperty
-
-
 class ZfsPool():
     """a zfs pool"""
 
@@ -10,6 +7,10 @@ class ZfsPool():
 
         self.zfs_node = zfs_node
         self.name = name
+        self.__properties = None
+
+    def invalidate_cache(self):
+        self.__properties = None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -32,22 +33,24 @@ class ZfsPool():
     def debug(self, txt):
         self.zfs_node.debug("zpool {}: {}".format(self.name, txt))
 
-    @CachedProperty
+    @property
     def properties(self):
         """all zpool properties"""
 
-        self.debug("Getting zpool properties")
+        if self.__properties is None:
 
-        cmd = [
-            "zpool", "get", "-H", "-p", "all", self.name
-        ]
+            self.debug("Getting zpool properties")
 
-        ret = {}
+            cmd = [
+                "zpool", "get", "-H", "-p", "all", self.name
+            ]
 
-        for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
-            ret[pair[1]] = pair[2]
+            self.__properties = {}
 
-        return ret
+            for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
+                self.__properties[pair[1]] = pair[2]
+
+        return self.__properties
 
     @property
     def features(self):

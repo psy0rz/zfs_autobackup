@@ -41,7 +41,6 @@ class ZfsDataset:
 
     def invalidate_cache(self):
         """clear caches"""
-        # CachedProperty.clear(self)
         self.force_exists = None
         self.__snapshots = None
         self.__written_since_ours = None
@@ -447,19 +446,6 @@ class ZfsDataset:
             else:
                 seconds = time.mktime(dt.timetuple())
         return seconds
-
-    # def add_virtual_snapshot(self, snapshot):
-    #     """pretend a snapshot exists (usefull in test mode)"""
-    #
-    #     # NOTE: we could just call self.snapshots.append() but this would trigger a zfs list which is not always needed.
-    #     if CachedProperty.is_cached(self, 'snapshots'):
-    #         # already cached so add it
-    #         print ("ADDED")
-    #         self.snapshots.append(snapshot)
-    #     else:
-    #         # self.snapshots will add it when requested
-    #         print ("ADDED VIRT")
-    #         self._virtual_snapshots.append(snapshot)
 
     @property
     def snapshots(self):
