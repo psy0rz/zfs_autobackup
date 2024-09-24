@@ -823,7 +823,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         #make another backup but with no-holds. we should naturally endup with only number 3
         with mocktime("20101111000003"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty --debug".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
         self.assertMultiLineEqual(r, """

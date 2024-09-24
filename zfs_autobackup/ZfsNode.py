@@ -231,10 +231,7 @@ class ZfsNode(ExecuteNode):
 
             pools[pool].append(snapshot)
 
-            # update cache, but try to prevent an unneeded zfs list
-            # if self.readonly or CachedProperty.is_cached(dataset, 'snapshots'):
-            #dataset.snapshots.append(snapshot)  # NOTE: this will trigger zfs list if its not cached
-            dataset.invalidate()
+            dataset.cache_snapshot(snapshot)
 
         if not pools:
             self.verbose("No changes anywhere: not creating snapshots.")

@@ -491,6 +491,15 @@ class ZfsDataset:
 
         return self.__snapshots
 
+    def cache_snapshot(self, snapshot):
+        """Update our snapshot cache (if we have any)
+        Args:
+            :type snapshot: ZfsDataset
+        """
+
+        if self.__snapshots is not None:
+            self.__snapshots.append(snapshot)
+
     @property
     def our_snapshots(self):
         """get list[snapshots] creates by us of this dataset"""
@@ -521,8 +530,11 @@ class ZfsDataset:
 
         Args:
             :rtype: ZfsDataset|None
-            :type snapshot: str or ZfsDataset
+            :type snapshot: str|ZfsDataset|None
         """
+
+        if snapshot is None:
+            return None
 
         if not isinstance(snapshot, ZfsDataset):
             snapshot_name = snapshot
@@ -1140,7 +1152,11 @@ class ZfsDataset:
             source_snapshot = self.find_next_snapshot(source_snapshot, False)
 
         #Now the thinner can decide which snapshots we want on the target, by looking at the whole picture:
-        (target_keeps, target_obsoletes)=target_dataset.zfs_node.thin_list(possible_target_snapshots, keep_snapshots=[possible_target_snapshots[-1]])
+        if possible_target_snapshots:
+            (target_keeps, target_obsoletes)=target_dataset.zfs_node.thin_list(possible_target_snapshots, keep_snapshots=[possible_target_snapshots[-1]])
+        else:
+            target_keeps = []
+            target_obsoletes = []
 
         #Create a list of all the target snapshots we want, that don't exist yet
         target_transfers=[]
@@ -1213,13 +1229,12 @@ class ZfsDataset:
                 # keep data encrypted by sending it raw (including properties)
                 raw = True
 
-        #note: only target_obsoletes is used during sync, to check if target doesnt want the snapshot
         (source_common_snapshot, start_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
                             guid_check=guid_check, raw=raw)
 
-        # NOTE: we do this because we dont want filesystems to fillup when backups keep failing.
+        # NOTE: we do a pre-clean because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
         self._pre_clean(
             source_common_snapshot=source_common_snapshot, target_dataset=target_dataset,
@@ -1246,6 +1261,8 @@ class ZfsDataset:
 
         # now actually transfer the snapshots
         prev_source_snapshot = source_common_snapshot
+        prev_target_snapshot=target_dataset.find_snapshot(prev_source_snapshot)
+
         source_snapshot = start_snapshot
         do_rollback = rollback
         while source_snapshot:
@@ -1272,10 +1289,11 @@ class ZfsDataset:
                 target_snapshot.hold()
                 source_snapshot.hold()
 
-            if prev_source_snapshot:
-                if holds:
+                if prev_source_snapshot:
                     prev_source_snapshot.release()
-                    target_dataset.find_snapshot(prev_source_snapshot).release()
+
+                if prev_target_snapshot:
+                    prev_target_snapshot.release()
 
             # we may now destroy the previous source snapshot if its obsolete
             if prev_source_snapshot in source_obsoletes:
@@ -1283,11 +1301,11 @@ class ZfsDataset:
 
             # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
             # the rest was already destroyed or will not be send)
-            prev_target_snapshot = target_dataset.find_snapshot(prev_source_snapshot)
             if prev_target_snapshot in target_obsoletes:
                 prev_target_snapshot.destroy()
 
             prev_source_snapshot = source_snapshot
+            prev_target_snapshot = target_snapshot
 
             source_snapshot = self.find_next_snapshot(source_snapshot, also_other_snapshots)
 
