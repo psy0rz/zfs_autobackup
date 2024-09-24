@@ -240,9 +240,9 @@ test_target1/test_source2/fs2/sub@test-20101111000002
                         "test test_target1 --no-progress --verbose --no-snapshot".split(
                             " ")).run())
 
-            print(buf.getvalue())
-
-            self.assertIn("Aborting resume, its obsolete", buf.getvalue())
+            #NOTE: v3.4 doesnt abort the resume if there are no snapshots to send.
+            # print(buf.getvalue())
+            # self.assertIn("Aborting resume, its obsolete", buf.getvalue())
 
 
     def test_missing_common(self):
