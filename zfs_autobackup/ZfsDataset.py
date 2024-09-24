@@ -960,31 +960,6 @@ class ZfsDataset:
             # target_dataset.error("Cant find common snapshot with source.")
             raise (Exception("Cant find common snapshot with target."))
 
-    # def find_start_snapshot(self, common_snapshot, also_other_snapshots):
-    #     """finds first snapshot to send :rtype: ZfsDataset or None if we cant
-    #     find it.
-    #
-    #     Args:
-    #         :rtype: ZfsDataset|None
-    #         :type common_snapshot: ZfsDataset
-    #         :type also_other_snapshots: bool
-    #     """
-    #
-    #     if not common_snapshot:
-    #         if not self.snapshots:
-    #             start_snapshot = None
-    #         else:
-    #             # no common snapshot, start from beginning
-    #             start_snapshot = self.snapshots[0]
-    #
-    #             if not start_snapshot.is_ours() and not also_other_snapshots:
-    #                 # try to start at a snapshot thats ours
-    #                 start_snapshot = self.find_next_snapshot(start_snapshot, also_other_snapshots)
-    #     else:
-    #         # normal situation: start_snapshot is the one after the common snapshot
-    #         start_snapshot = self.find_next_snapshot(common_snapshot, also_other_snapshots)
-    #
-    #     return start_snapshot
 
     def find_incompatible_snapshots(self, common_snapshot, raw):
         """returns a list[snapshots] that is incompatible for a zfs recv onto
@@ -1031,25 +1006,6 @@ class ZfsDataset:
 
         return allowed_filter_properties, allowed_set_properties
 
-    # def _add_virtual_snapshots(self, source_dataset, source_start_snapshot, also_other_snapshots):
-    #     """add snapshots from source to our snapshot list. (just the in memory
-    #     list, no disk operations)
-    #
-    #     Args:
-    #         :type source_dataset: ZfsDataset
-    #         :type source_start_snapshot: ZfsDataset
-    #         :type also_other_snapshots: bool
-    #     """
-    #
-    #     self.debug("Creating virtual target snapshots")
-    #     snapshot = source_start_snapshot
-    #     while snapshot:
-    #         # create virtual target snapsho
-    #         # NOTE: with force_exist we're telling the dataset it doesnt exist yet. (e.g. its virtual)
-    #         virtual_snapshot = self.zfs_node.get_dataset(self.filesystem_name + "@" + snapshot.snapshot_name,
-    #                                                      force_exists=False)
-    #         self.snapshots.append(virtual_snapshot)
-    #         snapshot = source_dataset.find_next_snapshot(snapshot, also_other_snapshots)
 
     def _pre_clean(self, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
         """cleanup old stuff before starting snapshot syncing
@@ -1263,9 +1219,6 @@ class ZfsDataset:
             write_embedded = False
 
         # now actually transfer the snapshots
-        # prev_source_snapshot = start_snapshot
-        # source_dataset=start_snapshot.parent
-        # prev_target_snapshot=target_dataset.find_snapshot(prev_source_snapshot)
 
         do_rollback = rollback
         prev_source_snapshot=source_common_snapshot
