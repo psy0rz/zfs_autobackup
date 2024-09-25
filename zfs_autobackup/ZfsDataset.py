@@ -1333,7 +1333,7 @@ class ZfsDataset:
                     prev_target_snapshot.release()
 
             #bookmark common snapshot on source, or use holds if bookmarks are not enabled.
-            if 'bookmarks' in features:
+            if 'bookmark_v2' in features:
                 source_snapshot.bookmark()
             else:
                 if holds:

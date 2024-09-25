@@ -12,6 +12,7 @@ class TestZfsAutobackup34(unittest2.TestCase):
 
         subprocess.check_call("zpool destroy test_source1", shell=True)
         subprocess.check_call("zpool create -d test_source1 /dev/ram0", shell=True)
+        shelltest("zpool get all test_source1")
         subprocess.check_call("zfs create -p test_source1/fs1/sub", shell=True) # recreate with no features at all
         subprocess.check_call("zfs set autobackup:test=true test_source1/fs1", shell=True)
 

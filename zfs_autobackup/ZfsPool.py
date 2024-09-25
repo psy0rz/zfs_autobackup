@@ -1,3 +1,6 @@
+from logging import warning
+
+
 class ZfsPool():
     """a zfs pool"""
 
