@@ -59,11 +59,11 @@ class ZfsDataset:
 
         return self.name
 
-    def __eq__(self, obj):
-        if not isinstance(obj, ZfsDataset):
+    def __eq__(self, dataset):
+        if not isinstance(dataset, ZfsDataset):
             return False
 
-        return self.name == obj.name
+        return self.name == dataset.name
 
     def verbose(self, txt):
         """
@@ -1089,7 +1089,7 @@ class ZfsDataset:
             :type target_transfers: list[ZfsDataset]
         """
 
-        # on source: delete all obsoletes that are not in target_transfers (except common snapshot)
+        # on source: delete all obsoletes that are not in target_transfers (except common snapshot, if its not a bookmark)
         for source_snapshot in self.snapshots:
             if (source_snapshot in source_obsoletes
                     and source_common_snapshot != source_snapshot
@@ -1152,10 +1152,10 @@ class ZfsDataset:
         source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(source_common_snapshot, raw)
 
-        # let thinner decide whats obsolete on source after the transfer is done, keeping the last snapshot as common.
+        # let thinner decide whats obsolete on source after the transfer is done
         source_obsoletes = []
         if self.our_snapshots:
-            source_obsoletes = self.thin_list(keeps=[self.our_snapshots[-1]])[1]
+            source_obsoletes = self.thin_list()[1]
 
         ### 2: Determine possible target snapshots
 
@@ -1180,11 +1180,12 @@ class ZfsDataset:
             if (also_other_snapshots or source_snapshot.is_ours()) and not source_snapshot.is_excluded:
                 # create virtual target snapshot
                 target_snapshot = target_dataset.zfs_node.get_dataset(
-                    target_dataset.filesystem_name + "@" + source_snapshot.suffix, force_exists=False)
+                    target_dataset.filesystem_name + source_snapshot.typed_suffix, force_exists=False)
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 
-        ### 3: Let the thinner decide what it wants by looking at all the possible target_snaphots at once
+        ### 3: Let the thinner decide what it wants by looking at all the possible target_snaphots at once.
+        # always keep the last target snapshot as common snapshot.
         if possible_target_snapshots:
             (target_keeps, target_obsoletes) = target_dataset.zfs_node.thin_list(possible_target_snapshots,
                                                                                  keep_snapshots=[
