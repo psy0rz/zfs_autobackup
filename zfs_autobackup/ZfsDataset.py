@@ -1333,6 +1333,7 @@ class ZfsDataset:
                     prev_target_snapshot.release()
 
             #bookmark common snapshot on source, or use holds if bookmarks are not enabled.
+            #NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
             if 'bookmark_written' in features:
                 source_snapshot.bookmark()
             else:
