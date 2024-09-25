@@ -29,26 +29,28 @@ class ZfsDataset:
         self.name = name  # full name
 
         # caching
-        self.__snapshots = None  # type: None|list[ZfsDataset]
+        # self.__snapshots = None  # type: None|list[ZfsDataset]
         self.__written_since_ours = None  # type: None|int
         self.__exists_check = None  # type: None|bool
         self.__properties = None  # type: None|dict[str,str]
         self.__recursive_datasets = None  # type: None|list[ZfsDataset]
         self.__datasets = None  # type: None|list[ZfsDataset]
-        self.__bookmarks = None  # type: None|list[ZfsDataset]
+        # self.__bookmarks = None  # type: None|list[ZfsDataset]
+        self.__snapshots_bookmarks = None #type: None|list[ZfsDataset]
 
         self.force_exists = force_exists
 
     def invalidate_cache(self):
         """clear caches"""
         self.force_exists = None
-        self.__snapshots = None
+        # self.__snapshots = None
         self.__written_since_ours = None
         self.__exists_check = None
         self.__properties = None
         self.__recursive_datasets = None
         self.__datasets = None
-        self.__bookmarks = None
+        # self.__bookmarks = None
+        self.__snapshots_bookmarks = None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -121,6 +123,9 @@ class ZfsDataset:
         if self.is_snapshot:
             (filesystem, snapshot) = self.name.split("@")
             return filesystem
+        elif self.is_bookmark:
+            (filesystem, snapshot) = self.name.split("#")
+            return filesystem
         else:
             return self.name
 
@@ -137,6 +142,20 @@ class ZfsDataset:
         raise (Exception("This is not a snapshot or bookmark"))
 
     @property
+    def typed_suffix(self):
+        """suffix with @ or # in front of it"""
+
+        if self.is_snapshot:
+            (filesystem, snapshot_name) = self.name.split("@")
+            return "@"+snapshot_name
+        elif self.is_bookmark:
+            (filesystem, bookmark_name) = self.name.split("#")
+            return "#"+bookmark_name
+
+        raise (Exception("This is not a snapshot or bookmark"))
+
+
+    @property
     def is_snapshot(self):
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
@@ -145,6 +164,11 @@ class ZfsDataset:
     def is_bookmark(self):
         """true if this dataset is a bookmark"""
         return self.name.find("#") != -1
+
+    @property
+    def is_dataset(self):
+
+        return not (self.is_snapshot or self.is_bookmark)
 
 
     @property
@@ -249,43 +273,27 @@ class ZfsDataset:
             else:
                 return None
 
-    # NOTE: unused for now
-    # def find_prev_snapshot(self, snapshot, also_other_snapshots=False):
-    #     """find previous snapshot in this dataset. None if it doesn't exist.
-    #
-    #     also_other_snapshots: set to true to also return snapshots that where
-    #     not created by us. (is_ours)
-    #
-    #     Args:
-    #         :type snapshot: str or ZfsDataset.ZfsDataset
-    #         :type also_other_snapshots: bool
-    #     """
-    #
-    #     if self.is_snapshot:
-    #         raise (Exception("Please call this on a dataset."))
-    #
-    #     index = self.find_snapshot_index(snapshot)
-    #     while index:
-    #         index = index - 1
-    #         if also_other_snapshots or self.snapshots[index].is_ours():
-    #             return self.snapshots[index]
-    #     return None
 
-    def find_next_snapshot(self, snapshot):
-        """find next snapshot in this dataset. None if it doesn't exist
+    def find_next_snapshot(self, snapshot_bookmark):
+        """find next snapshot in this dataset, according to snapshot or bookmark. None if it doesn't exist
 
         Args:
-            :type snapshot: ZfsDataset
+            :type snapshot_bookmark: ZfsDataset
         """
 
-        if self.is_snapshot:
+        if not self.is_dataset:
             raise (Exception("Please call this on a dataset."))
 
-        index = self.find_snapshot_index(snapshot)
-        while index is not None and index < len(self.snapshots) - 1:
-            index = index + 1
-            return self.snapshots[index]
+        found=False
+        for snapshot in self.snapshots_bookmarks:
+            if snapshot == snapshot_bookmark:
+                found=True
+            else:
+                if found==True and snapshot.is_snapshot:
+                    return snapshot
+
         return None
+
 
     @property
     def exists_check(self):
@@ -458,34 +466,48 @@ class ZfsDataset:
         return seconds
 
     @property
-    def snapshots(self):
-        """get all snapshots of this dataset
+    def snapshots_bookmarks(self):
+        """get all snapshots and bookmarks of this dataset (ordered by createtxg, so its suitable to determine incremental zfs send order)
         :rtype: list[ZfsDataset]
         """
 
         # cached?
-        if self.__snapshots is None:
-            self.debug("Getting snapshots")
+        if self.__snapshots_bookmarks is None:
+            self.debug("Getting snapshots and bookmarks")
 
             cmd = [
-                "zfs", "list", "-d", "1", "-r", "-t", "snapshot", "-H", "-o", "name", self.name
+                "zfs", "list", "-d", "1", "-r", "-t", "snapshot,bookmark", "-H", "-o", "name", "-s", "createtxg", self.name
             ]
 
-            self.__snapshots = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
+            self.__snapshots_bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
 
-        return self.__snapshots
+        return self.__snapshots_bookmarks
 
-    def cache_snapshot(self, snapshot, force=False):
-        """Update our snapshot cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
+
+    @property
+    def snapshots(self):
+        """get all snapshots of this dataset
+        :rtype: list[ZfsDataset]
+        """
+        ret = []
+
+        for snapshot in self.snapshots_bookmarks:
+            if snapshot.is_snapshot:
+                ret.append(snapshot)
+
+        return ret
+
+    def cache_snapshot_bookmark(self, snapshot, force=False):
+        """Update our snapshot and bookmark cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
         Args:
             :type snapshot: ZfsDataset
         """
 
         if force:
-            self.snapshots.append(snapshot)
+            self.snapshots_bookmarks.append(snapshot)
 
-        elif self.__snapshots is not None:
-            self.__snapshots.append(snapshot)
+        elif self.__snapshots_bookmarks is not None:
+            self.__snapshots_bookmarks.append(snapshot)
 
     @property
     def our_snapshots(self):
@@ -512,7 +534,7 @@ class ZfsDataset:
         return None
 
     def find_snapshot(self, snapshot):
-        """find snapshot by snapshot name (can be a snapshot_name or a different
+        """find snapshot by snapshot name (can be a suffix or a different
         ZfsDataset) Returns None if it cant find it.
 
         Args:
@@ -524,15 +546,39 @@ class ZfsDataset:
             return None
 
         if not isinstance(snapshot, ZfsDataset):
-            snapshot_name = snapshot
+            suffix = snapshot
         else:
-            snapshot_name = snapshot.suffix
+            suffix = snapshot.suffix
 
         for snapshot in self.snapshots:
-            if snapshot.suffix == snapshot_name:
+            if snapshot.suffix == suffix:
                 return snapshot
 
         return None
+
+    def find_bookmark(self, bookmark):
+        """find bookmark by bookmark name (can be a suffix or a different
+        ZfsDataset) Returns None if it cant find it.
+
+        Args:
+            :rtype: ZfsDataset|None
+            :type bookmark: str|ZfsDataset|None
+        """
+
+        if bookmark is None:
+            return None
+
+        if not isinstance(bookmark, ZfsDataset):
+            suffix = bookmark
+        else:
+            suffix = bookmark.suffix
+
+        for bookmark in self.bookmarks:
+            if bookmark.suffix == suffix:
+                return bookmark
+
+        return None
+
 
     def find_snapshot_index(self, snapshot):
         """find snapshot index by snapshot (can be a snapshot_name or
@@ -604,21 +650,19 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd)
 
+        self.cache_snapshot_bookmark(self.zfs_node.get_dataset( self.name+'#'+self.suffix,force_exists=True))
+
 
     @property
     def bookmarks(self):
 
-        if self.__bookmarks is None:
-            self.debug("Getting bookmarks")
+        ret = []
 
-            cmd = [
-                "zfs", "list", "-d", "1", "-r", "-t", "bookmark", "-H", "-o", "name", self.name
-            ]
+        for bookmark in self.snapshots_bookmarks:
+            if bookmark.is_bookmark:
+                ret.append(bookmark)
 
-            self.__bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
-
-
-        return self.__bookmarks
+        return ret
 
 
     @property
@@ -712,7 +756,8 @@ class ZfsDataset:
 
             # incremental?
             if prev_snapshot:
-                cmd.extend(["-i", "@" + prev_snapshot.suffix])
+
+                cmd.extend(["-i", prev_snapshot.typed_suffix])
 
             cmd.append(self.name)
 
@@ -953,8 +998,8 @@ class ZfsDataset:
                 self.snapshots.remove(obsolete)
 
     def find_common_snapshot(self, target_dataset, guid_check):
-        """find latest common snapshot between us and target returns None if its
-        an initial transfer
+        """find latest common snapshot/bookmark between us and target returns None if its
+        an initial transfer. It preffers bookmarks over snapshots on the source side. Target side will always be a snapshots.
 
         Args:
             :rtype: ZfsDataset|None
@@ -966,16 +1011,27 @@ class ZfsDataset:
             # target has nothing yet
             return None
         else:
-            for source_snapshot in reversed(self.bookmarks):
-                target_snapshot = target_dataset.find_snapshot(source_snapshot)
-                if target_snapshot:
-                    if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
-                        target_snapshot.warning("Common snapshots have mismatching GUID, ignoring.")
+            for target_snapshot in reversed(target_dataset.snapshots):
+
+                #Source bookmark?
+                source_bookmark = self.find_bookmark(target_snapshot)
+                if source_bookmark:
+                    if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
+                        source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
                     else:
-                        target_snapshot.debug("common snapshot")
+                        source_bookmark.debug("Common bookmark")
+                        return source_bookmark
+
+                #Source snapshot?
+                source_snapshot = self.find_snapshot(target_snapshot)
+                if source_snapshot:
+                    if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
+                        source_snapshot.warning("Snapshot has mismatching GUID, ignoring.")
+                    else:
+                        source_snapshot.debug("Common snapshot")
                         return source_snapshot
-            # target_dataset.error("Cant find common snapshot with source.")
-            raise (Exception("Cant find common snapshot with target."))
+
+            raise (Exception("Cant find common bookmark or snapshot with target."))
 
     def find_incompatible_snapshots(self, common_snapshot, raw):
         """returns a list[snapshots] that is incompatible for a zfs recv onto
