@@ -1332,8 +1332,15 @@ class ZfsDataset:
                 if prev_target_snapshot:
                     prev_target_snapshot.release()
 
-            #bookmark common snapshot on source
-            source_snapshot.bookmark()
+            #bookmark common snapshot on source, or use holds if bookmarks are not enabled.
+            if 'bookmarks' in features:
+                source_snapshot.bookmark()
+            else:
+                if holds:
+                    source_snapshot.hold()
+
+                    if prev_source_snapshot:
+                        prev_source_snapshot.release()
 
             # we may now destroy the previous source snapshot if its obsolete or an bookmark
             if prev_source_snapshot and (prev_source_snapshot in source_obsoletes or prev_source_snapshot.is_bookmark):
