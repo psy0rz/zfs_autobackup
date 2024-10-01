@@ -1336,6 +1336,7 @@ class ZfsDataset:
             #NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
             if 'bookmark_written' in features:
                 source_snapshot.bookmark()
+                #note: destroy source_snapshot when obsolete at this point?
             else:
                 if holds:
                     source_snapshot.hold()
