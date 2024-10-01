@@ -131,7 +131,7 @@ class ZfsDataset:
 
     @property
     def suffix(self):
-        """snapshot or bookmark part of the name"""
+        """snapshot or bookmark part of the name (the stuff after the # or @) """
         if self.is_snapshot:
             (filesystem, snapshot_name) = self.name.split("@")
             return snapshot_name
@@ -1227,7 +1227,7 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check, use_bookmarks):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1334,14 +1334,14 @@ class ZfsDataset:
 
             #bookmark common snapshot on source, or use holds if bookmarks are not enabled.
             #NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
-            if 'bookmark_written' in features:
+            if use_bookmarks:
                 source_snapshot.bookmark()
                 #note: destroy source_snapshot when obsolete at this point?
             else:
                 if holds:
                     source_snapshot.hold()
 
-                    if prev_source_snapshot:
+                    if prev_source_snapshot and prev_source_snapshot.is_snapshot:
                         prev_source_snapshot.release()
 
             # we may now destroy the previous source snapshot if its obsolete or an bookmark

@@ -95,3 +95,56 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         #while we're here, check that there are no holds on source common snapshot (since bookmarks replace holds on source side)
         r=shelltest("zfs holds test_source2/fs2/sub@test-20101111000002")
         self.assertNotIn("zfs_autobackup:test", r)
+
+
+    def test_disable_bookmarks(self):
+        """test if we can disable it on an existing backup with bookmarks, with --no-bookmarks and get the old behaviour (holds on source)"""
+
+        #first with bookmarks enabled
+        with mocktime("20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all test_source1")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000001
+test_source1/fs1#test-20101111000001
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000001
+test_source1/fs1/sub#test-20101111000001
+""")
+
+        #disable it
+        with mocktime("20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --no-bookmarks".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all test_source1")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000001
+test_source1/fs1@test-20101111000002
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000001
+test_source1/fs1/sub@test-20101111000002
+""")
+
+        #re-enable
+        with mocktime("20101111000003"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+        r=shelltest("zfs list -H -o name -r -t all test_source1")
+        self.assertMultiLineEqual(r,"""
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000001
+test_source1/fs1@test-20101111000002
+test_source1/fs1@test-20101111000003
+test_source1/fs1#test-20101111000003
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000001
+test_source1/fs1/sub@test-20101111000002
+test_source1/fs1/sub@test-20101111000003
+test_source1/fs1/sub#test-20101111000003
+""")

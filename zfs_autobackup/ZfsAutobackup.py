@@ -83,6 +83,9 @@ class ZfsAutobackup(ZfsAuto):
                            help='Don\'t transfer snapshots (useful for cleanups, or if you want a separate send-cronjob)')
         group.add_argument('--no-holds', action='store_true',
                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
+        group.add_argument('--no-bookmarks', action='store_true',
+                           help='Don\'t use bookmarks.')
+
         group.add_argument('--clear-refreservation', action='store_true',
                            help='Filter "refreservation" property. (recommended, saves space. same as '
                                 '--filter-properties refreservation)')
@@ -395,6 +398,15 @@ class ZfsAutobackup(ZfsAuto):
                 target_features = target_node.get_pool(target_dataset).features
                 common_features = source_features and target_features
 
+                if self.args.no_bookmarks:
+                    use_bookmarks=False
+                else:
+                    if not 'bookmark_written' in common_features:
+                        source_dataset.warning("Disabling bookmarks, not supported on both pools.")
+                        use_bookmarks=False
+                    else:
+                        use_bookmarks=True
+
                 # sync the snapshots of this dataset
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
                                               features=common_features, filter_properties=self.filter_properties_list(),
@@ -407,7 +419,7 @@ class ZfsAutobackup(ZfsAuto):
                                               send_pipes=send_pipes, recv_pipes=recv_pipes,
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed, force=self.args.force,
-                                              guid_check=not self.args.no_guid_check)
+                                              guid_check=not self.args.no_guid_check, use_bookmarks=use_bookmarks)
             except Exception as e:
 
                 fail_count = fail_count + 1
