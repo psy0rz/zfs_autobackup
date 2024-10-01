@@ -637,7 +637,7 @@ class ZfsDataset:
         return True
 
     def bookmark(self):
-        """Bookmark this snapshot"""
+        """Bookmark this snapshot, and return the bookmark"""
 
         if not self.is_snapshot:
             raise(Exception("Can only bookmark a snapshot!"))
@@ -650,8 +650,9 @@ class ZfsDataset:
 
         self.zfs_node.run(cmd=cmd)
 
-        self.cache_snapshot_bookmark(self.zfs_node.get_dataset( self.name+'#'+self.suffix,force_exists=True))
-
+        bookmark=self.zfs_node.get_dataset( self.name+'#'+self.suffix,force_exists=True)
+        self.cache_snapshot_bookmark(bookmark)
+        return bookmark
 
     @property
     def bookmarks(self):
@@ -1303,7 +1304,7 @@ class ZfsDataset:
         # now actually transfer the snapshots
 
         do_rollback = rollback
-        prev_source_snapshot = source_common_snapshot
+        prev_source_snapshot_bookmark = source_common_snapshot
         prev_target_snapshot = target_dataset.find_snapshot(source_common_snapshot)
         for target_snapshot in target_transfers:
 
@@ -1315,7 +1316,7 @@ class ZfsDataset:
                 do_rollback = False
 
             source_snapshot.transfer_snapshot(target_snapshot, features=features,
-                                              prev_snapshot=prev_source_snapshot, show_progress=show_progress,
+                                              prev_snapshot=prev_source_snapshot_bookmark, show_progress=show_progress,
                                               filter_properties=active_filter_properties,
                                               set_properties=active_set_properties,
                                               ignore_recv_exit_code=ignore_recv_exit_code,
@@ -1325,7 +1326,7 @@ class ZfsDataset:
 
             resume_token = None
 
-            # hold common snapshot on the target.
+            # hold/release common snapshot on the target.
             if holds:
                 target_snapshot.hold()
 
@@ -1333,30 +1334,36 @@ class ZfsDataset:
                     prev_target_snapshot.release()
 
             #bookmark common snapshot on source, or use holds if bookmarks are not enabled.
-            #NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
             if use_bookmarks:
-                source_snapshot.bookmark()
+                source_bookmark=source_snapshot.bookmark()
                 #note: destroy source_snapshot when obsolete at this point?
             else:
+                source_bookmark=None
                 if holds:
                     source_snapshot.hold()
 
-                    if prev_source_snapshot and prev_source_snapshot.is_snapshot:
-                        prev_source_snapshot.release()
+                    if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_snapshot:
+                        prev_source_snapshot_bookmark.release()
 
             # we may now destroy the previous source snapshot if its obsolete or an bookmark
-            if prev_source_snapshot and (prev_source_snapshot in source_obsoletes or prev_source_snapshot.is_bookmark):
-                prev_source_snapshot.destroy()
+            #FIXME: met bookmarks kan de huidige snapshot na send ook meteen weg
+            #FIXME: klopt niet, nu haalt ie altijd bookmark weg? wat als we naar andere target willen senden (zoals in test_encryption.py)
+            if prev_source_snapshot_bookmark and (prev_source_snapshot_bookmark in source_obsoletes or prev_source_snapshot_bookmark.is_bookmark):
+                prev_source_snapshot_bookmark.destroy()
 
             # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
             # the rest was already destroyed or will not be send)
             if prev_target_snapshot in target_obsoletes:
                 prev_target_snapshot.destroy()
 
-            prev_source_snapshot = source_snapshot
+            #we always try to use the bookmark during incremental send
+            if source_bookmark:
+                prev_source_snapshot_bookmark = source_bookmark
+            else:
+                prev_source_snapshot_bookmark = source_snapshot
+
             prev_target_snapshot = target_snapshot
 
-            # source_snapshot = self.find_next_snapshot(source_snapshot, also_other_snapshots)
 
     def mount(self, mount_point):
 

@@ -89,12 +89,15 @@ test_target1/test_source2/fs2/sub                                     encryption
     def  test_decrypt(self):
         """decrypt data and store unencrypted (--decrypt)"""
 
+
+
         self.prepare_encrypted_dataset("11111111", "test_source1/fs1/encryptedsource")
         self.prepare_encrypted_dataset("22222222", "test_target1/encryptedtarget")
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(" ")).run())
-            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received".split(" ")).run())
+            # NOTE: this also tests if sending a source to a second target works correctly (this failed during bookmark implementation)
+            self.assertFalse(ZfsAutobackup("test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received --debug".split(" ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(" ")).run())

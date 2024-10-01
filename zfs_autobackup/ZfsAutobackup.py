@@ -401,6 +401,7 @@ class ZfsAutobackup(ZfsAuto):
                 if self.args.no_bookmarks:
                     use_bookmarks=False
                 else:
+                    # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
                     if not 'bookmark_written' in common_features:
                         source_dataset.warning("Disabling bookmarks, not supported on both pools.")
                         use_bookmarks=False
