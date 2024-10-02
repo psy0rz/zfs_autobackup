@@ -6,6 +6,8 @@ import time
 from .ExecuteNode import ExecuteError
 
 
+# NOTE: get/create instances via zfs_node.get_dataset(). This is to make sure there is only one ZfsDataset object per actual dataset.
+
 class ZfsDataset:
     """a zfs dataset (filesystem/volume/snapshot/clone) Note that a dataset
     doesn't have to actually exist (yet/anymore) Also most properties are cached
@@ -26,7 +28,9 @@ class ZfsDataset:
             :type force_exists: bool
         """
         self.zfs_node = zfs_node
-        self.name = name  # full name
+        self.name = name  # full actual name of dataset
+
+        self.force_exists = force_exists
 
         # caching
         # self.__snapshots = None  # type: None|list[ZfsDataset]
@@ -36,9 +40,7 @@ class ZfsDataset:
         self.__recursive_datasets = None  # type: None|list[ZfsDataset]
         self.__datasets = None  # type: None|list[ZfsDataset]
         # self.__bookmarks = None  # type: None|list[ZfsDataset]
-        self.__snapshots_bookmarks = None #type: None|list[ZfsDataset]
-
-        self.force_exists = force_exists
+        self.__snapshots_bookmarks = None  # type: None|list[ZfsDataset]
 
     def invalidate_cache(self):
         """clear caches"""
@@ -142,18 +144,27 @@ class ZfsDataset:
         raise (Exception("This is not a snapshot or bookmark"))
 
     @property
+    def tagless_suffix(self):
+        """snapshot or bookmark part of the name, but without the tag."""
+
+        suffix = self.suffix
+        if self.zfs_node.tag_seperator in suffix:
+            return suffix.split(self.zfs_node.tag_seperator)[0]
+        else:
+            return suffix
+
+    @property
     def typed_suffix(self):
         """suffix with @ or # in front of it"""
 
         if self.is_snapshot:
             (filesystem, snapshot_name) = self.name.split("@")
-            return "@"+snapshot_name
+            return "@" + snapshot_name
         elif self.is_bookmark:
             (filesystem, bookmark_name) = self.name.split("#")
-            return "#"+bookmark_name
+            return "#" + bookmark_name
 
         raise (Exception("This is not a snapshot or bookmark"))
-
 
     @property
     def is_snapshot(self):
@@ -170,15 +181,14 @@ class ZfsDataset:
 
         return not (self.is_snapshot or self.is_bookmark)
 
-
     @property
-    def is_excluded(self):
+    def is_snapshot_excluded(self):
         """true if this dataset is a snapshot and matches the exclude pattern"""
         if not self.is_snapshot:
             return False
 
         for pattern in self.zfs_node.exclude_snapshot_patterns:
-            if pattern.search(self.name) is not None:
+            if pattern.search(self.suffix) is not None:
                 self.debug("Excluded (path matches snapshot exclude pattern)")
                 return True
 
@@ -273,7 +283,6 @@ class ZfsDataset:
             else:
                 return None
 
-
     def find_next_snapshot(self, snapshot_bookmark):
         """find next snapshot in this dataset, according to snapshot or bookmark. None if it doesn't exist
 
@@ -284,16 +293,15 @@ class ZfsDataset:
         if not self.is_dataset:
             raise (Exception("Please call this on a dataset."))
 
-        found=False
+        found = False
         for snapshot in self.snapshots_bookmarks:
             if snapshot == snapshot_bookmark:
-                found=True
+                found = True
             else:
-                if found==True and snapshot.is_snapshot:
+                if found == True and snapshot.is_snapshot:
                     return snapshot
 
         return None
-
 
     @property
     def exists_check(self):
@@ -441,11 +449,13 @@ class ZfsDataset:
         """get timestamp from snapshot name. Only works for our own snapshots
         with the correct format. Snapshots that are not ours always return None
 
+        Note that the tag-part in the name is ignored, so snapsnots are ours regardless of their tag.
+
         :rtype: int|None
         """
 
         try:
-            dt = datetime.strptime(self.suffix, self.zfs_node.snapshot_time_format)
+            dt = datetime.strptime(self.tagless_suffix, self.zfs_node.snapshot_time_format)
         except ValueError:
             return None
 
@@ -476,13 +486,14 @@ class ZfsDataset:
             self.debug("Getting snapshots and bookmarks")
 
             cmd = [
-                "zfs", "list", "-d", "1", "-r", "-t", "snapshot,bookmark", "-H", "-o", "name", "-s", "createtxg", self.name
+                "zfs", "list", "-d", "1", "-r", "-t", "snapshot,bookmark", "-H", "-o", "name", "-s", "createtxg",
+                self.name
             ]
 
-            self.__snapshots_bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True), force_exists=True)
+            self.__snapshots_bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True),
+                                                                    force_exists=True)
 
         return self.__snapshots_bookmarks
-
 
     @property
     def snapshots(self):
@@ -579,7 +590,6 @@ class ZfsDataset:
 
         return None
 
-
     def find_snapshot_index(self, snapshot):
         """find snapshot index by snapshot (can be a snapshot_name or
         ZfsDataset)
@@ -640,17 +650,17 @@ class ZfsDataset:
         """Bookmark this snapshot, and return the bookmark"""
 
         if not self.is_snapshot:
-            raise(Exception("Can only bookmark a snapshot!"))
+            raise (Exception("Can only bookmark a snapshot!"))
 
         self.debug("Bookmarking")
 
         cmd = [
-            "zfs", "bookmark", self.name, "#"+self.suffix
+            "zfs", "bookmark", self.name, "#" + self.suffix
         ]
 
         self.zfs_node.run(cmd=cmd)
 
-        bookmark=self.zfs_node.get_dataset( self.name+'#'+self.suffix,force_exists=True)
+        bookmark = self.zfs_node.get_dataset(self.name + '#' + self.suffix, force_exists=True)
         self.cache_snapshot_bookmark(bookmark)
         return bookmark
 
@@ -664,7 +674,6 @@ class ZfsDataset:
                 ret.append(bookmark)
 
         return ret
-
 
     @property
     def recursive_datasets(self, types="filesystem,volume"):
@@ -757,7 +766,6 @@ class ZfsDataset:
 
             # incremental?
             if prev_snapshot:
-
                 cmd.extend(["-i", prev_snapshot.typed_suffix])
 
             cmd.append(self.name)
@@ -1014,7 +1022,7 @@ class ZfsDataset:
         else:
             for target_snapshot in reversed(target_dataset.snapshots):
 
-                #Source bookmark?
+                # Source bookmark?
                 source_bookmark = self.find_bookmark(target_snapshot)
                 if source_bookmark:
                     if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
@@ -1023,7 +1031,7 @@ class ZfsDataset:
                         source_bookmark.debug("Common bookmark")
                         return source_bookmark
 
-                #Source snapshot?
+                # Source snapshot?
                 source_snapshot = self.find_snapshot(target_snapshot)
                 if source_snapshot:
                     if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
@@ -1178,7 +1186,7 @@ class ZfsDataset:
 
         while source_snapshot:
             # we want it?
-            if (also_other_snapshots or source_snapshot.is_ours()) and not source_snapshot.is_excluded:
+            if (also_other_snapshots or source_snapshot.is_ours()) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
                 target_snapshot = target_dataset.zfs_node.get_dataset(
                     target_dataset.filesystem_name + source_snapshot.typed_suffix, force_exists=False)
@@ -1228,7 +1236,8 @@ class ZfsDataset:
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
-                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check, use_bookmarks):
+                       no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
+                       use_bookmarks):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1333,12 +1342,12 @@ class ZfsDataset:
                 if prev_target_snapshot:
                     prev_target_snapshot.release()
 
-            #bookmark common snapshot on source, or use holds if bookmarks are not enabled.
+            # bookmark common snapshot on source, or use holds if bookmarks are not enabled.
             if use_bookmarks:
-                source_bookmark=source_snapshot.bookmark()
-                #note: destroy source_snapshot when obsolete at this point?
+                source_bookmark = source_snapshot.bookmark()
+                # note: destroy source_snapshot when obsolete at this point?
             else:
-                source_bookmark=None
+                source_bookmark = None
                 if holds:
                     source_snapshot.hold()
 
@@ -1346,9 +1355,10 @@ class ZfsDataset:
                         prev_source_snapshot_bookmark.release()
 
             # we may now destroy the previous source snapshot if its obsolete or an bookmark
-            #FIXME: met bookmarks kan de huidige snapshot na send ook meteen weg
-            #FIXME: klopt niet, nu haalt ie altijd bookmark weg? wat als we naar andere target willen senden (zoals in test_encryption.py)
-            if prev_source_snapshot_bookmark and (prev_source_snapshot_bookmark in source_obsoletes or prev_source_snapshot_bookmark.is_bookmark):
+            # FIXME: met bookmarks kan de huidige snapshot na send ook meteen weg
+            # FIXME: klopt niet, nu haalt ie altijd bookmark weg? wat als we naar andere target willen senden (zoals in test_encryption.py)
+            if prev_source_snapshot_bookmark and (
+                    prev_source_snapshot_bookmark in source_obsoletes or prev_source_snapshot_bookmark.is_bookmark):
                 prev_source_snapshot_bookmark.destroy()
 
             # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
@@ -1356,14 +1366,13 @@ class ZfsDataset:
             if prev_target_snapshot in target_obsoletes:
                 prev_target_snapshot.destroy()
 
-            #we always try to use the bookmark during incremental send
+            # we always try to use the bookmark during incremental send
             if source_bookmark:
                 prev_source_snapshot_bookmark = source_bookmark
             else:
                 prev_source_snapshot_bookmark = source_snapshot
 
             prev_target_snapshot = target_snapshot
-
 
     def mount(self, mount_point):
 

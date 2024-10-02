@@ -48,9 +48,8 @@ class ZfsAutobackup(ZfsAuto):
             self.warning("Using --compress with --zfs-compressed, might be inefficient.")
 
         if args.decrypt:
-            self.warning("Properties will not be sent over for datasets that will be decrypted. (zfs bug https://github.com/openzfs/zfs/issues/16275)")
-
-
+            self.warning(
+                "Properties will not be sent over for datasets that will be decrypted. (zfs bug https://github.com/openzfs/zfs/issues/16275)")
 
         return args
 
@@ -127,8 +126,8 @@ class ZfsAutobackup(ZfsAuto):
                            help='Limit data transfer rate in Bytes/sec (e.g. 128K. requires mbuffer.)')
         group.add_argument('--buffer', metavar='SIZE', default=None,
                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
-        parser.add_argument('--buffer-chunk-size', metavar="BUFFERCHUNKSIZE", default=None,
-                            help='Tune chunk size when mbuffer is used. (requires mbuffer.)')
+        group.add_argument('--buffer-chunk-size', metavar="BUFFERCHUNKSIZE", default=None,
+                           help='Tune chunk size when mbuffer is used. (requires mbuffer.)')
         group.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
                            help='pipe zfs send output through COMMAND (can be used multiple times)')
         group.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
@@ -399,14 +398,14 @@ class ZfsAutobackup(ZfsAuto):
                 common_features = source_features and target_features
 
                 if self.args.no_bookmarks:
-                    use_bookmarks=False
+                    use_bookmarks = False
                 else:
                     # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
                     if not 'bookmark_written' in common_features:
                         source_dataset.warning("Disabling bookmarks, not supported on both pools.")
-                        use_bookmarks=False
+                        use_bookmarks = False
                     else:
-                        use_bookmarks=True
+                        use_bookmarks = True
 
                 # sync the snapshots of this dataset
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
@@ -455,7 +454,6 @@ class ZfsAutobackup(ZfsAuto):
         if self.args.clear_refreservation:
             filter_properties.append("refreservation")
 
-
         return filter_properties
 
     def set_properties_list(self):
@@ -496,7 +494,8 @@ class ZfsAutobackup(ZfsAuto):
                                   ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner,
-                                  exclude_snapshot_patterns=self.args.exclude_snapshot_pattern)
+                                  exclude_snapshot_patterns=self.args.exclude_snapshot_pattern,
+                                  tag_seperator=self.tag_seperator)
 
             ################# select source datasets
             self.set_title("Selecting")
@@ -512,6 +511,9 @@ class ZfsAutobackup(ZfsAuto):
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
                 snapshot_name = datetime_now(self.args.utc).strftime(self.snapshot_time_format)
+                if self.args.tag:
+                    snapshot_name = snapshot_name + self.tag_seperator + self.args.tag
+
                 source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
@@ -534,7 +536,8 @@ class ZfsAutobackup(ZfsAuto):
                                       ssh_to=self.args.ssh_target,
                                       readonly=self.args.test, debug_output=self.args.debug_output,
                                       description="[Target]",
-                                      thinner=target_thinner)
+                                      exclude_snapshot_patterns=self.args.exclude_snapshot_pattern,
+                                      thinner=target_thinner, tag_seperator=self.tag_seperator)
                 target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
                 self.set_title("Synchronising")

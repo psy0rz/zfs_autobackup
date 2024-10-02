@@ -57,6 +57,7 @@ class ZfsAuto(CliBase):
         self.property_name = args.property_format.format(args.backup_name)
         self.snapshot_time_format = args.snapshot_format.format(args.backup_name)
         self.hold_name = args.hold_format.format(args.backup_name)
+        self.tag_seperator = args.tag_seperator
 
         dt = datetime_now(args.utc)
 
@@ -67,6 +68,27 @@ class ZfsAuto(CliBase):
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
         self.verbose("Timezone                   : {}".format("UTC" if args.utc else "Local"))
+
+        seperator_test = datetime_now(False).strftime(self.snapshot_time_format)
+
+        # according to man 8 zfs:
+        valid_tags = "_.: -"
+        if self.tag_seperator not in valid_tags or self.tag_seperator == '':
+            self.log.error("Invalid tag seperator. Allowed: '{}'".format(valid_tags))
+            sys.exit(255)
+
+        if self.tag_seperator in seperator_test:
+            self.log.error("Tag seperator '{}' may not be used in snapshot format: {}".format(self.tag_seperator,
+                                                                                              self.snapshot_time_format))
+            sys.exit(255)
+
+        if args.tag and self.tag_seperator in args.tag:
+            self.log.error(
+                "Tag '{}' may not contain tag seperator '{}'".format(args.tag, self.tag_seperator))
+            sys.exit(255)
+
+        if args.tag:
+            self.verbose("Tag                        : {}".format(self.tag_seperator + args.tag))
 
         return args
 
@@ -98,13 +120,18 @@ class ZfsAuto(CliBase):
                            help='ZFS hold string format. Default: %(default)s')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
                            help='Number of directories to strip from target path.')
+        group.add_argument('--tag-seperator', metavar='CHAR', default="_",
+                           help="Tag seperator for snapshots and bookmarks. Default: %(default)s")
+        group.add_argument('--tag', metavar='TAG', default=None,
+                           help='Backup tag to add to snapshots names. (For administrative purposes)')
 
         group = parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
         group.add_argument('--exclude-unchanged', metavar='BYTES', default=0, type=int,
                            help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
         group.add_argument('--exclude-received', action='store_true',
-                           help='Exclude datasets that have the origin of their autobackup: property as "received".' , )
+                           help='Exclude datasets that have the origin of their autobackup: property as "received".', )
+
         # group.add_argument('--include-received', action='store_true',
         #                    help=argparse.SUPPRESS)
 

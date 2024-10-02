@@ -17,13 +17,18 @@ from .util import datetime_now
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None,
-                 readonly=False,
-                 description="",
-                 debug_output=False, thinner=None, exclude_snapshot_patterns=[]):
+    # def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None,
+    #              readonly=False,
+    #              description="",
+    #              debug_output=False, thinner=None, exclude_snapshot_patterns=None, tag_seperator='~'):
+    def __init__(self, logger, utc, snapshot_time_format, hold_name, ssh_config, ssh_to,
+                 readonly,
+                 description,
+                 debug_output, thinner, exclude_snapshot_patterns, tag_seperator):
 
         self.utc = utc
         self.snapshot_time_format = snapshot_time_format
+        self.tag_seperator = tag_seperator
         self.hold_name = hold_name
 
         self.description = description
