@@ -149,3 +149,33 @@ test_source1/fs1/sub@test-20101111000003
 test_source1/fs1/sub#test-20101111000003
 """)
 
+    def test_tags(self):
+
+
+        with mocktime("20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --tag test1".split(" ")).run())
+
+        with mocktime("20101111000002"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --tag test2".split(" ")).run())
+
+        with mocktime("20101111000003"):
+            # make sure the thinner sees and cleans up the old snaphots that have a tag
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty --keep-source=2 --keep-target=2".split(" ")).run())
+
+        r=shelltest("zfs list -H -r -t snapshot -o name "+TEST_POOLS)
+
+        self.assertMultiLineEqual(r,"""
+test_source1/fs1@test-20101111000002_test2
+test_source1/fs1@test-20101111000003
+test_source1/fs1/sub@test-20101111000002_test2
+test_source1/fs1/sub@test-20101111000003
+test_source2/fs2/sub@test-20101111000002_test2
+test_source2/fs2/sub@test-20101111000003
+test_target1/test_source1/fs1@test-20101111000002_test2
+test_target1/test_source1/fs1@test-20101111000003
+test_target1/test_source1/fs1/sub@test-20101111000002_test2
+test_target1/test_source1/fs1/sub@test-20101111000003
+test_target1/test_source2/fs2/sub@test-20101111000002_test2
+test_target1/test_source2/fs2/sub@test-20101111000003
+""")
+
