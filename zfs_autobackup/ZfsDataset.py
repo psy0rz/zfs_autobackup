@@ -646,8 +646,9 @@ class ZfsDataset:
 
         return True
 
-    def bookmark(self):
-        """Bookmark this snapshot, and return the bookmark"""
+    def bookmark(self, tag):
+        """Bookmark this snapshot, and return the bookmark."""
+        # NOTE: we use the tag to add the target_path GUID, so that we can have multiple bookmarks for the same snapshot, but for different target. This is to make sure you can send a backup to two locations, without them interfering with eachothers bookmarks.
 
         if not self.is_snapshot:
             raise (Exception("Can only bookmark a snapshot!"))
@@ -655,7 +656,7 @@ class ZfsDataset:
         self.debug("Bookmarking")
 
         cmd = [
-            "zfs", "bookmark", self.name, "#" + self.suffix
+            "zfs", "bookmark", self.name, "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
         ]
 
         self.zfs_node.run(cmd=cmd)
@@ -772,6 +773,7 @@ class ZfsDataset:
 
         cmd.extend(send_pipes)
 
+        self.error(cmd)
         output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
 
         return output_pipe
@@ -1237,7 +1239,7 @@ class ZfsDataset:
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                        no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                       use_bookmarks):
+                       use_bookmarks, bookmark_tag):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1256,6 +1258,8 @@ class ZfsDataset:
             :type also_other_snapshots: bool
             :type no_send: bool
             :type guid_check: bool
+            :type use_bookmarks: bool
+            :type bookmark_tag: str
         """
 
         # self.verbose("-> {}".format(target_dataset))
@@ -1344,7 +1348,7 @@ class ZfsDataset:
 
             # bookmark common snapshot on source, or use holds if bookmarks are not enabled.
             if use_bookmarks:
-                source_bookmark = source_snapshot.bookmark()
+                source_bookmark = source_snapshot.bookmark(bookmark_tag)
                 # note: destroy source_snapshot when obsolete at this point?
             else:
                 source_bookmark = None
