@@ -1008,15 +1008,21 @@ class ZfsDataset:
                 obsolete.destroy()
                 self.snapshots.remove(obsolete)
 
-    def find_common_snapshot(self, target_dataset, guid_check):
+    def find_common_snapshot(self, target_dataset, guid_check, bookmark_name):
         """find latest common snapshot/bookmark between us and target returns None if its
-        an initial transfer. It preffers bookmarks over snapshots on the source side. Target side will always be a snapshots.
+        an initial transfer.
+
+        On the source it prefers the specified bookmark_name
+
 
         Args:
             :rtype: ZfsDataset|None
             :type guid_check: bool
             :type target_dataset: ZfsDataset
+            :type preferred_bookmark: str
         """
+
+        bookmark = self.zfs_node.get_dataset(bookmark_name)
 
         if not target_dataset.exists or not target_dataset.snapshots:
             # target has nothing yet
@@ -1024,16 +1030,18 @@ class ZfsDataset:
         else:
             for target_snapshot in reversed(target_dataset.snapshots):
 
-                # Source bookmark?
-                source_bookmark = self.find_bookmark(target_snapshot)
-                if source_bookmark:
-                    if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
-                        source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
-                    else:
-                        source_bookmark.debug("Common bookmark")
-                        return source_bookmark
+                # Source bookmark with same suffix?
+                # source_bookmark = self.find_bookmark(target_snapshot)
+                # if source_bookmark:
+                #     if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
+                #         source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
+                #     else:
+                #         source_bookmark.debug("Common bookmark")
+                #         return source_bookmark
+                if bookmark.exists and bookmark.properties['guid'] == target_snapshot.properties['guid']:XXX wil eigenlijk guid check opineel houden .dus  bookmark name word snapshotname_targetdatasetguid
+                    return bookmark
 
-                # Source snapshot?
+                # Source snapshot with same suffix?
                 source_snapshot = self.find_snapshot(target_snapshot)
                 if source_snapshot:
                     if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
@@ -1138,7 +1146,7 @@ class ZfsDataset:
                 else:
                     return resume_token
 
-    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw):
+    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw, bookmark_name):
         """Determine at what snapshot to start syncing to target_dataset and what to sync and what to keep.
 
         Args:
@@ -1147,6 +1155,7 @@ class ZfsDataset:
             :type also_other_snapshots: bool
             :type guid_check: bool
             :type raw: bool
+            :type bookmark_name: str
 
         Returns:
             tuple: A tuple containing:
@@ -1156,11 +1165,14 @@ class ZfsDataset:
                 - list[ZfsDataset]: Transfer target snapshots. These need to be transferred.
                 - list[ZfsDataset]: Incompatible target snapshots. Target snapshots that are in the way, after the common snapshot. (need to be destroyed to continue)
 
+
         """
 
         ### 1: determine common and start snapshot
+
         target_dataset.debug("Determining start snapshot")
-        source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check)
+        source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check,
+                                                           bookmark_name=bookmark_name)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(source_common_snapshot, raw)
 
         # let thinner decide whats obsolete on source after the transfer is done
@@ -1239,7 +1251,7 @@ class ZfsDataset:
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                        no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                       use_bookmarks, bookmark_tag):
+                       use_bookmarks, bookmark_name):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1259,7 +1271,7 @@ class ZfsDataset:
             :type no_send: bool
             :type guid_check: bool
             :type use_bookmarks: bool
-            :type bookmark_tag: str
+            :type bookmark_name: str
         """
 
         # self.verbose("-> {}".format(target_dataset))
@@ -1282,7 +1294,7 @@ class ZfsDataset:
         (source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
-                            guid_check=guid_check, raw=raw)
+                            guid_check=guid_check, raw=raw, bookmark_name=bookmark_name)
 
         # NOTE: we do a pre-clean because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
@@ -1348,7 +1360,7 @@ class ZfsDataset:
 
             # bookmark common snapshot on source, or use holds if bookmarks are not enabled.
             if use_bookmarks:
-                source_bookmark = source_snapshot.bookmark(bookmark_tag)
+                source_bookmark = source_snapshot.bookmark(bookmark_name)
                 # note: destroy source_snapshot when obsolete at this point?
             else:
                 source_bookmark = None
