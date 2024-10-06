@@ -169,6 +169,15 @@ class ZfsDataset:
         raise (Exception("This is not a snapshot or bookmark"))
 
     @property
+    def tag(self):
+        """the tag-part of a snapshot or bookmark, if any. can return None"""
+
+        if self.is_ours and self.zfs_node.tag_seperator in self.suffix:
+            return self.suffix.split(self.zfs_node.tag_seperator)[1]
+        else:
+            return None
+
+    @property
     def is_snapshot(self):
         """true if this dataset is a snapshot"""
         return self.name.find("@") != -1
@@ -579,30 +588,33 @@ class ZfsDataset:
 
         return None
 
-    def find_bookmark(self, bookmark, ignore_tag):
+    def find_bookmark(self, snapshot_bookmark, preferred_tag):
         """find bookmark by bookmark name (can be a suffix or a different
         ZfsDataset) Returns None if it cant find it.
 
+        We try to find the bookmark with the preferred tag (which is usually a target path guid, to prevent conflicting bookmarks by multiple sends)
+
         Args:
             :rtype: ZfsDataset|None
-            :type bookmark: str|ZfsDataset|None
+            :type snapshot_bookmark: str|ZfsDataset|None
             :type ignore_tag: bool
         """
 
-        if bookmark is None:
+        if snapshot_bookmark is None:
             return None
 
-        if not isinstance(bookmark, ZfsDataset):
-            suffix = bookmark
+        if not isinstance(snapshot_bookmark, ZfsDataset):
+            tagless_suffix = snapshot_bookmark
         else:
-            if ignore_tag:
-                suffix = bookmark.tagless_suffix
-            else:
-                suffix = bookmark.suffix
+            tagless_suffix = snapshot_bookmark.tagless_suffix
 
-        for bookmark in self.bookmarks:
-            if (ignore_tag and bookmark.tagless_suffix == suffix) or (not ignore_tag and bookmark.suffix == suffix):
-                return bookmark
+        for snapshot_bookmark in self.bookmarks:
+            if snapshot_bookmark.tagless_suffix == tagless_suffix and snapshot_bookmark.tag == preferred_tag:
+                return snapshot_bookmark
+
+        for snapshot_bookmark in self.bookmarks:
+            if snapshot_bookmark.tagless_suffix == tagless_suffix:
+                return snapshot_bookmark
 
         return None
 
@@ -1047,17 +1059,14 @@ class ZfsDataset:
         else:
             for target_snapshot in reversed(target_dataset.snapshots):
 
-                # Source bookmark with same suffix?
-                # source_bookmark = self.find_bookmark(target_snapshot)
-                # if source_bookmark:
-                #     if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
-                #         source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
-                #     else:
-                #         source_bookmark.debug("Common bookmark")
-                #         return source_bookmark
-                if bookmark.exists and bookmark.properties['guid'] == target_snapshot.properties['guid']:
-                    # FIXME: wil eigenlijk guid check opineel houden .dus  bookmark name word snapshotname_targetdatasetguid
-                    return bookmark
+                # Prefer bookmarks over snapshots
+                source_bookmark = self.find_bookmark(target_snapshot, preferred_tag=bookmark_tag)
+                if source_bookmark:
+                    if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
+                        source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
+                    else:
+                        source_bookmark.debug("Common bookmark")
+                        return source_bookmark
 
                 # Source snapshot with same suffix?
                 source_snapshot = self.find_snapshot(target_snapshot)
