@@ -224,7 +224,7 @@ class ZfsAutobackup(ZfsAuto):
                         # does it have other snapshots?
                         has_others = False
                         for snapshot in dataset.snapshots:
-                            if not snapshot.is_ours():
+                            if not snapshot.is_ours:
                                 has_others = True
                                 break
 

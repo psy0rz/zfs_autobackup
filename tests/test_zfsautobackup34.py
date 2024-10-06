@@ -190,7 +190,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with mocktime("20101111000001"):
             self.assertFalse(
                 ZfsAutobackup(
-                    "test test_target1/a --no-progress --verbose --allow-empty --tag tag1".split(" ")).run())
+                    "test test_target1/a --no-progress --verbose --allow-empty --debug --tag tag1".split(" ")).run())
 
         # increment, should be from bookmark
         with mocktime("20101111000002"):

@@ -62,6 +62,8 @@ class ZfsDataset:
         return self.name
 
     def __eq__(self, dataset):
+        """compare the full name of the dataset"""
+
         if not isinstance(dataset, ZfsDataset):
             return False
 
@@ -145,10 +147,10 @@ class ZfsDataset:
 
     @property
     def tagless_suffix(self):
-        """snapshot or bookmark part of the name, but without the tag."""
+        """snapshot or bookmark part of the name, but without the tag. (if its our snapshot we remove the tag)"""
 
         suffix = self.suffix
-        if self.zfs_node.tag_seperator in suffix:
+        if self.is_ours and self.zfs_node.tag_seperator in suffix:
             return suffix.split(self.zfs_node.tag_seperator)[0]
         else:
             return suffix
@@ -286,6 +288,8 @@ class ZfsDataset:
     def find_next_snapshot(self, snapshot_bookmark):
         """find next snapshot in this dataset, according to snapshot or bookmark. None if it doesn't exist
 
+
+
         Args:
             :type snapshot_bookmark: ZfsDataset
         """
@@ -298,7 +302,7 @@ class ZfsDataset:
             if snapshot == snapshot_bookmark:
                 found = True
             else:
-                if found == True and snapshot.is_snapshot:
+                if found and snapshot.is_snapshot:
                     return snapshot
 
         return None
@@ -417,6 +421,7 @@ class ZfsDataset:
         else:
             return True
 
+    @property
     def is_ours(self):
         """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
         return self.timestamp is not None
@@ -454,8 +459,13 @@ class ZfsDataset:
         :rtype: int|None
         """
 
+        if self.zfs_node.tag_seperator in self.suffix:
+            tagless_suffix = self.suffix.split(self.zfs_node.tag_seperator)[0]
+        else:
+            tagless_suffix = self.suffix
+
         try:
-            dt = datetime.strptime(self.tagless_suffix, self.zfs_node.snapshot_time_format)
+            dt = datetime.strptime(tagless_suffix, self.zfs_node.snapshot_time_format)
         except ValueError:
             return None
 
@@ -526,7 +536,7 @@ class ZfsDataset:
         ret = []
 
         for snapshot in self.snapshots:
-            if snapshot.is_ours():
+            if snapshot.is_ours:
                 ret.append(snapshot)
 
         return ret
@@ -547,6 +557,8 @@ class ZfsDataset:
     def find_snapshot(self, snapshot):
         """find snapshot by snapshot name (can be a suffix or a different
         ZfsDataset) Returns None if it cant find it.
+
+        Note that matches with our own snapshots will be done tagless.
 
         Args:
             :rtype: ZfsDataset|None
@@ -1206,7 +1218,7 @@ class ZfsDataset:
 
         while source_snapshot:
             # we want it?
-            if (also_other_snapshots or source_snapshot.is_ours()) and not source_snapshot.is_snapshot_excluded:
+            if (also_other_snapshots or source_snapshot.is_ours) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
                 target_snapshot = target_dataset.zfs_node.get_dataset(
                     target_dataset.filesystem_name + source_snapshot.typed_suffix, force_exists=False)
