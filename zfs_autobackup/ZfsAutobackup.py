@@ -357,9 +357,9 @@ class ZfsAutobackup(ZfsAuto):
             target_datasets[target_name] = source_dataset
 
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
-    def sync_datasets(self, source_node, source_datasets, target_node, bookmark_name):
+    def sync_datasets(self, source_node, source_datasets, target_node, bookmark_tag):
         """Sync datasets, or thin-only on both sides
-        :type bookmark_name: str
+        :type bookmark_tag: str
         :type target_node: ZfsNode
         :type source_datasets: list of ZfsDataset
         :type source_node: ZfsNode
@@ -421,7 +421,7 @@ class ZfsAutobackup(ZfsAuto):
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed, force=self.args.force,
                                               guid_check=not self.args.no_guid_check, use_bookmarks=use_bookmarks,
-                                              bookmark_name=bookmark_name)
+                                              bookmark_tag=bookmark_tag)
             except Exception as e:
 
                 fail_count = fail_count + 1
@@ -559,7 +559,7 @@ class ZfsAutobackup(ZfsAuto):
                     source_node=source_node,
                     source_datasets=source_datasets,
                     target_node=target_node,
-                    bookmark_name=self.args.backup_name + self.tag_seperator + target_dataset.properties['guid'])
+                    bookmark_tag=target_dataset.properties['guid'])
 
             # no target specified, run in snapshot-only mode
             else:

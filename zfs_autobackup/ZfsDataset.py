@@ -539,7 +539,7 @@ class ZfsDataset:
         """
 
         for snapshot in snapshots:
-            if snapshot.suffix == self.suffix:
+            if snapshot.tagless_suffix == self.tagless_suffix:
                 return snapshot
 
         return None
@@ -557,23 +557,24 @@ class ZfsDataset:
             return None
 
         if not isinstance(snapshot, ZfsDataset):
-            suffix = snapshot
+            tagless_suffix = snapshot
         else:
-            suffix = snapshot.suffix
+            tagless_suffix = snapshot.tagless_suffix
 
         for snapshot in self.snapshots:
-            if snapshot.suffix == suffix:
+            if snapshot.tagless_suffix == tagless_suffix:
                 return snapshot
 
         return None
 
-    def find_bookmark(self, bookmark):
+    def find_bookmark(self, bookmark, ignore_tag):
         """find bookmark by bookmark name (can be a suffix or a different
         ZfsDataset) Returns None if it cant find it.
 
         Args:
             :rtype: ZfsDataset|None
             :type bookmark: str|ZfsDataset|None
+            :type ignore_tag: bool
         """
 
         if bookmark is None:
@@ -582,10 +583,13 @@ class ZfsDataset:
         if not isinstance(bookmark, ZfsDataset):
             suffix = bookmark
         else:
-            suffix = bookmark.suffix
+            if ignore_tag:
+                suffix = bookmark.tagless_suffix
+            else:
+                suffix = bookmark.suffix
 
         for bookmark in self.bookmarks:
-            if bookmark.suffix == suffix:
+            if (ignore_tag and bookmark.tagless_suffix == suffix) or (not ignore_tag and bookmark.suffix == suffix):
                 return bookmark
 
         return None
@@ -601,11 +605,11 @@ class ZfsDataset:
         if not isinstance(snapshot, ZfsDataset):
             snapshot_name = snapshot
         else:
-            snapshot_name = snapshot.suffix
+            snapshot_name = snapshot.tagless_suffix
 
         index = 0
         for snapshot in self.snapshots:
-            if snapshot.suffix == snapshot_name:
+            if snapshot.tagless_suffix == snapshot_name:
                 return index
             index = index + 1
 
@@ -655,13 +659,14 @@ class ZfsDataset:
 
         self.debug("Bookmarking")
 
+        bookmark_name = "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
         cmd = [
-            "zfs", "bookmark", self.name, "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
+            "zfs", "bookmark", self.name, bookmark_name
         ]
 
         self.zfs_node.run(cmd=cmd)
 
-        bookmark = self.zfs_node.get_dataset(self.name + '#' + self.suffix, force_exists=True)
+        bookmark = self.zfs_node.get_dataset(bookmark_name, force_exists=True)
         self.cache_snapshot_bookmark(bookmark)
         return bookmark
 
@@ -1008,7 +1013,7 @@ class ZfsDataset:
                 obsolete.destroy()
                 self.snapshots.remove(obsolete)
 
-    def find_common_snapshot(self, target_dataset, guid_check, bookmark_name):
+    def find_common_snapshot(self, target_dataset, guid_check, bookmark_tag):
         """find latest common snapshot/bookmark between us and target returns None if its
         an initial transfer.
 
@@ -1019,10 +1024,10 @@ class ZfsDataset:
             :rtype: ZfsDataset|None
             :type guid_check: bool
             :type target_dataset: ZfsDataset
-            :type preferred_bookmark: str
+            :type bookmark_tag: str
         """
 
-        bookmark = self.zfs_node.get_dataset(bookmark_name)
+        bookmark = self.zfs_node.get_dataset(bookmark_tag)
 
         if not target_dataset.exists or not target_dataset.snapshots:
             # target has nothing yet
@@ -1038,7 +1043,8 @@ class ZfsDataset:
                 #     else:
                 #         source_bookmark.debug("Common bookmark")
                 #         return source_bookmark
-                if bookmark.exists and bookmark.properties['guid'] == target_snapshot.properties['guid']:XXX wil eigenlijk guid check opineel houden .dus  bookmark name word snapshotname_targetdatasetguid
+                if bookmark.exists and bookmark.properties['guid'] == target_snapshot.properties['guid']:
+                    # FIXME: wil eigenlijk guid check opineel houden .dus  bookmark name word snapshotname_targetdatasetguid
                     return bookmark
 
                 # Source snapshot with same suffix?
@@ -1120,7 +1126,7 @@ class ZfsDataset:
             for target_snapshot in target_dataset.snapshots:
                 if (target_snapshot in target_obsoletes) \
                         and (not source_common_snapshot or (
-                        target_snapshot.suffix != source_common_snapshot.suffix)):
+                        target_snapshot.tagless_suffix != source_common_snapshot.tagless_suffix)):
                     if target_snapshot.exists:
                         target_snapshot.destroy()
 
@@ -1146,7 +1152,7 @@ class ZfsDataset:
                 else:
                     return resume_token
 
-    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw, bookmark_name):
+    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw, bookmark_tag):
         """Determine at what snapshot to start syncing to target_dataset and what to sync and what to keep.
 
         Args:
@@ -1155,7 +1161,7 @@ class ZfsDataset:
             :type also_other_snapshots: bool
             :type guid_check: bool
             :type raw: bool
-            :type bookmark_name: str
+            :type bookmark_tag: str
 
         Returns:
             tuple: A tuple containing:
@@ -1172,7 +1178,7 @@ class ZfsDataset:
 
         target_dataset.debug("Determining start snapshot")
         source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check,
-                                                           bookmark_name=bookmark_name)
+                                                           bookmark_tag=bookmark_tag)
         incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(source_common_snapshot, raw)
 
         # let thinner decide whats obsolete on source after the transfer is done
@@ -1251,7 +1257,7 @@ class ZfsDataset:
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                        no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                       use_bookmarks, bookmark_name):
+                       use_bookmarks, bookmark_tag):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -1271,7 +1277,7 @@ class ZfsDataset:
             :type no_send: bool
             :type guid_check: bool
             :type use_bookmarks: bool
-            :type bookmark_name: str
+            :type bookmark_tag: str
         """
 
         # self.verbose("-> {}".format(target_dataset))
@@ -1294,7 +1300,7 @@ class ZfsDataset:
         (source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
-                            guid_check=guid_check, raw=raw, bookmark_name=bookmark_name)
+                            guid_check=guid_check, raw=raw, bookmark_tag=bookmark_tag)
 
         # NOTE: we do a pre-clean because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
@@ -1360,7 +1366,7 @@ class ZfsDataset:
 
             # bookmark common snapshot on source, or use holds if bookmarks are not enabled.
             if use_bookmarks:
-                source_bookmark = source_snapshot.bookmark(bookmark_name)
+                source_bookmark = source_snapshot.bookmark(bookmark_tag)
                 # note: destroy source_snapshot when obsolete at this point?
             else:
                 source_bookmark = None
