@@ -190,25 +190,77 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with mocktime("20101111000001"):
             self.assertFalse(
                 ZfsAutobackup(
-                    "test test_target1/a --no-progress --verbose --allow-empty --debug --tag tag1".split(" ")).run())
+                    "test test_target1/a --no-progress --verbose --allow-empty --debug --tag tagA".split(" ")).run())
 
         # increment, should be from bookmark
         with mocktime("20101111000002"):
             self.assertFalse(
                 ZfsAutobackup(
-                    "test test_target1/a --no-progress --verbose --allow-empty --tag tag1".split(" ")).run())
+                    "test test_target1/a --no-progress --verbose --allow-empty --tag tagB".split(" ")).run())
 
         # to target b, now each has one full + two incrementals, which should be from their own bookmarks.
         with mocktime("20101111000003"):
             self.assertFalse(
                 ZfsAutobackup(
-                    "test test_target1/b --no-progress --verbose --no-snapshot --allow-empty".split(
+                    "test test_target1/b --no-progress --verbose --allow-empty".split(
                         " ")).run())
 
         # result:
         # for target a the bookmarks should be at 20101111000002, for target b the bookmarks should be at 20101111000003
         r = shelltest("zfs list -H -r -t all -o name " + TEST_POOLS)
 
-        self.assertMultiLineEqual(r, """
-...
+        self.assertRegexpMatches(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000001_tagA
+test_source1/fs1@test-20101111000002_tagB
+test_source1/fs1@test-20101111000003
+test_source1/fs1#test-20101111000002_[0-9]*
+test_source1/fs1#test-20101111000003_[0-9]*
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000001_tagA
+test_source1/fs1/sub@test-20101111000002_tagB
+test_source1/fs1/sub@test-20101111000003
+test_source1/fs1/sub#test-20101111000002_[0-9]*
+test_source1/fs1/sub#test-20101111000003_[0-9]*
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000001_tagA
+test_source2/fs2/sub@test-20101111000002_tagB
+test_source2/fs2/sub@test-20101111000003
+test_source2/fs2/sub#test-20101111000002_[0-9]*
+test_source2/fs2/sub#test-20101111000003_[0-9]*
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/a
+test_target1/a/test_source1
+test_target1/a/test_source1/fs1
+test_target1/a/test_source1/fs1@test-20101111000001_tagA
+test_target1/a/test_source1/fs1@test-20101111000002_tagB
+test_target1/a/test_source1/fs1/sub
+test_target1/a/test_source1/fs1/sub@test-20101111000001_tagA
+test_target1/a/test_source1/fs1/sub@test-20101111000002_tagB
+test_target1/a/test_source2
+test_target1/a/test_source2/fs2
+test_target1/a/test_source2/fs2/sub
+test_target1/a/test_source2/fs2/sub@test-20101111000001_tagA
+test_target1/a/test_source2/fs2/sub@test-20101111000002_tagB
+test_target1/b
+test_target1/b/test_source1
+test_target1/b/test_source1/fs1
+test_target1/b/test_source1/fs1@test-20101111000001_tagA
+test_target1/b/test_source1/fs1@test-20101111000002_tagB
+test_target1/b/test_source1/fs1@test-20101111000003
+test_target1/b/test_source1/fs1/sub
+test_target1/b/test_source1/fs1/sub@test-20101111000001_tagA
+test_target1/b/test_source1/fs1/sub@test-20101111000002_tagB
+test_target1/b/test_source1/fs1/sub@test-20101111000003
+test_target1/b/test_source2
+test_target1/b/test_source2/fs2
+test_target1/b/test_source2/fs2/sub
+test_target1/b/test_source2/fs2/sub@test-20101111000001_tagA
+test_target1/b/test_source2/fs2/sub@test-20101111000002_tagB
+test_target1/b/test_source2/fs2/sub@test-20101111000003
 """)

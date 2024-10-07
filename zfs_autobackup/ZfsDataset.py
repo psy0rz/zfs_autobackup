@@ -12,6 +12,10 @@ class ZfsDataset:
     """a zfs dataset (filesystem/volume/snapshot/clone) Note that a dataset
     doesn't have to actually exist (yet/anymore) Also most properties are cached
     for performance-reasons, but also to allow --test to function correctly.
+
+    A dataset 'name' is the full name as you would use it with zfs list.
+    Internally  we use it in 3 parts: the prefix, suffix and tag.
+    (see respective properties below)
     """
 
     # illegal properties per dataset type. these will be removed from --set-properties and --filter-properties
@@ -122,7 +126,7 @@ class ZfsDataset:
         return "/".join(self.split_path()[:-count])
 
     @property
-    def filesystem_name(self):
+    def prefix(self):
         """filesystem part of the name (before the @)"""
         if self.is_snapshot:
             (filesystem, snapshot) = self.name.split("@")
@@ -286,7 +290,7 @@ class ZfsDataset:
         :rtype: ZfsDataset | None
         """
         if self.is_snapshot:
-            return self.zfs_node.get_dataset(self.filesystem_name)
+            return self.zfs_node.get_dataset(self.prefix)
         else:
             stripped = self.rstrip_path(1)
             if stripped:
@@ -683,7 +687,7 @@ class ZfsDataset:
 
         self.debug("Bookmarking")
 
-        bookmark_name = "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
+        bookmark_name = self.prefix + "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
         cmd = [
             "zfs", "bookmark", self.name, bookmark_name
         ]
@@ -802,7 +806,6 @@ class ZfsDataset:
 
         cmd.extend(send_pipes)
 
-        self.error(cmd)
         output_pipe = self.zfs_node.run(cmd, pipe=True, readonly=True)
 
         return output_pipe
@@ -857,7 +860,7 @@ class ZfsDataset:
             self.debug("Enabled resume support")
             cmd.append("-s")
 
-        cmd.append(self.filesystem_name)
+        cmd.append(self.prefix)
 
         if ignore_exit_code:
             valid_exitcodes = []
@@ -935,17 +938,17 @@ class ZfsDataset:
         if filter_properties is None:
             filter_properties = []
 
-        self.debug("Transfer snapshot to {}".format(target_snapshot.filesystem_name))
+        self.debug("Transfer snapshot to {}".format(target_snapshot.prefix))
 
         if resume_token:
             self.verbose("resuming")
 
         # initial or increment
         if not prev_snapshot:
-            self.verbose("-> {} (new)".format(target_snapshot.filesystem_name))
+            self.verbose("-> {} (new)".format(target_snapshot.prefix))
         else:
             # incremental
-            self.verbose("-> {}".format(target_snapshot.filesystem_name))
+            self.verbose("-> {}".format(target_snapshot.prefix))
 
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
@@ -994,7 +997,7 @@ class ZfsDataset:
             matches = re.findall("toname = .*@(.*)", line)
             if matches:
                 snapshot_name = matches[0]
-                snapshot = self.zfs_node.get_dataset(self.filesystem_name + "@" + snapshot_name)
+                snapshot = self.zfs_node.get_dataset(self.prefix + "@" + snapshot_name)
                 snapshot.debug("resume token belongs to this snapshot")
                 return snapshot
 
@@ -1230,7 +1233,7 @@ class ZfsDataset:
             if (also_other_snapshots or source_snapshot.is_ours) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
                 target_snapshot = target_dataset.zfs_node.get_dataset(
-                    target_dataset.filesystem_name + source_snapshot.typed_suffix, force_exists=False)
+                    target_dataset.prefix + source_snapshot.typed_suffix, force_exists=False)
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 
@@ -1401,7 +1404,8 @@ class ZfsDataset:
             # FIXME: met bookmarks kan de huidige snapshot na send ook meteen weg
             # FIXME: klopt niet, nu haalt ie altijd bookmark weg? wat als we naar andere target willen senden (zoals in test_encryption.py)
             if prev_source_snapshot_bookmark and (
-                    prev_source_snapshot_bookmark in source_obsoletes or prev_source_snapshot_bookmark.is_bookmark):
+                    prev_source_snapshot_bookmark in source_obsoletes or (
+                    prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.tag == bookmark_tag)):
                 prev_source_snapshot_bookmark.destroy()
 
             # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
