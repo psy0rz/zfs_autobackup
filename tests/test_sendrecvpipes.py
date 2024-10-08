@@ -16,7 +16,8 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("local local pipe"):
             with mocktime("20101111000000"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress", "--clear-mountpoint",
+                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                     "--clear-mountpoint",
                      "--send-pipe=dd bs=1M", "--recv-pipe=dd bs=2M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -44,7 +45,7 @@ class TestSendRecvPipes(unittest2.TestCase):
                      "--ssh-source=localhost", "--ssh-target=localhost", "--send-pipe=dd bs=1M",
                      "--recv-pipe=dd bs=2M"]).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1
@@ -85,7 +86,8 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with self.subTest("local local pipe"):
             with mocktime("20101111000000"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress", "--clear-mountpoint", "--buffer=1M"]).run())
+                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                     "--clear-mountpoint", "--buffer=1M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
 
@@ -111,7 +113,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
                     ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
                      "--ssh-source=localhost", "--ssh-target=localhost", "--buffer=1M"]).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1

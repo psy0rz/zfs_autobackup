@@ -57,7 +57,7 @@ class TestZfsAutobackup34(unittest2.TestCase):
         with mocktime("20101111000002"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -102,7 +102,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_source1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_source1")
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -118,7 +118,7 @@ test_source1/fs1/sub#test-20101111000001
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --allow-empty --no-bookmarks".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_source1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_source1")
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -133,7 +133,7 @@ test_source1/fs1/sub@test-20101111000002
         with mocktime("20101111000003"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_source1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_source1")
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -207,7 +207,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
 
         # result:
         # for target a the bookmarks should be at 20101111000002, for target b the bookmarks should be at 20101111000003
-        r = shelltest("zfs list -H -r -t all -o name " + TEST_POOLS)
+        r = shelltest("zfs list -H -r -t snapshot,filesystem -o name " + TEST_POOLS)
 
         self.assertRegexpMatches(r, """
 test_source1

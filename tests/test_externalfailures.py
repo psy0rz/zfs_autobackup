@@ -51,7 +51,7 @@ class TestExternalFailures(unittest2.TestCase):
 
             self.assertIn(": resuming", buf.getvalue())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1
@@ -94,7 +94,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
             # did we really resume?
             self.assertIn(": resuming", buf.getvalue())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1
@@ -129,7 +129,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1
@@ -164,7 +164,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with mocktime("20101111000002"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1
@@ -200,7 +200,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
             self.assertIn("Aborting resume", buf.getvalue())
 
-        r = shelltest("zfs list -H -o name -r -t all test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
 test_target1
 test_target1/test_source1
@@ -259,7 +259,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 #         with mocktime("20101111000000"):
 #             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --allow-empty --no-progress".split(" ")).run())
 #
-#         r = shelltest("zfs list -H -o name -r -t all test_target1")
+#         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
 #
 #         self.assertMultiLineEqual(r, """
 # test_target1

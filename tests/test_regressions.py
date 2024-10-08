@@ -25,7 +25,7 @@ class TestZfsNode(unittest2.TestCase):
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty".split(
                     " ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t bookmark,filesystem " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1

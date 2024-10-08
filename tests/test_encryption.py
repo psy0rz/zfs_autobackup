@@ -301,7 +301,7 @@ test_target1/test_source2/fs2/sub              encryptionroot  -                
 
         # NOTE: On some versions this leaves 2 weird sub-datasets that should'nt be there (its probably a zfs bug?)
         # so we ignore this, and just make sure the backup resumes correctly after reloading the key.
-        #         r = shelltest("zfs get -r -t all encryptionroot test_target1")
+        #         r = shelltest("zfs get -r -t snapshot,filesystem encryptionroot test_target1")
         #         self.assertEqual(r, """
         # NAME                                                                               PROPERTY        VALUE                                                          SOURCE
         # test_target1                                                                       encryptionroot  -                                                              -
