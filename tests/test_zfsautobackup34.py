@@ -264,3 +264,15 @@ test_target1/b/test_source2/fs2/sub@test-20101111000001_tagA
 test_target1/b/test_source2/fs2/sub@test-20101111000002_tagB
 test_target1/b/test_source2/fs2/sub@test-20101111000003
 """)
+
+    def test_missing_common_bookmark(self):
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty --no-holds".split(" ")).run())
+
+        # remove common bookmark
+        bookmark = shelltest("zfs list -H -o name -t bookmark test_source1/fs1").strip()
+        shelltest("zfs destroy " + bookmark)
+
+        with mocktime("20101111000001"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())

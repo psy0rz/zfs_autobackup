@@ -10,7 +10,6 @@ class TestExternalFailures(unittest2.TestCase):
     # generate a resumable state
     # NOTE: this generates two resumable test_target1/test_source1/fs1 and test_target1/test_source1/fs1/sub
     def generate_resume(self):
-
         r = shelltest("zfs set compress=off test_source1 test_target1")
 
         # big change on source
@@ -30,7 +29,6 @@ class TestExternalFailures(unittest2.TestCase):
 
     # resume initial backup
     def test_initial_resume(self):
-
         # inital backup, leaves resume token
         with mocktime("20101111000000"):
             self.generate_resume()
@@ -69,7 +67,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
     # resume incremental backup
     def test_incremental_resume(self):
-
         # initial backup
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
@@ -114,8 +111,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
     # generate an invalid resume token, and verify if its aborted automaticly
     def test_initial_resumeabort(self):
-
-
         # inital backup, leaves resume token
         with mocktime("20101111000000"):
             self.generate_resume()
@@ -150,7 +145,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
     # generate an invalid resume token, and verify if its aborted automaticly
     def test_incremental_resumeabort(self):
-
         # initial backup
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
@@ -187,7 +181,6 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
     # create a resume situation, where the other side doesnt want the snapshot anymore ( should abort resume )
     def test_abort_unwanted_resume(self):
-
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
@@ -200,7 +193,8 @@ test_target1/test_source2/fs2/sub@test-20101111000000
                 # incremental, doesnt want previous anymore
                 with mocktime("20101111000002"):
                     self.assertFalse(ZfsAutobackup(
-                        "test test_target1 --no-progress --verbose --keep-target=0 --allow-empty --debug".split(" ")).run())
+                        "test test_target1 --no-progress --verbose --keep-target=0 --allow-empty --debug".split(
+                            " ")).run())
 
             print(buf.getvalue())
 
@@ -222,7 +216,6 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 
     # test with empty snapshot list (this was a bug)
     def test_abort_resume_emptysnapshotlist(self):
-
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
@@ -240,15 +233,14 @@ test_target1/test_source2/fs2/sub@test-20101111000002
                         "test test_target1 --no-progress --verbose --no-snapshot".split(
                             " ")).run())
 
-            #NOTE: v3.4 doesnt abort the resume if there are no snapshots to send.
+            # NOTE: v3.4 doesnt abort the resume if there are no snapshots to send.
             # print(buf.getvalue())
             # self.assertIn("Aborting resume, its obsolete", buf.getvalue())
 
-
     def test_missing_common(self):
-
         with mocktime("20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty --no-bookmarks".split(" ")).run())
 
         # remove common snapshot and leave nothing
         shelltest("zfs release zfs_autobackup:test test_source1/fs1@test-20101111000000")
@@ -257,10 +249,9 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         with mocktime("20101111000001"):
             self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
-    #UPDATE: offcourse the one thing that wasn't tested had a bug :(  (in ExecuteNode.run()).
+    # UPDATE: offcourse the one thing that wasn't tested had a bug :(  (in ExecuteNode.run()).
     def test_ignoretransfererrors(self):
-
-            self.skipTest("Not sure how to implement a test for this without some serious hacking and patching.")
+        self.skipTest("Not sure how to implement a test for this without some serious hacking and patching.")
 
 #         #recreate target pool without any features
 #         # shelltest("zfs set compress=on test_source1; zpool destroy test_target1; zpool create test_target1 -o feature@project_quota=disabled /dev/ram2")

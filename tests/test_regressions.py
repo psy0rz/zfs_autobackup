@@ -1,4 +1,3 @@
-
 from basetest import *
 
 
@@ -6,7 +5,7 @@ class TestZfsNode(unittest2.TestCase):
 
     def setUp(self):
         prepare_zpools()
-        self.longMessage=True
+        self.longMessage = True
 
     def test_keepsource0target10queuedsend(self):
         """Test if thinner doesnt destroy too much early on if there are no common snapshots YET. Issue #84"""
@@ -26,7 +25,7 @@ class TestZfsNode(unittest2.TestCase):
                 "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=10 --allow-empty".split(
                     " ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t bookmark,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -57,7 +56,6 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 test_target1/test_source2/fs2/sub@test-20101111000002
 """)
 
-
     def test_excludepaths(self):
         """Test issue #103"""
 
@@ -70,8 +68,7 @@ test_target1/test_source2/fs2/sub@test-20101111000002
                 "test test_target1/target --no-progress --verbose --allow-empty".split(
                     " ")).run())
 
-
-        r = shelltest("zfs list -H -o name -r -t all " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -101,5 +98,3 @@ test_target1/target/test_target1/target_shouldnotbeexcluded@test-20101111000000
 test_target1/target_shouldnotbeexcluded
 test_target1/target_shouldnotbeexcluded@test-20101111000000
 """)
-
-
