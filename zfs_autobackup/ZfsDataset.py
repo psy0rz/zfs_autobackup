@@ -597,6 +597,7 @@ class ZfsDataset:
         ZfsDataset) Returns None if it cant find it.
 
         We try to find the bookmark with the preferred tag (which is usually a target path guid, to prevent conflicting bookmarks by multiple sends)
+        After that we return any bookmark that matches (and ignore the tag)
 
         Args:
             :rtype: ZfsDataset|None
@@ -620,6 +621,17 @@ class ZfsDataset:
             if snapshot_bookmark.tagless_suffix == tagless_suffix:
                 return snapshot_bookmark
 
+        return None
+
+    def find_exact_bookmark(self, bookmark_name):
+        """find exact bookmark name, or retruns none
+
+        :rtype: ZfsDataset|None
+        """
+
+        for snapshot_bookmark in self.bookmarks:
+            if snapshot_bookmark.name == bookmark_name:
+                return snapshot_bookmark
         return None
 
     def find_snapshot_index(self, snapshot):
@@ -679,15 +691,21 @@ class ZfsDataset:
         return True
 
     def bookmark(self, tag):
-        """Bookmark this snapshot, and return the bookmark."""
+        """Bookmark this snapshot, and return the bookmark. If the bookmark already exist, it returns it."""
         # NOTE: we use the tag to add the target_path GUID, so that we can have multiple bookmarks for the same snapshot, but for different target. This is to make sure you can send a backup to two locations, without them interfering with eachothers bookmarks.
 
         if not self.is_snapshot:
             raise (Exception("Can only bookmark a snapshot!"))
 
-        self.debug("Bookmarking")
-
         bookmark_name = self.prefix + "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
+
+        # does this exact bookmark (including tag) already exists?
+        existing_bookmark = self.find_exact_bookmark(bookmark_name)
+        if existing_bookmark is not None:
+            return existing_bookmark
+
+        self.debug("Bookmarking {}".format(bookmark_name))
+
         cmd = [
             "zfs", "bookmark", self.name, bookmark_name
         ]
