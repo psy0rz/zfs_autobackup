@@ -984,6 +984,7 @@ class ZfsDataset:
 
         Args:
             :type resume_token: str
+            :rtype: ZfsDataset|None
         """
         # use zfs send -n option to determine this
         # NOTE: on smartos stderr, on linux stdout
@@ -1170,7 +1171,7 @@ class ZfsDataset:
                 resume_token = target_dataset.properties['receive_resume_token']
                 # not valid anymore
                 resume_snapshot = self.get_resume_snapshot(resume_token)
-                if not resume_snapshot or start_snapshot.suffix != resume_snapshot.snapshot_name:
+                if not resume_snapshot or start_snapshot.suffix != resume_snapshot.suffix:
                     target_dataset.verbose("Aborting resume, its no longer valid.")
                     target_dataset.abort_resume()
                 else:
