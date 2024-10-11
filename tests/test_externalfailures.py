@@ -158,7 +158,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         # --test try again, should abort old resume
         with mocktime("20101111000002"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test --debug".split(" ")).run())
 
         # try again, should abort old resume
         with mocktime("20101111000002"):

@@ -692,7 +692,8 @@ class ZfsDataset:
 
     def bookmark(self, tag):
         """Bookmark this snapshot, and return the bookmark. If the bookmark already exist, it returns it."""
-        # NOTE: we use the tag to add the target_path GUID, so that we can have multiple bookmarks for the same snapshot, but for different target. This is to make sure you can send a backup to two locations, without them interfering with eachothers bookmarks.
+        # NOTE: we use the tag to add the target_path GUID, so that we can have multiple bookmarks for the same snapshot, but for different targets.
+        # This is to make sure you can send a backup to two locations, without them interfering with eachothers bookmarks.
 
         if not self.is_snapshot:
             raise (Exception("Can only bookmark a snapshot!"))
@@ -700,7 +701,7 @@ class ZfsDataset:
         bookmark_name = self.prefix + "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
 
         # does this exact bookmark (including tag) already exists?
-        existing_bookmark = self.find_exact_bookmark(bookmark_name)
+        existing_bookmark = self.parent.find_exact_bookmark(bookmark_name)
         if existing_bookmark is not None:
             return existing_bookmark
 
@@ -1423,7 +1424,9 @@ class ZfsDataset:
             # FIXME: met bookmarks kan de huidige snapshot na send ook meteen weg
             # FIXME: klopt niet, nu haalt ie altijd bookmark weg? wat als we naar andere target willen senden (zoals in test_encryption.py)
             if prev_source_snapshot_bookmark and (
+                    # its an obsolete snapshot?
                     prev_source_snapshot_bookmark in source_obsoletes or (
+                    # its our bookmark?
                     prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.tag == bookmark_tag)):
                 prev_source_snapshot_bookmark.destroy()
 
