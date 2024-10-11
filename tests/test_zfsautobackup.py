@@ -134,7 +134,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
         with self.subTest("verify holds"):
-            r = shelltest("zfs get -r userrefs test_source1 test_source2 test_target1")
+            r = shelltest("zfs get -t filesystem,snapshot -r userrefs test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r, """
 NAME                                                   PROPERTY  VALUE     SOURCE
 test_source1                                           userrefs  -         -
@@ -362,7 +362,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --verbose --no-holds --no-progress".split(" ")).run())
 
-            r = shelltest("zfs get -r userrefs test_source1 test_source2 test_target1")
+            r = shelltest("zfs get -t filesystem,snapshot -r userrefs test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r, """
 NAME                                                   PROPERTY  VALUE     SOURCE
 test_source1                                           userrefs  -         -
@@ -437,7 +437,7 @@ test_target1/fs2/sub@test-20101111000000
             self.assertFalse(
                 ZfsAutobackup("test test_target1 --no-progress --verbose --clear-refreservation".split(" ")).run())
 
-            r = shelltest("zfs get -r refreservation test_source1 test_source2 test_target1")
+            r = shelltest("zfs get -t filesystem,snapshot -r refreservation test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r, """
 NAME                                                   PROPERTY        VALUE      SOURCE
 test_source1                                           refreservation  none       default
@@ -474,7 +474,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000  refreservation  -        
             self.assertFalse(
                 ZfsAutobackup("test test_target1 --no-progress --verbose --clear-mountpoint --debug".split(" ")).run())
 
-            r = shelltest("zfs get -r canmount test_source1 test_source2 test_target1")
+            r = shelltest("zfs get -r canmount -t filesystem,snapshot test_source1 test_source2 test_target1")
             self.assertMultiLineEqual(r, """
 NAME                                                   PROPERTY  VALUE     SOURCE
 test_source1                                           canmount  on        default
