@@ -653,7 +653,7 @@ class ZfsDataset:
         return None
 
     def find_snapshot_index(self, snapshot):
-        """find snapshot index by snapshot (can be a snapshot_name or
+        """find exact snapshot index by snapshot (can be a snapshot_name or
         ZfsDataset)
 
         Args:
@@ -663,11 +663,11 @@ class ZfsDataset:
         if not isinstance(snapshot, ZfsDataset):
             snapshot_name = snapshot
         else:
-            snapshot_name = snapshot.tagless_suffix
+            snapshot_name = snapshot.suffix
 
         index = 0
         for snapshot in self.snapshots:
-            if snapshot.tagless_suffix == snapshot_name:
+            if snapshot.suffix == snapshot_name:
                 return index
             index = index + 1
 
@@ -1122,7 +1122,7 @@ class ZfsDataset:
 
             raise (Exception("Cant find common bookmark or snapshot with target."))
 
-    def find_incompatible_snapshots(self, common_snapshot, raw):
+    def find_incompatible_snapshots(self, target_common_snapshot, raw):
         """returns a list[snapshots] that is incompatible for a zfs recv onto
         the common_snapshot. all direct followup snapshots with written=0 are
         compatible.
@@ -1130,15 +1130,15 @@ class ZfsDataset:
         in raw-mode nothing is compatible. issue #219
 
         Args:
-            :type common_snapshot: ZfsDataset
+            :type target_common_snapshot: ZfsDataset
             :type raw: bool
         """
 
         ret = []
 
-        if common_snapshot and self.snapshots:
+        if target_common_snapshot and self.snapshots:
             followup = True
-            for snapshot in self.snapshots[self.find_snapshot_index(common_snapshot) + 1:]:
+            for snapshot in self.snapshots[self.find_snapshot_index(target_common_snapshot) + 1:]:
                 if raw or not followup or int(snapshot.properties['written']) != 0:
                     followup = False
                     ret.append(snapshot)

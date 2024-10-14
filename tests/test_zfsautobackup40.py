@@ -343,7 +343,10 @@ test_target1/test_source2/fs2/sub@test-20101111000002
         shelltest("zfs destroy test_source1/fs1@migrate1")
 
         with mocktime("20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --debug".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
+
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
@@ -376,13 +379,17 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         shelltest("zfs snapshot test_source1/fs1@migrate1")
         shelltest("zfs create test_target1/test_source1")
-        shelltest("zfs send  test_source1/fs1@migrate1| zfs recv test_target1/test_source1/fs1")
+        shelltest("zfs send test_source1/fs1@migrate1| zfs recv test_target1/test_source1/fs1")
 
         # rename it so the names mismatch and guid matching is needed to resolve it
         shelltest("zfs rename test_source1/fs1@migrate1  test_source1/fs1@randomsnapshotname")
 
+        # testmode
         with mocktime("20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --debug".split(" ")).run())
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
+
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
