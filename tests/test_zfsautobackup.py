@@ -745,6 +745,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 
     def test_migrate(self):
         """test migration from other snapshotting systems. zfs-autobackup should be able to continue from any common snapshot, not just its own."""
+        XXX migrate van bookmark ook testen
 
         shelltest("zfs snapshot test_source1/fs1@migrate1")
         shelltest("zfs create test_target1/test_source1")
