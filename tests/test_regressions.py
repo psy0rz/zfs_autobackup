@@ -36,7 +36,7 @@ test_source2
 test_source2/fs2
 test_source2/fs2/sub
 test_source2/fs2/sub@test-20101111000002
-test_source2/fs3
+test_source2/fs31
 test_source2/fs3/sub
 test_target1
 test_target1/test_source1
