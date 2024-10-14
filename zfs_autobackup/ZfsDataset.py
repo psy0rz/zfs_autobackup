@@ -1377,7 +1377,6 @@ class ZfsDataset:
             write_embedded = False
 
         # now actually transfer the snapshots
-
         do_rollback = rollback
         prev_source_snapshot_bookmark = source_common_snapshot
         prev_target_snapshot = target_dataset.find_snapshot(source_common_snapshot)
@@ -1408,27 +1407,26 @@ class ZfsDataset:
                 if prev_target_snapshot:
                     prev_target_snapshot.release()
 
-            # bookmark common snapshot on source, or use holds if bookmarks are not enabled.
             if use_bookmarks:
+                # bookmark common snapshot, and clean up obsolete snapshots and bookmark
                 source_bookmark = source_snapshot.bookmark(bookmark_tag)
-                # note: destroy source_snapshot when obsolete at this point?
+                if source_snapshot in source_obsoletes:
+                    source_snapshot.destroy()
+
+                if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.is_ours and prev_source_snapshot_bookmark.tag == bookmark_tag:
+                    prev_source_snapshot_bookmark.destroy()
+
+            # dont use bookmarks
             else:
                 source_bookmark = None
                 if holds:
                     source_snapshot.hold()
 
-                    if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_snapshot:
-                        prev_source_snapshot_bookmark.release()
-
-            # we may now destroy the previous source snapshot if its obsolete or an bookmark
-            # FIXME: met bookmarks kan de huidige snapshot na send ook meteen weg
-            # FIXME: klopt niet, nu haalt ie altijd bookmark weg? wat als we naar andere target willen senden (zoals in test_encryption.py)
-            if prev_source_snapshot_bookmark and (
-                    # its an obsolete snapshot?
-                    prev_source_snapshot_bookmark in source_obsoletes or (
-                    # its our bookmark?
-                    prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.tag == bookmark_tag)):
-                prev_source_snapshot_bookmark.destroy()
+                # release hold, cleanup obsolete snapshot
+                if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_snapshot:
+                    prev_source_snapshot_bookmark.release()
+                    if prev_source_snapshot_bookmark in source_obsoletes:
+                        prev_source_snapshot_bookmark.destroy()
 
             # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
             # the rest was already destroyed or will not be send)
