@@ -567,6 +567,24 @@ class ZfsDataset:
 
         return None
 
+    def find_guid_bookmark_snapshot(self, guid):
+        """find the first bookmark or snapshot that matches, prefers bookmarks.
+            Args:
+            :type guid:str
+            :rtype: ZfsDataset|None
+        """
+        # Since this is slower, we only use it if the name matching with find_snapshot and find_bookmark doesn work.
+
+        for bookmark in self.bookmarks:
+            if bookmark.properties['guid'] == guid:
+                return bookmark
+
+        for snapshot in self.snapshots:
+            if snapshot.properties['guid'] == guid:
+                return snapshot
+
+        return None
+
     def find_snapshot(self, snapshot):
         """find snapshot by snapshot name (can be a suffix or a different
         ZfsDataset) Returns None if it cant find it.
@@ -1066,30 +1084,27 @@ class ZfsDataset:
 
         On the source it prefers the specified bookmark_name
 
-
         Args:
-            :rtype: ZfsDataset|None
+            :rtype: tuple[ZfsDataset, ZfsDataset] | tuple[None,None]
             :type guid_check: bool
             :type target_dataset: ZfsDataset
             :type bookmark_tag: str
         """
 
-        bookmark = self.zfs_node.get_dataset(bookmark_tag)
-
         if not target_dataset.exists or not target_dataset.snapshots:
             # target has nothing yet
-            return None
+            return None, None
         else:
             for target_snapshot in reversed(target_dataset.snapshots):
 
-                # Prefer bookmarks over snapshots
+                # Prefer bookmarks to snapshots
                 source_bookmark = self.find_bookmark(target_snapshot, preferred_tag=bookmark_tag)
                 if source_bookmark:
                     if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
                         source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
                     else:
                         source_bookmark.debug("Common bookmark")
-                        return source_bookmark
+                        return source_bookmark, target_snapshot
 
                 # Source snapshot with same suffix?
                 source_snapshot = self.find_snapshot(target_snapshot)
@@ -1098,7 +1113,12 @@ class ZfsDataset:
                         source_snapshot.warning("Snapshot has mismatching GUID, ignoring.")
                     else:
                         source_snapshot.debug("Common snapshot")
-                        return source_snapshot
+                        return source_snapshot, target_snapshot
+
+                # Extensive GUID search (slower but works with all names)
+                source_bookmark_snapshot = self.find_guid_bookmark_snapshot(target_snapshot.properties['guid'])
+                if source_bookmark_snapshot is not None:
+                    return source_bookmark_snapshot, target_snapshot
 
             raise (Exception("Cant find common bookmark or snapshot with target."))
 
@@ -1221,9 +1241,12 @@ class ZfsDataset:
         ### 1: determine common and start snapshot
 
         target_dataset.debug("Determining start snapshot")
-        source_common_snapshot = self.find_common_snapshot(target_dataset, guid_check=guid_check,
-                                                           bookmark_tag=bookmark_tag)
-        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(source_common_snapshot, raw)
+        (source_common_snapshot, target_common_snapshot) = self.find_common_snapshot(target_dataset,
+                                                                                     guid_check=guid_check,
+                                                                                     bookmark_tag=bookmark_tag)
+        # if source_common_snapshot:
+        #     source_common_snapshot.verbose("Common snapshot or bookmark")
+        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(target_common_snapshot, raw)
 
         # let thinner decide whats obsolete on source after the transfer is done
         source_obsoletes = []
