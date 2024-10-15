@@ -545,11 +545,10 @@ test_target1/test_source2/fs2/sub@test-20101111000000  canmount  -         -
             # should fail, now incompatible
             self.assertTrue(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
-        # FIXME: tries to get the guid of the non existing snapshot because of --test mode
         with mocktime("20101111000003"):
             # --test should succeed by destroying incompatibles
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible --test --debug".split(
+                "test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible --test".split(
                     " ")).run())
 
         with mocktime("20101111000003"):
