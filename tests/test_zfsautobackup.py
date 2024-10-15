@@ -100,7 +100,8 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         with self.subTest("bare defaults, allow empty"):
             with mocktime("20101111000001"):
-                self.assertFalse(ZfsAutobackup("test test_target1 --allow-empty --no-progress".split(" ")).run())
+                self.assertFalse(
+                    ZfsAutobackup("test test_target1 --allow-empty --no-progress --no-bookmarks".split(" ")).run())
 
             r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
             self.assertMultiLineEqual(r, """
@@ -173,41 +174,41 @@ test_target1/test_source2/fs2/sub@test-20101111000001  userrefs  1         -
                 self.assertFalse(
                     ZfsAutobackup("test test_target1 --allow-empty --verbose --no-progress".split(" ")).run())
 
-            with mocktime("20111211000001"):
+            with mocktime("20111212000000"):
                 self.assertFalse(ZfsAutobackup(
-                    "test test_target1 --allow-empty --verbose --keep-source 1y1y --keep-target 1d1y --no-progress".split(
+                    "test test_target1 --allow-empty --verbose --keep-source 1d1y --keep-target 1d1y --no-progress".split(
                         " ")).run())
 
             r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
-            self.assertMultiLineEqual(r, """
+            self.assertMultiLineEqual("""
 test_source1
 test_source1/fs1
 test_source1/fs1@test-20111211000000
-test_source1/fs1@test-20111211000001
+test_source1/fs1@test-20111212000000
 test_source1/fs1/sub
 test_source1/fs1/sub@test-20111211000000
-test_source1/fs1/sub@test-20111211000001
+test_source1/fs1/sub@test-20111212000000
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
 test_source2/fs2/sub@test-20111211000000
-test_source2/fs2/sub@test-20111211000001
+test_source2/fs2/sub@test-20111212000000
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
 test_target1/test_source1
 test_target1/test_source1/fs1
 test_target1/test_source1/fs1@test-20111211000000
-test_target1/test_source1/fs1@test-20111211000001
+test_target1/test_source1/fs1@test-20111212000000
 test_target1/test_source1/fs1/sub
 test_target1/test_source1/fs1/sub@test-20111211000000
-test_target1/test_source1/fs1/sub@test-20111211000001
+test_target1/test_source1/fs1/sub@test-20111212000000
 test_target1/test_source2
 test_target1/test_source2/fs2
 test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20111211000000
-test_target1/test_source2/fs2/sub@test-20111211000001
-""")
+test_target1/test_source2/fs2/sub@test-20111212000000
+""", r)
 
     def test_ignore_othersnaphots(self):
 

@@ -417,3 +417,6 @@ test_target1/test_source2/fs2
 test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
+
+# TODO
+# - check if holds and no-holds function ok when bookmarks are enabled
