@@ -1,6 +1,6 @@
 # ZFS autobackup
 
-# NOTE: this is the v3.4 development branch. Not ready for testing yet!
+# NOTE: this is the v4.0 development branch. Not ready for testing yet!
 
 **This now will be the upcoming v4.0 release due to some major changes in how zfs-autobackup handles certain stuff**
 
