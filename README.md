@@ -52,7 +52,10 @@ An important feature that's missing from other tools is a reliable `--test` opti
   * Only needs to be installed on one side.
   * Written in python and uses zfs-commands, no special 3rd party dependency's or compiled libraries needed.
   * No annoying config files or properties. 
+* Easy to use in scripts, for example https://github.com/psy0rz/zfs_autobackup/wiki/Example-Proxmox
 
+
+ 
 ## Getting started
 
 Please look at our wiki to [Get started](https://github.com/psy0rz/zfs_autobackup/wiki).
