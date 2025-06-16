@@ -418,5 +418,84 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
+    def test_keep0_bookmarks(self):
+        """test if keep-source=0 and keep-target=0 only keeps a bookmark at the source. (contrary to legacy holds-mode)"""
+
+        # backup mode
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0".split(
+                    " ")).run())
+
+        # snapshot mode, will delete 0
+        with mocktime("20101111000001"):
+            self.assertFalse(ZfsAutobackup(
+                "test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+
+        # snapshot mode, will detete 1
+        with mocktime("20101111000002"):
+            self.assertFalse(ZfsAutobackup(
+                "test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
+
+        # now we have only bookmark 0 and snapshot 2 at source
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem,bookmark " + TEST_POOLS)
+        self.assertRegexpMatches(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1@test-20101111000002
+test_source1/fs1#test-20101111000000_[0-9]*
+test_source1/fs1/sub
+test_source1/fs1/sub@test-20101111000002
+test_source1/fs1/sub#test-20101111000000_[0-9]*
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@test-20101111000002
+test_source2/fs2/sub#test-20101111000000_[0-9]*
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000000
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000000
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000000
+""")
+
+        # make another backup now the source only has bookmarks of 3 left
+        with mocktime("20101111000003"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty --debug".split(
+                    " ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem,bookmark " + TEST_POOLS)
+        self.assertRegexpMatches(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1#test-20101111000003_[0-9]*
+test_source1/fs1/sub
+test_source1/fs1/sub#test-20101111000003_[0-9]*
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub#test-20101111000003_[0-9]*
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@test-20101111000003
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@test-20101111000003
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@test-20101111000003
+""")
+
 # TODO
 # - check if holds and no-holds function ok when bookmarks are enabled

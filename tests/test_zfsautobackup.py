@@ -782,23 +782,25 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
     def test_keep0(self):
-        """test if keep-source=0 and keep-target=0 dont delete common snapshot and break backup"""
+        """test if keep-source=0 and keep-target=0 dont delete common snapshot and break backup, LEGACY NO BOOKMARK MODE"""
 
+        # backup mode
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0".split(" ")).run())
+                "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --no-bookmark".split(
+                    " ")).run())
 
-        # make snapshot, shouldnt delete 0
+        # snapshot mode, shouldnt delete 0
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
                 "test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
 
-        # make snapshot 2, shouldnt delete 0 since it has holds, but will delete 1 since it has no holds
+        # snapshot mode, shouldnt delete 0 since it has holds, but will delete 1 since it has no holds
         with mocktime("20101111000002"):
             self.assertFalse(ZfsAutobackup(
                 "test --no-progress --verbose --keep-source=0 --keep-target=0 --allow-empty".split(" ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem,bookmark " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
@@ -829,10 +831,10 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         # make another backup but with no-holds. we should naturally endup with only number 3
         with mocktime("20101111000003"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty --debug".split(
+                "test test_target1 --no-progress --verbose --keep-source=0 --keep-target=0 --no-holds --allow-empty --debug --no-bookmark".split(
                     " ")).run())
 
-        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem,bookmark " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
 test_source1
 test_source1/fs1
