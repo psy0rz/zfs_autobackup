@@ -138,7 +138,7 @@ test_target1/test_source2/fs2/sub@test-20101111000001
 """)
 
     def test_transfer_thinning(self):
-        # test pre/post/during transfer thinning and efficient transfer (no transerring of stuff that gets deleted on target)
+        # test pre/post/during transfer thinning and efficient transfer (no transerring of stuff that gets deleted on target) NO BOOKMARKS LEGACY MODE
 
         # less output
         shelltest("zfs set autobackup:test2=true test_source1/fs1/sub")
@@ -167,22 +167,22 @@ test_target1/test_source2/fs2/sub@test-20101111000001
                 # now do thinning and transfer all at once
                 with mocktime("20010203000000"):
                     self.assertFalse(ZfsAutobackup(
-                        "--keep-source=1d10d --keep-target=1m10m --allow-empty --verbose --clear-mountpoint --other-snapshots test2 test_target1".split(
+                        "--keep-source=1d10d --keep-target=1m10m --allow-empty --verbose --clear-mountpoint --other-snapshots --no-bookmarks test2 test_target1".split(
                             " ")).run())
 
             print(buf.getvalue())
             self.assertIn(
                 """
-                  [Source] test_source1/fs1/sub@test2-20000101000000: Destroying
-                  [Source] test_source1/fs1/sub@test2-20010101000000: -> test_target1/test_source1/fs1/sub (new)
-                  [Source] test_source1/fs1/sub@other1: -> test_target1/test_source1/fs1/sub
-                  [Source] test_source1/fs1/sub@test2-20010101000000: Destroying
-                  [Source] test_source1/fs1/sub@test2-20010201000000: -> test_target1/test_source1/fs1/sub
-                  [Source] test_source1/fs1/sub@other2: -> test_target1/test_source1/fs1/sub
-                  [Source] test_source1/fs1/sub@test2-20010203000000: -> test_target1/test_source1/fs1/sub
-                """, buf.getvalue())
+  [Source] test_source1/fs1/sub@test2-20000101000000: Destroying
+  [Source] test_source1/fs1/sub@test2-20010101000000: -> test_target1/test_source1/fs1/sub (new)
+  [Source] test_source1/fs1/sub@other1: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@test2-20010101000000: Destroying
+  [Source] test_source1/fs1/sub@test2-20010201000000: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@other2: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@test2-20010203000000: -> test_target1/test_source1/fs1/sub
+""", buf.getvalue())
 
-        r = shelltest("zfs list -H -o name -r -t snapshot test_source1 test_target1")
+        r = shelltest("zfs list -H -o name -r -t snapshot,bookmark test_source1 test_target1")
         self.assertMultiLineEqual(r, """
 test_source1/fs1/sub@other1
 test_source1/fs1/sub@test2-20010201000000

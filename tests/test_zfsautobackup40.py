@@ -497,5 +497,67 @@ test_target1/test_source2/fs2/sub
 test_target1/test_source2/fs2/sub@test-20101111000003
 """)
 
+    def test_transfer_thinning_bookmarks(self):
+        # test pre/post/during transfer thinning and efficient transfer (no transerring of stuff that gets deleted on target) WITH BOOKMARK SUPPORT
+
+        # less output
+        shelltest("zfs set autobackup:test2=true test_source1/fs1/sub")
+
+        # nobody wants this one, will be destroyed before transferring (over a year ago)
+        with mocktime("20000101000000"):
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+
+        # only target wants this one (monthlys)
+        with mocktime("20010101000000"):
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+
+        # both want this one (dayly + monthly)
+        # other snapshots should influence the middle one that we actually want.
+        with mocktime("20010201000000"):
+            shelltest("zfs snapshot test_source1/fs1/sub@other1")
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+            shelltest("zfs snapshot test_source1/fs1/sub@other2")
+
+        # only source wants this one (dayly)
+        with mocktime("20010202000000"):
+            self.assertFalse(ZfsAutobackup("test2 --allow-empty".split(" ")).run())
+
+        with OutputIO() as buf:
+            with redirect_stdout(buf):
+                # now do thinning and transfer all at once
+                with mocktime("20010203000000"):
+                    self.assertFalse(ZfsAutobackup(
+                        "--keep-source=1d10d --keep-target=1m10m --allow-empty --verbose --clear-mountpoint --other-snapshots test2 test_target1".split(
+                            " ")).run())
+
+            print(buf.getvalue())
+            self.assertIn(
+                """
+  [Source] test_source1/fs1/sub@test2-20000101000000: Destroying
+  [Source] test_source1/fs1/sub@test2-20010101000000: -> test_target1/test_source1/fs1/sub (new)
+  [Source] test_source1/fs1/sub@test2-20010101000000: Destroying
+  [Source] test_source1/fs1/sub@other1: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@test2-20010201000000: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@other2: -> test_target1/test_source1/fs1/sub
+  [Source] test_source1/fs1/sub@test2-20010203000000: -> test_target1/test_source1/fs1/sub
+""", buf.getvalue())
+
+        # note: also important that it leaves only the last bookmark on the source.
+        r = shelltest("zfs list -H -o name -r -t snapshot,bookmark test_source1 test_target1")
+        self.assertRegexpMatches(r, """
+test_source1/fs1/sub@other1
+test_source1/fs1/sub@test2-20010201000000
+test_source1/fs1/sub@other2
+test_source1/fs1/sub@test2-20010202000000
+test_source1/fs1/sub@test2-20010203000000
+test_source1/fs1/sub#test2-20010203000000_[0-9]*
+test_target1/test_source1/fs1/sub@test2-20010101000000
+test_target1/test_source1/fs1/sub@other1
+test_target1/test_source1/fs1/sub@test2-20010201000000
+test_target1/test_source1/fs1/sub@other2
+test_target1/test_source1/fs1/sub@test2-20010203000000
+""")
+
 # TODO
 # - check if holds and no-holds function ok when bookmarks are enabled
+# -delete bookmarks we have on other snapshots

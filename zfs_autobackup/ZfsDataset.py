@@ -1441,8 +1441,12 @@ class ZfsDataset:
                 if source_snapshot in source_obsoletes:
                     source_snapshot.destroy()
 
-                if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.is_ours and prev_source_snapshot_bookmark.tag == bookmark_tag:
+                # TODO: make a better is_ours specially for bookmarks, as part of the next refactoring splitting in more classes
+                # delete any bookmark that ends in ours tag_seprator + tag.
+                if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.name.endswith(
+                        self.zfs_node.tag_seperator + bookmark_tag):
                     prev_source_snapshot_bookmark.destroy()
+
 
             # dont use bookmarks
             else:
