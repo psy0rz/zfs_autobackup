@@ -13,7 +13,8 @@ class TestZfsNode(unittest2.TestCase):
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                       logger=logger, description=description)
+                       logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
+                       exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
 
         with self.subTest("first snapshot"):
             (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
@@ -85,7 +86,8 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode(utc=False, snapshot_time_format="test", hold_name="test", logger=logger, description=description,
-                       debug_output=True)
+                       debug_output=True, ssh_to=None, ssh_config=None, exclude_snapshot_patterns=None, thinner=None,
+                       readonly=False, tag_seperator='_')
 
         with self.subTest("Test if all cmds are executed correctly (no failures)"):
             with OutputIO() as buf:
@@ -152,9 +154,11 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         node_local = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                             logger=logger, description=description)
+                             logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
+                             exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
         node_utc = ZfsNode(utc=True, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                           logger=logger, description=description)
+                           logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
+                           exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
 
         for node in [node_local, node_utc]:
             with self.subTest("timestamp ordering " + ("utc" if node == node_utc else "localtime")):
@@ -181,7 +185,8 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                       logger=logger, description=description)
+                       logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
+                       exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
         (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
                                                                         exclude_paths=[], exclude_received=False,
                                                                         exclude_unchanged=1)
@@ -198,7 +203,8 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                       logger=logger, description=description)
+                       logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
+                       exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
 
         with self.subTest("test invalid option"):
             self.assertFalse(node.valid_command(["zfs", "send", "--invalid-option", "nonexisting"]))
@@ -209,7 +215,8 @@ test_target1
         logger = LogStub()
         description = "[Source]"
         node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                       logger=logger, description=description)
+                       logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
+                       exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
         # -D propably always supported
         self.assertGreater(len(node.supported_send_options), 0)
 
@@ -218,7 +225,8 @@ test_target1
         description = "[Source]"
         # NOTE: this could hang via ssh if we dont close filehandles properly. (which was a previous bug)
         node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
-                       logger=logger, description=description, ssh_to='localhost')
+                       logger=logger, description=description, ssh_to='localhost', debug_output=False, ssh_config=None,
+                       exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
         self.assertIsInstance(node.supported_recv_options, list)
 
 

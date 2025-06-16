@@ -212,7 +212,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
         shelltest("python -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug| grep -m1 'Hashing file'")
         # time.sleep(1)
 
-        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem,volume " + TEST_POOLS)
         self.assertMultiLineEqual("""
 test_source1
 test_source1/fs1
