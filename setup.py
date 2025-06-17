@@ -26,12 +26,11 @@ setuptools.setup(
     packages=setuptools.find_packages(),
 
     classifiers=[
-        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=2.7',
+    python_requires='>=3.0',
     install_requires=[
         "colorama",
         "argparse"

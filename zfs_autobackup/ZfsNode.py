@@ -133,7 +133,18 @@ class ZfsNode(ExecuteNode):
         :rtype: ZfsDataset
         """
 
-        return self.__datasets.setdefault(name, ZfsDataset(self, name, force_exists))
+        if name in self.__datasets:
+            return self.__datasets[name]
+
+        if '@' in name:
+
+            self.__datasets[name] = ZfsDataset(self, name, force_exists=force_exists)
+        elif '#' in name:
+
+            self.__datasets[name] = ZfsDataset(self, name, force_exists=force_exists)
+        else:
+
+            self.__datasets[name] = ZfsDataset(self, name, force_exists=force_exists)
 
     def get_datasets(self, names, force_exists=None):
         """get a list of ZfsDataset() object from names. stores objects internally to enable caching
@@ -319,3 +330,28 @@ class ZfsNode(ExecuteNode):
             # returns None when no property is set.
 
         return (selected_filesystems, excluded_filesystems)
+
+    def get_resume_snapshot(self, resume_token):
+        """returns snapshot that will be resumed by this resume token (run this
+        on source node with target-token)
+
+        Args:
+            :type resume_token: str
+            :rtype: ZfsDataset|None
+        """
+        # use zfs send -n option to determine this
+        # NOTE: on smartos stderr, on linux stdout
+        (stdout, stderr) = self.run(["zfs", "send", "-t", resume_token, "-n", "-v"], valid_exitcodes=[0, 255],
+                                    readonly=True, return_stderr=True)
+        if stdout:
+            lines = stdout
+        else:
+            lines = stderr
+        for line in lines:
+            matches = re.findall("toname = (.*@.*)", line)
+            if matches:
+                snapshot = self.get_dataset(matches[0])
+                snapshot.debug("resume token belongs to this snapshot")
+                return snapshot
+
+        return None
