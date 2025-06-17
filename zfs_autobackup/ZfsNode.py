@@ -2,14 +2,15 @@
 from __future__ import print_function
 import re
 import shlex
-import subprocess
-import sys
+
 import time
 
 from .ExecuteNode import ExecuteNode
-from .Thinner import Thinner
+from .ZfsContainer import ZfsContainer
 from .ZfsPool import ZfsPool
 from .ZfsDataset import ZfsDataset
+from .ZfsSnapshot import ZfsSnapshot
+from .ZfsBookmark import ZfsBookmark
 from .ExecuteNode import ExecuteError
 from .util import datetime_now
 
@@ -59,8 +60,8 @@ class ZfsNode(ExecuteNode):
         self.__thinner = thinner
 
         # list of ZfsPools
-        self.__pools = {}
-        self.__datasets = {}
+        self.__pools = {}  # type: dict[str, ZfsPool]
+        self.__datasets = {}  # type: dict[str, ZfsContainer | ZfsBookmark | ZfsSnapshot]
 
         self._progress_total_bytes = 0
         self._progress_start_time = time.time()
@@ -130,7 +131,7 @@ class ZfsNode(ExecuteNode):
     def get_dataset(self, name, force_exists=None):
         """get a ZfsDataset() object from name. stores objects internally to enable caching
         :type name: str
-        :rtype: ZfsDataset
+        :rtype: ZfsContainer | ZfsBookmark | ZfsSnapshot
         """
 
         if name in self.__datasets:
@@ -138,17 +139,19 @@ class ZfsNode(ExecuteNode):
 
         if '@' in name:
 
-            self.__datasets[name] = ZfsDataset(self, name, force_exists=force_exists)
+            self.__datasets[name] = ZfsSnapshot(self, name, force_exists=force_exists)
         elif '#' in name:
 
-            self.__datasets[name] = ZfsDataset(self, name, force_exists=force_exists)
+            self.__datasets[name] = ZfsBookmark(self, name, force_exists=force_exists)
         else:
 
-            self.__datasets[name] = ZfsDataset(self, name, force_exists=force_exists)
+            self.__datasets[name] = ZfsContainer(self, name, force_exists=force_exists)
+
+        return self.__datasets[name]
 
     def get_datasets(self, names, force_exists=None):
         """get a list of ZfsDataset() object from names. stores objects internally to enable caching
-        :rtype: list[ZfsDataset]
+        :rtype: list[ZfsContainer | ZfsBookmark | ZfsSnapshot]
 
         """
 
@@ -232,7 +235,7 @@ class ZfsNode(ExecuteNode):
                             post_snapshot_cmds=[], set_snapshot_properties=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
         Args:
-            :type datasets: list[ZfsDataset]
+            :type datasets: list[ZfsContainer]
         """
 
         pools = {}

@@ -1,8 +1,3 @@
-import re
-from datetime import datetime
-import sys
-import time
-
 from .ExecuteNode import ExecuteError
 
 
@@ -25,32 +20,26 @@ class ZfsDataset:
             :type name: str
             :type force_exists: bool
         """
+
+        # prevent direct instantiation
+        if type(self) is ZfsDataset:
+            raise TypeError(
+                "ZfsDataset should instantiated directly. Use ZfsSnapshot, ZfsBookmark or ZfsContainer instead.")
+
         self.zfs_node = zfs_node
         self.name = name  # full actual name of dataset
 
         self.force_exists = force_exists
 
         # caching
-        # self.__snapshots = None  # type: None|list[ZfsDataset]
-        self.__written_since_ours = None  # type: None|int
         self.__exists_check = None  # type: None|bool
         self.__properties = None  # type: None|dict[str,str]
-        self.__recursive_datasets = None  # type: None|list[ZfsDataset]
-        self.__datasets = None  # type: None|list[ZfsDataset]
-        # self.__bookmarks = None  # type: None|list[ZfsDataset]
-        self.__snapshots_bookmarks = None  # type: None|list[ZfsDataset]
 
     def invalidate_cache(self):
         """clear caches"""
         self.force_exists = None
-        # self.__snapshots = None
-        self.__written_since_ours = None
         self.__exists_check = None
         self.__properties = None
-        self.__recursive_datasets = None
-        self.__datasets = None
-        # self.__bookmarks = None
-        self.__snapshots_bookmarks = None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -204,11 +193,6 @@ class ZfsDataset:
             return False
         else:
             return True
-
-    @property
-    def is_ours(self):
-        """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
-        return self.timestamp is not None
 
     def get_allowed_properties(self, filter_properties, set_properties):
         """only returns lists of allowed properties for this dataset type

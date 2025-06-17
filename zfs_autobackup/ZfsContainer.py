@@ -1,10 +1,30 @@
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
 from .ZfsSnapshot import ZfsSnapshot
+import re
+from datetime import datetime
+import sys
+import time
 
 
 class ZfsContainer(ZfsDataset):
     """Either a ZFS Filesystem or ZFS Dataset"""
+
+    def __init__(self, zfs_node, name, force_exists=None):
+
+        super().__init__(zfs_node, name, force_exists=force_exists)
+
+        self.__written_since_ours = None  # type: None|int
+        self.__recursive_datasets = None  # type: None|list[ZfsDataset]
+        self.__datasets = None  # type: None|list[ZfsDataset]
+        self.__snapshots_bookmarks = None  # type: None|list[ZfsDataset]
+
+    def invalidate_cache(self):
+        super().invalidate_cache()
+        self.__written_since_ours = None
+        self.__recursive_datasets = None
+        self.__datasets = None
+        self.__snapshots_bookmarks = None
 
     @property
     def snapshots(self):

@@ -1,5 +1,9 @@
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
+import re
+from datetime import datetime
+import sys
+import time
 
 
 class ZfsSnapshot(ZfsDataset):
@@ -352,3 +356,8 @@ class ZfsSnapshot(ZfsDataset):
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
         return self.zfs_node.get_dataset(name, force_exists=True)
+
+    @property
+    def is_ours(self):
+        """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
+        return self.timestamp is not None
