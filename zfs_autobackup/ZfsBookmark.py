@@ -1,4 +1,3 @@
-from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
 import re
 from datetime import datetime

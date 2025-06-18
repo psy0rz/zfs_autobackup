@@ -1,5 +1,6 @@
 from .ExecuteNode import ExecuteError
 from .ZfsContainer import ZfsContainer
+from .ZfsNode import ZfsNode
 from .ZfsSnapshot import ZfsSnapshot
 
 
@@ -28,7 +29,7 @@ class ZfsDataset:
             raise TypeError(
                 "ZfsDataset should instantiated directly. Use ZfsSnapshot, ZfsBookmark or ZfsContainer instead.")
 
-        self.zfs_node = zfs_node
+        self.zfs_node = zfs_node # type: ZfsNode
         self.name = name  # full actual name of dataset
 
         self.force_exists = force_exists

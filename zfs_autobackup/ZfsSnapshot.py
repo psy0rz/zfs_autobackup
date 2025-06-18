@@ -1,4 +1,3 @@
-from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
 import re
 import sys
@@ -33,6 +32,18 @@ class ZfsSnapshot(ZfsPointInTime):
             if pattern.search(suffix) is not None:
                 self.debug("Excluded (path matches snapshot exclude pattern)")
                 return True
+    # def find_snapshot_in_list(self, snapshots):
+    #     """return ZfsDataset from the list of snapshots, if it matches the snapshot_name. Otherwise None
+    #     Args:
+    #         :type snapshots: list[ZfsSnapshot|ZfsBookmark]
+    #         :rtype: ZfsDataset|None
+    #     """
+    #
+    #     for snapshot in snapshots:
+    #         if snapshot.tagless_suffix == self.tagless_suffix:
+    #             return snapshot
+    #
+    #     return None
 
     def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded,
                   send_pipes, zfs_compressed):
@@ -249,7 +260,7 @@ class ZfsSnapshot(ZfsPointInTime):
         self.zfs_node.run(cmd=cmd)
 
         bookmark = self.zfs_node.get_dataset(bookmark_name, force_exists=True)
-        self.cache_snapshot_bookmark(bookmark)
+        self.parent.cache_snapshot_bookmark(bookmark)
         return bookmark
 
     @property

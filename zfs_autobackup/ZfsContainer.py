@@ -1,3 +1,4 @@
+from .ZfsBookmark import ZfsBookmark
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
 from .ZfsSnapshot import ZfsSnapshot
@@ -15,9 +16,9 @@ class ZfsContainer(ZfsDataset):
         super().__init__(zfs_node, name, force_exists=force_exists)
 
         self.__written_since_ours = None  # type: None|int
-        self.__recursive_datasets = None  # type: None|list[ZfsDataset]
-        self.__datasets = None  # type: None|list[ZfsDataset]
-        self.__snapshots_bookmarks = None  # type: None|list[ZfsDataset]
+        self.__recursive_datasets = None  # type: None|list[ZfsContainer]
+        self.__datasets = None  # type: None|list[ZfsContainer]
+        self.__snapshots_bookmarks = None  # type: None|list[ZfsSnapshot|ZfsBookmark]
 
     @property
     def parent(self):
@@ -60,7 +61,7 @@ class ZfsContainer(ZfsDataset):
         in raw-mode nothing is compatible. issue #219
 
         Args:
-            :type target_common_snapshot: ZfsDataset
+            :type target_common_snapshot: ZfsSnapshot
             :type raw: bool
         """
 
@@ -110,35 +111,37 @@ class ZfsContainer(ZfsDataset):
 
         return True
 
-    def find_snapshot(self, snapshot):
+    def find_snapshot(self, snapshot_name):
         """find snapshot by snapshot name (can be a suffix or a different
-        ZfsDataset) Returns None if it cant find it.
+        ZfsSnapshot) Returns None if it cant find it.
 
         Note that matches with our own snapshots will be done tagless.
 
         Args:
-            :rtype: ZfsDataset|None
-            :type snapshot: str|ZfsDataset|None
+            :rtype: ZfsSnapshot|None
+            :type snapshot_name: str|ZfsSnapshot|None
         """
 
-        if snapshot is None:
+        if snapshot_name is None:
             return None
 
-        if not isinstance(snapshot, ZfsDataset):
-            tagless_suffix = snapshot
+        if not isinstance(snapshot_name, ZfsDataset):
+            tagless_suffix = snapshot_name
         else:
-            tagless_suffix = snapshot.tagless_suffix
+            tagless_suffix = snapshot_name.tagless_suffix
 
-        for snapshot in self.snapshots:
-            if snapshot.tagless_suffix == tagless_suffix:
-                return snapshot
+        for snapshot_name in self.snapshots:
+            if snapshot_name.tagless_suffix == tagless_suffix:
+                return snapshot_name
 
         return None
 
     def find_next_snapshot(self, snapshot_bookmark):
         """find next snapshot in this dataset, according to snapshot or bookmark. None if it doesn't exist
         Args:
-            :type snapshot_bookmark: ZfsDataset
+            :type snapshot_bookmark: ZfsSnapshot|ZfsBookmark
+            :rtype: ZfsSnapshot|None
+
         """
 
         if not self.is_dataset:
@@ -149,12 +152,13 @@ class ZfsContainer(ZfsDataset):
             if snapshot == snapshot_bookmark:
                 found = True
             else:
-                if found and snapshot.is_snapshot:
+                if found and snapshot is ZfsSnapshot:
                     return snapshot
 
         return None
 
     def mount(self, mount_point):
+        """Mount the dataset at mount_point, if it is a filesystem."""
 
         self.debug("Mounting")
 
@@ -176,11 +180,16 @@ class ZfsContainer(ZfsDataset):
 
     @property
     def bookmarks(self):
+        """get all bookmarks of this dataset
+        Args:
+
+            :rtype: list[ZfsBookmark]
+        """
 
         ret = []
 
         for bookmark in self.snapshots_bookmarks:
-            if bookmark.is_bookmark:
+            if bookmark is ZfsBookmark:
                 ret.append(bookmark)
 
         return ret
@@ -232,8 +241,9 @@ class ZfsContainer(ZfsDataset):
         Args:
             :param keeps: list[snapshots] to always keep (usually the last)
             :param ignores: snapshots to completely ignore (usually incompatible target snapshots that are going to be destroyed anyway)
-            :type keeps: list[ZfsDataset]
-            :type ignores: list[ZfsDataset]
+            :type keeps: list[ZfsSnapshot]
+            :type ignores: list[ZfsSnapshot]
+            :rtype: tuple[list[ZfsSnapshot], list[ZfsSnapshot]]
         """
 
         if ignores is None:
@@ -266,7 +276,7 @@ class ZfsContainer(ZfsDataset):
 
         Args:
             :type types: str
-            :rtype: list[ZfsDataset]
+            :rtype: list[ZfsContainer]
         """
 
         if self.__recursive_datasets is None:
@@ -286,6 +296,8 @@ class ZfsContainer(ZfsDataset):
 
         Args:
             :type types: str
+            :rtype: list[ZfsContainer]
+
         """
 
         if self.__datasets is None:
@@ -344,7 +356,7 @@ class ZfsContainer(ZfsDataset):
     def cache_snapshot_bookmark(self, snapshot, force=False):
         """Update our snapshot and bookmark cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
         Args:
-            :type snapshot: ZfsDataset
+            :type snapshot: ZfsSnapshot|ZfsBookmark
         """
 
         if force:
@@ -364,18 +376,6 @@ class ZfsContainer(ZfsDataset):
 
         return ret
 
-    def find_snapshot_in_list(self, snapshots):
-        """return ZfsDataset from the list of snapshots, if it matches the snapshot_name. Otherwise None
-        Args:
-            :type snapshots: list[ZfsDataset]
-            :rtype: ZfsDataset|None
-        """
-
-        for snapshot in snapshots:
-            if snapshot.tagless_suffix == self.tagless_suffix:
-                return snapshot
-
-        return None
 
     def find_guid_bookmark_snapshot(self, guid):
         """find the first bookmark or snapshot that matches, prefers bookmarks.
