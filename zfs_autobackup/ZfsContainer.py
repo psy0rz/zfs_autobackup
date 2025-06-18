@@ -381,7 +381,7 @@ class ZfsContainer(ZfsDataset):
         """find the first bookmark or snapshot that matches, prefers bookmarks.
             Args:
             :type guid:str
-            :rtype: ZfsDataset|None
+            :rtype: ZfsBookmark|ZfsSnapshot|None
         """
         # Since this is slower, we only use it if the name matching with find_snapshot and find_bookmark doesn work.
 
@@ -400,12 +400,12 @@ class ZfsContainer(ZfsDataset):
         ZfsDataset) Returns None if it cant find it.
 
         We try to find the bookmark with the preferred tag (which is usually a target path guid, to prevent conflicting bookmarks by multiple sends)
-        After that we return any bookmark that matches (and ignore the tag)
+        If that fails, we return any bookmark that matches (and ignore the tag)
 
         Args:
-            :rtype: ZfsDataset|None
-            :type snapshot_bookmark: str|ZfsDataset|None
-            :type ignore_tag: bool
+            :rtype: ZfsBookmark|None
+            :type snapshot_bookmark: str|ZfsBookmark|ZfsSnapshot|None
+            :type preferred_tag: str
         """
 
         if snapshot_bookmark is None:
