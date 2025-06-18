@@ -159,7 +159,7 @@ class ZfsSnapshot(ZfsPointInTime):
         # invalidate cache
         self.invalidate_cache()
 
-        # in test mode we assume everything was ok and it exists
+        # in test mode we pretend everything was ok and it exists
         if self.zfs_node.readonly:
             self.force_exists = True
 

@@ -1,5 +1,6 @@
 from zfs_autobackup.ZfsDataset import ZfsDataset
 from datetime import datetime
+import time
 
 
 class ZfsPointInTime(ZfsDataset):
@@ -14,8 +15,18 @@ class ZfsPointInTime(ZfsDataset):
     #implemented in subclass
     @property
     def prefix(self):
-
         return ""
+
+
+    @property
+    def parent(self):
+        """get parent dataset
+
+        :rtype: ZfsContainer | None
+        """
+        return self.zfs_node.get_dataset(self.prefix)
+
+
     @property
     def timestamp(self):
         """get timestamp from snapshot/bookmark name. Only works for our own snapshots
@@ -52,6 +63,11 @@ class ZfsPointInTime(ZfsDataset):
                 seconds = time.mktime(dt.timetuple())
         return seconds
 
+    @property
+    def is_ours(self):
+        """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
+        return self.timestamp is not None
+
 
     @property
     def tagless_suffix(self):
@@ -71,15 +87,3 @@ class ZfsPointInTime(ZfsDataset):
         else:
             return None
 
-    @property
-    def is_ours(self):
-        """return true if this snapshot name belong to the current backup_name and snapshot formatting"""
-        return self.timestamp is not None
-
-    @property
-    def parent(self):
-        """get parent dataset
-
-        :rtype: ZfsContainer | None
-        """
-        return self.zfs_node.get_dataset(self.prefix)
