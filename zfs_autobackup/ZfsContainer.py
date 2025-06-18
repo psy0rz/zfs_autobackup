@@ -19,6 +19,19 @@ class ZfsContainer(ZfsDataset):
         self.__datasets = None  # type: None|list[ZfsDataset]
         self.__snapshots_bookmarks = None  # type: None|list[ZfsDataset]
 
+    @property
+    def parent(self):
+        """get parent dataset
+
+        :rtype: ZfsContainer | None
+        """
+        stripped = self.rstrip_path(1)
+        if stripped:
+            return self.zfs_node.get_dataset(stripped)
+        else:
+            return None
+
+
     def invalidate_cache(self):
         super().invalidate_cache()
         self.__written_since_ours = None
@@ -286,17 +299,6 @@ class ZfsContainer(ZfsDataset):
 
         return self.__datasets
 
-    @property
-    def parent(self):
-        """get parent dataset
-
-        :rtype: ZfsContainer | None
-        """
-        stripped = self.rstrip_path(1)
-        if stripped:
-            return self.zfs_node.get_dataset(stripped)
-        else:
-            return None
 
     def create_filesystem(self, parents=False, unmountable=True):
         """create a filesystem
