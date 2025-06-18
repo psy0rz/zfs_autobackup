@@ -117,7 +117,7 @@ class ZfsCheck(CliBase):
         """destroys temporary volume snapshot"""
         clone_name = get_tmp_clone_name(snapshot)
         clone = snapshot.zfs_node.get_dataset(clone_name)
-        clone.destroy(deferred=True, verbose=False)
+        clone.destroy()
 
     def generate_tree_hashes(self, prepared_target):
 
