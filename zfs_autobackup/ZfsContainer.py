@@ -429,7 +429,7 @@ class ZfsContainer(ZfsDataset):
     def find_exact_bookmark(self, bookmark_name):
         """find exact bookmark name, or retruns none
 
-        :rtype: ZfsDataset|None
+        :rtype: ZfsBookmark|None
         """
 
         for snapshot_bookmark in self.bookmarks:
@@ -442,7 +442,8 @@ class ZfsContainer(ZfsDataset):
         ZfsDataset)
 
         Args:
-            :type snapshot: str or ZfsDataset
+            :type snapshot: str or ZfsSnapshot
+            :rtype: int|None
         """
 
         if not isinstance(snapshot, ZfsDataset):
