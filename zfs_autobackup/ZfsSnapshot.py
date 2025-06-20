@@ -32,18 +32,19 @@ class ZfsSnapshot(ZfsPointInTime):
             if pattern.search(suffix) is not None:
                 self.debug("Excluded (path matches snapshot exclude pattern)")
                 return True
-    # def find_snapshot_in_list(self, snapshots):
-    #     """return ZfsDataset from the list of snapshots, if it matches the snapshot_name. Otherwise None
-    #     Args:
-    #         :type snapshots: list[ZfsSnapshot|ZfsBookmark]
-    #         :rtype: ZfsDataset|None
-    #     """
-    #
-    #     for snapshot in snapshots:
-    #         if snapshot.tagless_suffix == self.tagless_suffix:
-    #             return snapshot
-    #
-    #     return None
+
+    def find_snapshot_by_suffix(self, snapshot_bookmarks):
+        """return ZfsSnapshot|ZfsBookmark from the list of snapshot_bookmarks, if it matches our snapshot_name. Otherwise None
+        Args:
+            :type snapshot_bookmarks: list[ZfsSnapshot|ZfsBookmark]
+            :rtype: ZfsSnapshot|ZfsBookmark|None
+        """
+
+        for snapshot_bookmark in snapshot_bookmarks:
+            if snapshot_bookmark.tagless_suffix == self.tagless_suffix:
+                return snapshot_bookmark
+
+        return None
 
     def send_pipe(self, features, prev_snapshot, resume_token, show_progress, raw, send_properties, write_embedded,
                   send_pipes, zfs_compressed):
@@ -241,8 +242,6 @@ class ZfsSnapshot(ZfsPointInTime):
         # NOTE: we use the tag to add the target_path GUID, so that we can have multiple bookmarks for the same snapshot, but for different targets.
         # This is to make sure you can send a backup to two locations, without them interfering with eachothers bookmarks.
 
-        if not self.is_snapshot:
-            raise (Exception("Can only bookmark a snapshot!"))
 
         bookmark_name = self.prefix + "#" + self.tagless_suffix + self.zfs_node.tag_seperator + tag
 

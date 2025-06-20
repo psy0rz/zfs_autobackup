@@ -53,6 +53,42 @@ class ZfsContainer(ZfsDataset):
 
         return ret
 
+    @property
+    def bookmarks(self):
+        """get all bookmarks of this dataset
+        Args:
+
+            :rtype: list[ZfsBookmark]
+        """
+
+        ret = []
+
+        for bookmark in self.snapshots_bookmarks:
+            if bookmark is ZfsBookmark:
+                ret.append(bookmark)
+
+        return ret
+
+    @property
+    def snapshots_bookmarks(self):
+        """get all snapshots and bookmarks of this dataset (ordered by createtxg, so its suitable to determine incremental zfs send order)
+        :rtype: list[ZfsSnapshot|ZfsBookmark]
+        """
+
+        # cached?
+        if self.__snapshots_bookmarks is None:
+            self.debug("Getting snapshots and bookmarks")
+
+            cmd = [
+                "zfs", "list", "-d", "1", "-r", "-t", "snapshot,bookmark", "-H", "-o", "name", "-s", "createtxg",
+                self.name
+            ]
+
+            self.__snapshots_bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True),
+                                                                    force_exists=True)
+
+        return self.__snapshots_bookmarks
+
     def find_incompatible_snapshots(self, target_common_snapshot, raw):
         """returns a list[snapshots] that is incompatible for a zfs recv onto
         the common_snapshot. all direct followup snapshots with written=0 are
@@ -144,8 +180,7 @@ class ZfsContainer(ZfsDataset):
 
         """
 
-        if not self.is_dataset:
-            raise (Exception("Please call this on a dataset."))
+
 
         found = False
         for snapshot in self.snapshots_bookmarks:
@@ -178,21 +213,6 @@ class ZfsContainer(ZfsDataset):
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-    @property
-    def bookmarks(self):
-        """get all bookmarks of this dataset
-        Args:
-
-            :rtype: list[ZfsBookmark]
-        """
-
-        ret = []
-
-        for bookmark in self.snapshots_bookmarks:
-            if bookmark is ZfsBookmark:
-                ret.append(bookmark)
-
-        return ret
 
     def automount(self):
         """Mount the dataset as if one did a zfs mount -a, but only for this dataset
@@ -313,7 +333,7 @@ class ZfsContainer(ZfsDataset):
 
 
     def create_filesystem(self, parents=False, unmountable=True):
-        """create a filesystem
+        """create this container as a filesystem
 
         Args:
             :type parents: bool
@@ -333,25 +353,6 @@ class ZfsContainer(ZfsDataset):
 
         self.force_exists = True
 
-    @property
-    def snapshots_bookmarks(self):
-        """get all snapshots and bookmarks of this dataset (ordered by createtxg, so its suitable to determine incremental zfs send order)
-        :rtype: list[ZfsSnapshot|ZfsBookmark]
-        """
-
-        # cached?
-        if self.__snapshots_bookmarks is None:
-            self.debug("Getting snapshots and bookmarks")
-
-            cmd = [
-                "zfs", "list", "-d", "1", "-r", "-t", "snapshot,bookmark", "-H", "-o", "name", "-s", "createtxg",
-                self.name
-            ]
-
-            self.__snapshots_bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True),
-                                                                    force_exists=True)
-
-        return self.__snapshots_bookmarks
 
     def cache_snapshot_bookmark(self, snapshot, force=False):
         """Update our snapshot and bookmark cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
@@ -466,9 +467,10 @@ class ZfsContainer(ZfsDataset):
         On the source it prefers the specified bookmark_name
 
         Args:
-            :rtype: tuple[ZfsDataset, ZfsDataset] | tuple[None,None]
+            :rtype: tuple[ZfsSnapshot|ZfsBookmark, ZfsSnapshot] | tuple[None,None]
+            :returns: (source_common_snapshot, target_common_snapshot)
             :type guid_check: bool
-            :type target_dataset: ZfsDataset
+            :type target_dataset: ZfsContainer
             :type bookmark_tag: str
         """
 
@@ -509,21 +511,21 @@ class ZfsContainer(ZfsDataset):
             raise (Exception("Cant find common bookmark or snapshot with target."))
 
     def _pre_clean(self, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
-        """cleanup old stuff before starting snapshot syncing
+        """cleanup old stuff on the source before starting snapshot syncing
 
         Args:
-            :type source_common_snapshot: ZfsDataset
-            :type target_dataset: ZfsDataset
-            :type source_obsoletes: list[ZfsDataset]
-            :type target_obsoletes: list[ZfsDataset]
-            :type target_transfers: list[ZfsDataset]
+            :type source_common_snapshot: ZfsSnapshot|ZfsBookmark|None
+            :type target_dataset: ZfsContainer
+            :type source_obsoletes: list[ZfsSnapshot]
+            :type target_obsoletes: list[ZfsSnapshot]
+            :type target_transfers: list[ZfsSnapshot]
         """
 
         # on source: delete all obsoletes that are not in target_transfers (except common snapshot, if its not a bookmark)
         for source_snapshot in self.snapshots:
             if (source_snapshot in source_obsoletes
                     and source_common_snapshot != source_snapshot
-                    and source_snapshot.find_snapshot_in_list(target_transfers) is None):
+                    and source_snapshot.find_snapshot_by_suffix(target_transfers) is None):
                 source_snapshot.destroy()
 
         # on target: destroy everything thats obsolete, except common_snapshot
@@ -606,7 +608,7 @@ class ZfsContainer(ZfsDataset):
         self.verbose("Selected")
         return True
 
-    def destroy(self, fail_exception=False):
+    def destroy(self, fail_exception=False, **kwargs):
 
         self.verbose("Destroying")
         return super().destroy(fail_exception=fail_exception)

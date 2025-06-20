@@ -1,3 +1,5 @@
+import sys
+
 from zfs_autobackup.ZfsDataset import ZfsDataset
 from datetime import datetime
 import time
