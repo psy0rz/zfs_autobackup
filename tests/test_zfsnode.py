@@ -1,6 +1,7 @@
 from basetest import *
 from zfs_autobackup.LogStub import LogStub
 from zfs_autobackup.ExecuteNode import ExecuteError
+from zfs_autobackup.ZfsSnapshot import ZfsSnapshot
 
 
 class TestZfsNode(unittest2.TestCase):
@@ -162,9 +163,9 @@ test_target1
 
         for node in [node_local, node_utc]:
             with self.subTest("timestamp ordering " + ("utc" if node == node_utc else "localtime")):
-                dataset_a = ZfsDataset(node, "test_source1@test-20101111000001")
-                dataset_b = ZfsDataset(node, "test_source1@test-20101111000002")
-                dataset_c = ZfsDataset(node, "test_source1@test-20240101020202")
+                dataset_a = ZfsSnapshot(node, "test_source1@test-20101111000001")
+                dataset_b = ZfsSnapshot(node, "test_source1@test-20101111000002")
+                dataset_c = ZfsSnapshot(node, "test_source1@test-20240101020202")
                 self.assertGreater(dataset_b.timestamp, dataset_a.timestamp)
                 self.assertGreater(dataset_c.timestamp, dataset_b.timestamp)
 
