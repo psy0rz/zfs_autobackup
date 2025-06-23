@@ -2,16 +2,17 @@ from .ZfsBookmark import ZfsBookmark
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
 from .ZfsSnapshot import ZfsSnapshot
-import re
-from datetime import datetime
-import sys
-import time
+# import re
+# from datetime import datetime
+# import sys
+# import time
 
 
 class ZfsContainer(ZfsDataset):
     """Either a ZFS Filesystem or ZFS Dataset"""
 
     def __init__(self, zfs_node, name, force_exists=None):
+
 
         super().__init__(zfs_node, name, force_exists=force_exists)
 
@@ -623,7 +624,7 @@ class ZfsContainer(ZfsDataset):
         Args:
             :type send_pipes: list[str]
             :type recv_pipes: list[str]
-            :type target_dataset: ZfsDataset
+            :type target_dataset: ZfsContainer
             :type features: list[str]
             :type show_progress: bool
             :type filter_properties: list[str]
@@ -765,7 +766,7 @@ class ZfsContainer(ZfsDataset):
         what to do
 
         Args:
-            :type incompatible_target_snapshots: list[ZfsDataset]
+            :type incompatible_target_snapshots: list[ZfsSnapshot]
             :type destroy_incompatible: bool
         """
 
@@ -788,8 +789,8 @@ class ZfsContainer(ZfsDataset):
         """Determine at what snapshot to start syncing to target_dataset and what to sync and what to keep.
 
         Args:
-            :rtype: ( ZfsDataset,  list[ZfsDataset], list[ZfsDataset], list[ZfsDataset], list[ZfsDataset] )
-            :type target_dataset: ZfsDataset
+            :rtype: ( ZfsSnapshot|ZfsBookmark,  list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot] )
+            :type target_dataset: ZfsContainer
             :type also_other_snapshots: bool
             :type guid_check: bool
             :type raw: bool
@@ -797,13 +798,11 @@ class ZfsContainer(ZfsDataset):
 
         Returns:
             tuple: A tuple containing:
-                - ZfsDataset: The common snapshot
-                - list[ZfsDataset]: Our obsolete source snapshots, after transfer is done. (will be thinned asap)
-                - list[ZfsDataset]: Our obsolete target snapshots, after transfer is done. (will be thinned asap)
-                - list[ZfsDataset]: Transfer target snapshots. These need to be transferred.
-                - list[ZfsDataset]: Incompatible target snapshots. Target snapshots that are in the way, after the common snapshot. (need to be destroyed to continue)
-
-
+                - ZfsSnapshot|ZfsBookmark: The source common snapshot
+                - list[ZfsSnapshot]: Our obsolete source snapshots, after transfer is done. (will be thinned asap)
+                - list[ZfsSnapshot]: Our obsolete target snapshots, after transfer is done. (will be thinned asap)
+                - list[ZfsSnapshot]: Transfer target snapshots. These need to be transferred.
+                - list[ZfsSnapshot]: Incompatible target snapshots. Target snapshots that are in the way, after the common snapshot. (need to be destroyed to continue)
         """
 
         ### 1: determine common and start snapshot
@@ -844,7 +843,7 @@ class ZfsContainer(ZfsDataset):
             if (also_other_snapshots or source_snapshot.is_ours) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
                 target_snapshot = target_dataset.zfs_node.get_dataset(
-                    target_dataset.prefix + source_snapshot.typed_suffix, force_exists=False)
+                    target_dataset.name + source_snapshot.typed_suffix, force_exists=False)
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 
@@ -870,8 +869,9 @@ class ZfsContainer(ZfsDataset):
         """validate and get (or destory) resume token
 
         Args:
-            :type target_dataset: ZfsDataset
-            :type start_snapshot: ZfsDataset
+            :type target_dataset: ZfsContainer
+            :type start_snapshot: ZfsSnapshot|None
+            :rtype: str|None
         """
 
         if target_dataset.exists and 'receive_resume_token' in target_dataset.properties:
@@ -881,7 +881,7 @@ class ZfsContainer(ZfsDataset):
             else:
                 resume_token = target_dataset.properties['receive_resume_token']
                 # not valid anymore?
-                resume_snapshot = self.get_resume_snapshot(resume_token)
+                resume_snapshot = self.zfs_node.get_resume_snapshot(resume_token)
                 if not resume_snapshot or start_snapshot.suffix != resume_snapshot.suffix:
                     target_dataset.verbose("Aborting resume, its no longer valid.")
                     target_dataset.abort_resume()

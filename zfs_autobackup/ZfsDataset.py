@@ -1,7 +1,4 @@
 from .ExecuteNode import ExecuteError
-from .ZfsContainer import ZfsContainer
-from .ZfsNode import ZfsNode
-from .ZfsSnapshot import ZfsSnapshot
 
 
 class ZfsDataset:
@@ -25,9 +22,11 @@ class ZfsDataset:
         """
 
         # prevent direct instantiation
-        if type(self) is not ZfsContainer and not ZfsSnapshot and not ZfsDataset:
+        if type(self) is ZfsDataset:
             raise TypeError(
-                "ZfsDataset should instantiated directly. Use ZfsSnapshot, ZfsBookmark or ZfsContainer instead.")
+                "should not be instantiated directly.")
+
+        from .ZfsNode import ZfsNode
 
         self.zfs_node = zfs_node # type: ZfsNode
         self.name = name  # full actual name of dataset

@@ -1,12 +1,22 @@
 import sys
 
-from zfs_autobackup.ZfsDataset import ZfsDataset
+from .ZfsDataset import ZfsDataset
 from datetime import datetime
 import time
 
 
 class ZfsPointInTime(ZfsDataset):
     """contains stuff that is common to snapshots and bookmarks"""
+
+
+    def __init__(self, zfs_node, name, force_exists=None):
+
+
+        if type(self) is ZfsPointInTime:
+            raise TypeError(
+                "should not be instantiated directly.")
+
+        super().__init__(zfs_node, name, force_exists)
 
 
     #implemented in subclass

@@ -334,17 +334,17 @@ class ZfsNode(ExecuteNode):
 
         return (selected_filesystems, excluded_filesystems)
 
-    def get_resume_snapshot(self, resume_token):
+    def get_resume_snapshot(self, target_resume_token):
         """returns snapshot that will be resumed by this resume token (run this
         on source node with target-token)
 
         Args:
-            :type resume_token: str
-            :rtype: ZfsDataset|None
+            :type target_resume_token: str
+            :rtype: ZfsSnapshot|None
         """
         # use zfs send -n option to determine this
         # NOTE: on smartos stderr, on linux stdout
-        (stdout, stderr) = self.run(["zfs", "send", "-t", resume_token, "-n", "-v"], valid_exitcodes=[0, 255],
+        (stdout, stderr) = self.run(["zfs", "send", "-t", target_resume_token, "-n", "-v"], valid_exitcodes=[0, 255],
                                     readonly=True, return_stderr=True)
         if stdout:
             lines = stdout

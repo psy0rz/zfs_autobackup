@@ -560,4 +560,5 @@ test_target1/test_source1/fs1/sub@test2-20010203000000
 
 # TODO
 # - check if holds and no-holds function ok when bookmarks are enabled
-# -delete bookmarks we have on other snapshots
+# - delete bookmarks we have on other snapshots
+# - test if resuming works with bookmarks
