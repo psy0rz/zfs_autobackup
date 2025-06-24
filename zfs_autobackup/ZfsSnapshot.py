@@ -26,7 +26,7 @@ class ZfsSnapshot(ZfsPointInTime):
 
     @property
     def is_snapshot_excluded(self):
-        """true if this dataset is a snapshot and matches the exclude pattern"""
+        """true if this is a snapshot and matches the exclude pattern"""
         suffix = self.suffix
         for pattern in self.zfs_node.exclude_snapshot_patterns:
             if pattern.search(suffix) is not None:
@@ -57,7 +57,7 @@ class ZfsSnapshot(ZfsPointInTime):
             :param send_pipes: output cmd array that will be added to actual zfs send command. (e.g. mbuffer or compression program)
             :type send_pipes: list[str]
             :type features: list[str]
-            :type prev_snapshot: ZfsDataset
+            :type prev_snapshot: ZfsSnapshot|ZfsBookmark|None
             :type resume_token: str
             :type show_progress: bool
             :type raw: bool
@@ -274,12 +274,12 @@ class ZfsSnapshot(ZfsPointInTime):
         return self.zfs_node.hold_name in self.holds
 
     def hold(self):
-        """hold dataset"""
+        """hold snapshot"""
         self.debug("holding")
         self.zfs_node.run(["zfs", "hold", self.zfs_node.hold_name, self.name], valid_exitcodes=[0, 1])
 
     def release(self):
-        """release dataset"""
+        """release snapshot"""
         if self.zfs_node.readonly or self.is_hold():
             self.debug("releasing")
             self.zfs_node.run(["zfs", "release", self.zfs_node.hold_name, self.name], valid_exitcodes=[0, 1])
@@ -293,10 +293,13 @@ class ZfsSnapshot(ZfsPointInTime):
     def destroy(self, fail_exception=False, defered=False):
 
         self.verbose("Destroying")
+        self.release()
         return super().destroy(fail_exception=fail_exception, deferred=defered)
 
     def clone(self, name):
-        """clones this snapshot and returns ZfsDataset of the clone"""
+        """clones this snapshot and returns ZfsContainer of the clone
+        :rtype: ZfsContainer
+        """
 
         self.debug("Cloning to {}".format(name))
 

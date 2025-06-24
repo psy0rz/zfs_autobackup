@@ -100,8 +100,10 @@ class ExecuteNode(LogStub):
         :param cmd: the actual command, should be a list, where the first item is the command
                     and the rest are parameters. use ExecuteNode.PIPE to add an unescaped |
                     (if you want to use system piping instead of python piping)
+        :type cmd: list[str|ExecuteNode.PIPE]
         :param pipe: return CmdPipe instead of executing it. (pipe this into another run() command via inp=...)
         :param inp: Can be None, a string or a CmdPipe that was previously returned.
+        :type inp: CmdPipe | str | None
         :param tab_split: split tabbed files in output into a list
         :param valid_exitcodes: list of valid exit codes for this command. Use [] to accept all exit codes. Default [0]
         :param readonly: make this True if the command doesn't make any changes and is safe to execute in testmode
@@ -109,6 +111,7 @@ class ExecuteNode(LogStub):
         :param return_stderr: return both stdout and stderr as a tuple. (normally only returns stdout)
         :param return_all: return both stdout and stderr and exit_code as a tuple. (normally only returns stdout)
         :param cwd: Change current working directory before executing command.
+        :rtype: list[str] | tuple[list[str], list[str]] | tuple[list[str], list[str], int] | CmdPipe
 
         """
 

@@ -1,6 +1,5 @@
 from .ExecuteNode import ExecuteError
 
-
 class ZfsDataset:
     """A generic ZFS dataset, this has all the common functions of zfs filesystems, volumes, snapshots and bookmarks.
 
