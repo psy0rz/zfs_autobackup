@@ -238,7 +238,7 @@ class ZfsNode(ExecuteNode):
             :type datasets: list[ZfsContainer]
         """
 
-        pools = {}
+        pools = {} # type: dict[str, list[ZfsSnapshot]]
 
         # collect snapshots that we want to make, per pool
         # self.debug(datasets)
@@ -273,7 +273,7 @@ class ZfsNode(ExecuteNode):
                 for snapshot_property in set_snapshot_properties:
                     cmd += ['-o', snapshot_property]
 
-                cmd.extend(map(lambda snapshot_: str(snapshot_), snapshots))
+                cmd.extend(map(lambda snapshot_: snapshot_.name, snapshots))
 
                 self.verbose("Creating snapshots {} in pool {}".format(snapshot_name, pool_name))
                 self.run(cmd, readonly=False)

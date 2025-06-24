@@ -49,8 +49,10 @@ class ZfsContainer(ZfsDataset):
         ret = []
 
         for snapshot in self.snapshots_bookmarks:
-            if snapshot is ZfsSnapshot:
+            #check is snapshot is a ZfsSnapshot, and append to ret if it is
+            if isinstance(snapshot, ZfsSnapshot):
                 ret.append(snapshot)
+
 
         return ret
 
@@ -65,7 +67,7 @@ class ZfsContainer(ZfsDataset):
         ret = []
 
         for bookmark in self.snapshots_bookmarks:
-            if bookmark is ZfsBookmark:
+            if type(bookmark) is ZfsBookmark:
                 ret.append(bookmark)
 
         return ret
@@ -135,7 +137,7 @@ class ZfsContainer(ZfsDataset):
         Args:
             :type min_changed_bytes: int
         """
-        self.debug("Checking if dataset is changed")
+        self.debug("Checking if dataset is changed {} or more bytes".format(min_changed_bytes))
 
         if min_changed_bytes == 0:
             return True
@@ -205,7 +207,7 @@ class ZfsContainer(ZfsDataset):
             if snapshot == snapshot_bookmark:
                 found = True
             else:
-                if found and snapshot is ZfsSnapshot:
+                if found and type(snapshot) is ZfsSnapshot:
                     return snapshot
 
         return None
@@ -748,7 +750,7 @@ class ZfsContainer(ZfsDataset):
 
                 # TODO: make a better is_ours specially for bookmarks, as part of the next refactoring splitting in more classes
                 # delete any bookmark that ends in ours tag_seprator + tag.
-                if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_bookmark and prev_source_snapshot_bookmark.name.endswith(
+                if prev_source_snapshot_bookmark and type(prev_source_snapshot_bookmark) is ZfsBookmark and prev_source_snapshot_bookmark.name.endswith(
                         self.zfs_node.tag_seperator + bookmark_tag):
                     prev_source_snapshot_bookmark.destroy()
 
@@ -760,7 +762,7 @@ class ZfsContainer(ZfsDataset):
                     source_snapshot.hold()
 
                 # release hold, cleanup obsolete snapshot
-                if prev_source_snapshot_bookmark and prev_source_snapshot_bookmark.is_snapshot:
+                if prev_source_snapshot_bookmark and type(prev_source_snapshot_bookmark) is ZfsSnapshot:
                     prev_source_snapshot_bookmark.release()
                     if prev_source_snapshot_bookmark in source_obsoletes:
                         prev_source_snapshot_bookmark.destroy()

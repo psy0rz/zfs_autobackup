@@ -49,13 +49,13 @@ class ZfsPointInTime(ZfsDataset):
         :rtype: int|None
         """
 
-        if self.zfs_node.tag_seperator in self.suffix:
-            tagless_suffix = self.suffix.split(self.zfs_node.tag_seperator)[0]
-        else:
-            tagless_suffix = self.suffix
+        # if self.zfs_node.tag_seperator in self.suffix:
+        #     tagless_suffix = self.suffix.split(self.zfs_node.tag_seperator)[0]
+        # else:
+        #     tagless_suffix = self.suffix
 
         try:
-            dt = datetime.strptime(tagless_suffix, self.zfs_node.snapshot_time_format)
+            dt = datetime.strptime(self.tagless_suffix, self.zfs_node.snapshot_time_format)
         except ValueError:
             return None
 
