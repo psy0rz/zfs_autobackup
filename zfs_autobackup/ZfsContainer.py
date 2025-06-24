@@ -129,6 +129,22 @@ class ZfsContainer(ZfsDataset):
 
         return self.__written_since_ours
 
+    def is_changed(self, min_changed_bytes=1):
+        """dataset is changed since ANY latest snapshot ?
+
+        Args:
+            :type min_changed_bytes: int
+        """
+        self.debug("Checking if dataset is changed")
+
+        if min_changed_bytes == 0:
+            return True
+
+        if int(self.properties['written']) < min_changed_bytes:
+            return False
+        else:
+            return True
+
     def is_changed_ours(self, min_changed_bytes=1):
         """dataset is changed since OUR latest snapshot?
 
@@ -145,6 +161,7 @@ class ZfsContainer(ZfsDataset):
         # NOTE: filesystems can have a very small amount written without actual changes in some cases
         if self.written_since_ours < min_changed_bytes:
             return False
+
 
         return True
 

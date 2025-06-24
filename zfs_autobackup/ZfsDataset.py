@@ -180,21 +180,6 @@ class ZfsDataset:
 
         return self.__properties
 
-    def is_changed(self, min_changed_bytes=1):
-        """dataset is changed since ANY latest snapshot ?
-
-        Args:
-            :type min_changed_bytes: int
-        """
-        self.debug("Checking if dataset is changed")
-
-        if min_changed_bytes == 0:
-            return True
-
-        if int(self.properties['written']) < min_changed_bytes:
-            return False
-        else:
-            return True
 
     def get_allowed_properties(self, filter_properties, set_properties):
         """only returns lists of allowed properties for this dataset type
