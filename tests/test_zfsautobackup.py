@@ -4,6 +4,7 @@ from basetest import *
 import time
 
 from zfs_autobackup.LogConsole import LogConsole
+from zfs_autobackup.ZfsSnapshot import ZfsSnapshot
 
 
 class TestZfsAutobackup(unittest2.TestCase):
@@ -898,7 +899,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         n = ZfsNode(utc=False, snapshot_time_format="bla", hold_name="bla", logger=l, readonly=False,
                     debug_output=False, thinner=None, exclude_snapshot_patterns=None, ssh_to=None, ssh_config=None,
                     description=None, tag_seperator="_")
-        d = ZfsDataset(n, "test_source1@test")
+        d = ZfsSnapshot(n, "test_source1@test")
 
         sp = d.send_pipe([], prev_snapshot=None, resume_token=None, show_progress=True, raw=False, send_pipes=[],
                          send_properties=True, write_embedded=True, zfs_compressed=True)
