@@ -9,8 +9,10 @@ from .BlockHasher import BlockHasher
 from .ZfsNode import ZfsNode
 from .util import *
 from .CliBase import CliBase
+from .ZfsSnapshot import ZfsSnapshot
 
 
+# NOTE: zfscheck has no ssh support, because it would be too problematic during cleanup of temporary mounts and clones.
 class ZfsCheck(CliBase):
 
     def __init__(self, argv, print_arguments=True):
@@ -68,7 +70,10 @@ class ZfsCheck(CliBase):
         return args
 
     def prepare_zfs_filesystem(self, snapshot):
-
+        """
+        :type snapshot: ZfsSnapshot
+        :rtype: str
+        """
         mnt = "/tmp/" + tmp_name()
         self.debug("Create temporary mount point {}".format(mnt))
         self.node.run(["mkdir", mnt])
@@ -76,6 +81,9 @@ class ZfsCheck(CliBase):
         return mnt
 
     def cleanup_zfs_filesystem(self, snapshot):
+        """
+        :type snapshot: ZfsSnapshot
+        """
         mnt = "/tmp/" + tmp_name()
         snapshot.unmount(mnt)
         self.debug("Cleaning up temporary mount point")
@@ -84,7 +92,10 @@ class ZfsCheck(CliBase):
     # NOTE: https://www.google.com/search?q=Mount+Path+Limit+freebsd
     # Freebsd has limitations regarding path length, so we have to clone it so the part stays sort
     def prepare_zfs_volume(self, snapshot):
-        """clone volume, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)"""
+        """clone volume, waits and tries to findout /dev path to the volume, in a compatible way. (linux/freebsd/smartos)
+        :type snapshot: ZfsSnapshot
+        :rtype: str
+        """
 
         clone_name = get_tmp_clone_name(snapshot)
         clone = snapshot.clone(clone_name)
@@ -114,7 +125,10 @@ class ZfsCheck(CliBase):
                 locations)))
 
     def cleanup_zfs_volume(self, snapshot):
-        """destroys temporary volume snapshot"""
+        """destroys temporary volume snapshot
+                :type snapshot: ZfsSnapshot
+
+        """
         clone_name = get_tmp_clone_name(snapshot)
         clone = snapshot.zfs_node.get_dataset(clone_name)
         clone.destroy()

@@ -2,6 +2,8 @@ from .ZfsBookmark import ZfsBookmark
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
 from .ZfsSnapshot import ZfsSnapshot
+
+
 # import re
 # from datetime import datetime
 # import sys
@@ -12,7 +14,6 @@ class ZfsContainer(ZfsDataset):
     """Either a ZFS Filesystem or ZFS Dataset"""
 
     def __init__(self, zfs_node, name, force_exists=None):
-
 
         super().__init__(zfs_node, name, force_exists=force_exists)
 
@@ -33,7 +34,6 @@ class ZfsContainer(ZfsDataset):
         else:
             return None
 
-
     def invalidate_cache(self):
         super().invalidate_cache()
         self.__written_since_ours = None
@@ -49,10 +49,9 @@ class ZfsContainer(ZfsDataset):
         ret = []
 
         for snapshot in self.snapshots_bookmarks:
-            #check is snapshot is a ZfsSnapshot, and append to ret if it is
+            # check is snapshot is a ZfsSnapshot, and append to ret if it is
             if isinstance(snapshot, ZfsSnapshot):
                 ret.append(snapshot)
-
 
         return ret
 
@@ -164,7 +163,6 @@ class ZfsContainer(ZfsDataset):
         if self.written_since_ours < min_changed_bytes:
             return False
 
-
         return True
 
     def find_snapshot(self, snapshot_name):
@@ -200,8 +198,6 @@ class ZfsContainer(ZfsDataset):
 
         """
 
-
-
         found = False
         for snapshot in self.snapshots_bookmarks:
             if snapshot == snapshot_bookmark:
@@ -211,28 +207,6 @@ class ZfsContainer(ZfsDataset):
                     return snapshot
 
         return None
-
-    def mount(self, mount_point):
-        """Mount the dataset at mount_point, if it is a filesystem."""
-
-        self.debug("Mounting")
-
-        cmd = [
-            "mount", "-tzfs", self.name, mount_point
-        ]
-
-        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
-
-    def unmount(self, mount_point):
-
-        self.debug("Unmounting")
-
-        cmd = [
-            "umount", mount_point
-        ]
-
-        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
-
 
     def automount(self):
         """Mount the dataset as if one did a zfs mount -a, but only for this dataset
@@ -351,7 +325,6 @@ class ZfsContainer(ZfsDataset):
 
         return self.__datasets
 
-
     def create_filesystem(self, parents=False, unmountable=True):
         """create this container as a filesystem
 
@@ -372,7 +345,6 @@ class ZfsContainer(ZfsDataset):
         self.zfs_node.run(cmd)
 
         self.force_exists = True
-
 
     def cache_snapshot_bookmark(self, snapshot, force=False):
         """Update our snapshot and bookmark cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
@@ -396,7 +368,6 @@ class ZfsContainer(ZfsDataset):
                 ret.append(snapshot)
 
         return ret
-
 
     def find_guid_bookmark_snapshot(self, guid):
         """find the first bookmark or snapshot that matches, prefers bookmarks.
@@ -750,7 +721,8 @@ class ZfsContainer(ZfsDataset):
 
                 # TODO: make a better is_ours specially for bookmarks, as part of the next refactoring splitting in more classes
                 # delete any bookmark that ends in ours tag_seprator + tag.
-                if prev_source_snapshot_bookmark and type(prev_source_snapshot_bookmark) is ZfsBookmark and prev_source_snapshot_bookmark.name.endswith(
+                if prev_source_snapshot_bookmark and type(
+                        prev_source_snapshot_bookmark) is ZfsBookmark and prev_source_snapshot_bookmark.name.endswith(
                         self.zfs_node.tag_seperator + bookmark_tag):
                     prev_source_snapshot_bookmark.destroy()
 

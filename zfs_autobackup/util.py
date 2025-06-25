@@ -18,6 +18,9 @@ def tmp_name(suffix=""):
 
 
 def get_tmp_clone_name(snapshot):
+    """
+    :type snapshot: ZfsSnapshot
+    """
     pool = snapshot.zfs_node.get_pool(snapshot)
     return pool.name + "/" + tmp_name()
 

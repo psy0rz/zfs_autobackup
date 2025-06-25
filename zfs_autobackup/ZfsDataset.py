@@ -1,5 +1,6 @@
 from .ExecuteNode import ExecuteError
 
+
 class ZfsDataset:
     """A generic ZFS dataset, this has all the common functions of zfs filesystems, volumes, snapshots and bookmarks.
 
@@ -25,9 +26,7 @@ class ZfsDataset:
             raise TypeError(
                 "should not be instantiated directly.")
 
-        from .ZfsNode import ZfsNode
-
-        self.zfs_node = zfs_node # type: ZfsNode
+        self.zfs_node = zfs_node  # type: ZfsNode
         self.name = name  # full actual name of dataset
 
         self.force_exists = force_exists
@@ -179,7 +178,6 @@ class ZfsDataset:
 
         return self.__properties
 
-
     def get_allowed_properties(self, filter_properties, set_properties):
         """only returns lists of allowed properties for this dataset type
 
@@ -229,3 +227,24 @@ class ZfsDataset:
 
         # invalidate cache
         self.__properties = None
+
+    def mount(self, mount_point):
+        """Mount the container or snapshot at mount_point, if it is a filesystem."""
+
+        self.debug("Mounting")
+
+        cmd = [
+            "mount", "-tzfs", self.name, mount_point
+        ]
+
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+    def unmount(self, mount_point):
+
+        self.debug("Unmounting")
+
+        cmd = [
+            "umount", mount_point
+        ]
+
+        self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
