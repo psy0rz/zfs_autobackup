@@ -1,5 +1,31 @@
 from .ExecuteNode import ExecuteError
 
+#
+# Inheritance / overview graph (comment):
+#
+# ZfsDataset
+# ├─ ZfsPointInTime (zfs_autobackup/ZfsPointInTime.py)
+# │  ├─ ZfsSnapshot   (zfs_autobackup/ZfsSnapshot.py)
+# │  └─ ZfsBookmark   (zfs_autobackup/ZfsBookmark.py)
+# └─ ZfsContainer     (zfs_autobackup/ZfsContainer.py)
+#
+# Summary (key responsibilities / notable members):
+# - ZfsDataset (this file)
+#   - Base for all dataset types (filesystems, volumes, snapshots, bookmarks)
+#   - Key attributes: .zfs_node, .name, .force_exists
+#   - Important properties: .exists_check, .exists, .properties
+#   - Important methods: destroy(), invalidate_cache(), set(), inherit(), mount(), unmount()
+# - ZfsPointInTime
+#   - Abstract intermediate for point-in-time objects (snapshots & bookmarks)
+#   - Key: .prefix, .suffix, .timestamp, .is_ours, .tagless_suffix, .tag
+# - ZfsSnapshot
+#   - Snapshot-specific operations: send_pipe(), recv_pipe(), transfer_snapshot(), bookmark(), clone(), hold/release
+# - ZfsBookmark
+#   - Bookmark-specific behavior (name split on "#", light destroy override)
+# - ZfsContainer
+#   - Filesystem/volume container logic: snapshots/bookmarks management, automount, thin/thin_list, sync_snapshots, find_common_snapshot
+##
+
 
 class ZfsDataset:
     """A generic ZFS dataset, this has all the common functions of zfs filesystems, volumes, snapshots and bookmarks.
