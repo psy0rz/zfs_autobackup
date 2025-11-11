@@ -1,5 +1,5 @@
 #!/bin/bash
 
-#run one test. start from main directory
-
+#run all or one test. start from main directory
+# to run one: -k test_incremental_resume
 python -m unittest discover tests $@ -vvvf

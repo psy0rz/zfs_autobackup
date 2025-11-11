@@ -1,3 +1,4 @@
 #!/bin/bash
+# to run one: -k test_incremental_resume
 
 find tests/*.py zfs_autobackup/*.py | entr -r ./tests/remoteruntest $@
