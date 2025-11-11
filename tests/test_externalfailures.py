@@ -69,7 +69,8 @@ test_target1/test_source2/fs2/sub@test-20101111000000
     def test_incremental_resume(self):
         # initial backup
         with mocktime("20101111000000"):
-            self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty --keep-source=0".split(" ")).run())
 
         # incremental backup leaves resume token
         with mocktime("20101111000001"):
