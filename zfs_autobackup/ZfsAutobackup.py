@@ -110,6 +110,12 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--zfs-compressed', action='store_true',
                            help='Transfer blocks that already have zfs-compression as-is.')
 
+        group.add_argument('--clones', metavar='POLICY', default='never',
+                           choices=('never', 'simple'),
+                           help='Clones support. (The default policy "never" expands clones into full independent datasets. '
+                                '"simple" tries to reproduce the clone when the origin snapshot is already copied '
+                                'in the same target root)')
+
         group = parser.add_argument_group("Data transfer options")
         group.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-fast',
                            choices=compressors.choices(),
@@ -399,6 +405,7 @@ class ZfsAutobackup(ZfsAuto):
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed, force=self.args.force,
                                               guid_check=not self.args.no_guid_check,
+                                              clones=self.args.clones,
                                               make_target_name=lambda source_dataset: self.make_target_name(source_dataset))
             except Exception as e:
 
