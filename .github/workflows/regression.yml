@@ -25,24 +25,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github || true
-
-  ubuntu20:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.5.0
-
-      - name: Prepare
-        run: sudo apt update && sudo apt install zfsutils-linux lzop pigz zstd gzip xz-utils lz4 mbuffer && sudo -H pip3 install coverage unittest2 mock==3.0.5 coveralls
-
-
-      - name: Regression test
-        run: sudo -E ./tests/run_tests
-
-
-      - name: Coveralls
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: coveralls --service=github || true
-
