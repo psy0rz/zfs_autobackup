@@ -33,7 +33,7 @@ class TestExternalFailures(unittest2.TestCase):
         with mocktime("20101111000000"):
             self.generate_resume()
 
-        # --test should resume and succeed
+        # test should resume and succeed
         with OutputIO() as buf:
             with redirect_stdout(buf):
                 self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --test".split(" ")).run())
@@ -111,7 +111,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
     # generate an invalid resume token, and verify if its aborted automaticly
-    def test_initial_resumeabort(self):
+    def test_initial_abortedresume(self):
         # inital backup, leaves resume token
         with mocktime("20101111000000"):
             self.generate_resume()
@@ -145,7 +145,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 """)
 
     # generate an invalid resume token, and verify if its aborted automaticly
-    def test_incremental_resumeabort(self):
+    def test_incremental_abortedresume(self):
         # initial backup
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
