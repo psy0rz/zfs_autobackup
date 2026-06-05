@@ -499,7 +499,7 @@ class ZfsContainer(ZfsDataset):
                     if not self.zfs_node.readonly:
                         raise e
 
-            raise (Exception("Cant find common bookmark or snapshot with target."))
+            raise (Exception("Cant find common bookmark or snapshot with target. (Delete snapshots on target and use -F to fix this.)"))
 
     def _pre_clean(self, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
         """cleanup old stuff on the source before starting snapshot syncing
