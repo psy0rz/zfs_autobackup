@@ -426,6 +426,102 @@ test_target1/fs2/sub@test-20101111000000
         with self.assertRaisesRegexp(Exception, "too much"):
             ZfsAutobackup("test test_target1 --verbose --strip-path=3 --no-progress --debug".split(" ")).run()
 
+    def test_property_format(self):
+        """--property-format selects datasets via a custom ZFS user-property name.
+
+        The literal "{}" in the format is substituted with BACKUP-NAME, producing
+        the actual property name that zfs-autobackup looks for on each dataset.
+        """
+
+        # the default "autobackup:test" property on test_source1/fs1 and test_source2/fs2
+        # should be ignored once we change --property-format. Set a property using the
+        # custom format on test_source2/fs3 instead, which is normally not selected.
+        shelltest("zfs set mybackup:test=true test_source2/fs3")
+
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --property-format mybackup:{}".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
+        self.assertMultiLineEqual(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1/sub
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs3
+test_source2/fs3@test-20101111000000
+test_source2/fs3/sub
+test_source2/fs3/sub@test-20101111000000
+test_target1
+test_target1/test_source2
+test_target1/test_source2/fs3
+test_target1/test_source2/fs3@test-20101111000000
+test_target1/test_source2/fs3/sub
+test_target1/test_source2/fs3/sub@test-20101111000000
+""")
+
+    def test_snapshot_format(self):
+        """--snapshot-format controls the snapshot name after the "@".
+
+        "{}" is substituted with BACKUP-NAME, then strftime codes are expanded
+        against the current time. The result must not contain the tag-seperator.
+        """
+
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --snapshot-format snap-{}-%Y-%m-%d".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
+        self.assertMultiLineEqual(r, """
+test_source1
+test_source1/fs1
+test_source1/fs1@snap-test-2010-11-11
+test_source1/fs1/sub
+test_source1/fs1/sub@snap-test-2010-11-11
+test_source2
+test_source2/fs2
+test_source2/fs2/sub
+test_source2/fs2/sub@snap-test-2010-11-11
+test_source2/fs3
+test_source2/fs3/sub
+test_target1
+test_target1/test_source1
+test_target1/test_source1/fs1
+test_target1/test_source1/fs1@snap-test-2010-11-11
+test_target1/test_source1/fs1/sub
+test_target1/test_source1/fs1/sub@snap-test-2010-11-11
+test_target1/test_source2
+test_target1/test_source2/fs2
+test_target1/test_source2/fs2/sub
+test_target1/test_source2/fs2/sub@snap-test-2010-11-11
+""")
+
+    def test_snapshot_format_tagseperator_collision(self):
+        """If --snapshot-format produces a name that contains the tag-seperator, refuse to run."""
+
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                with mocktime("20101111000000"):
+                    # default tag-seperator "_" appears in the strftime output -> sys.exit(255)
+                    with self.assertRaises(SystemExit) as cm:
+                        ZfsAutobackup("test test_target1 --no-progress --snapshot-format {}_%Y_%m_%d".split(" "))
+                    self.assertEqual(cm.exception.code, 255)
+
+            self.assertIn("Tag seperator", buf.getvalue())
+
+    def test_hold_format(self):
+        """--hold-format controls the zfs-hold name placed on snapshots."""
+
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --no-bookmark --hold-format myhold_{}".split(" ")).run())
+
+        r = shelltest("zfs holds -H test_source1/fs1@test-20101111000000")
+        self.assertIn("myhold_test", r)
+        self.assertNotIn("zfs_autobackup:test", r)
+
     def test_clearrefres(self):
 
         # on zfs utils 0.6.x -x isnt supported

@@ -113,11 +113,18 @@ class ZfsAuto(CliBase):
 
         group = parser.add_argument_group("String formatting options")
         group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
-                           help='Dataset selection string format. Default: %(default)s')
+                           help='Name of the ZFS user-property used to select datasets for this backup. '
+                                'The literal "{}" is substituted with BACKUP-NAME. '
+                                'Default: %(default)s')
         group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
-                           help='ZFS Snapshot string format. Default: %(default)s')
+                           help='Format of the snapshot-name part after the "@". '
+                                'The literal "{}" is substituted with BACKUP-NAME, then strftime-codes '
+                                '(e.g. %%Y %%m %%d %%H %%M %%S) are expanded against the current time. '
+                                'Must not contain the tag-seperator. Default: %(default)s')
         group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
-                           help='ZFS hold string format. Default: %(default)s')
+                           help='Name of the zfs-hold placed on snapshots to prevent accidental deletion. '
+                                'The literal "{}" is substituted with BACKUP-NAME. '
+                                'Default: %(default)s')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
                            help='Number of directories to strip from target path.')
         group.add_argument('--tag-seperator', metavar='CHAR', default="_",
