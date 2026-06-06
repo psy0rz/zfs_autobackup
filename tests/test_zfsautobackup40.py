@@ -284,6 +284,38 @@ test_target1/b/test_source2/fs2/sub@test-20101111000003
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup("test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
 
+    def test_no_common_falls_back_to_incompatible(self):
+        """If no common snapshot/bookmark exists with target, target snapshots
+        must be reported as incompatible (instead of raising), so the user can
+        recover with --destroy-incompatible."""
+
+        # initial backup populates target and creates source bookmarks
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+        # wipe every source snapshot and bookmark so nothing matches the target anymore
+        shelltest("zfs list -H -o name -t snapshot,bookmark -r test_source1 test_source2 "
+                  "| xargs -rn1 zfs destroy")
+
+        # without --destroy-incompatible the run must fail: target snapshots are in the way
+        with mocktime("20101111000001"):
+            self.assertTrue(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+        # target snapshots from the initial backup must still be there (nothing destroyed yet)
+        r = shelltest("zfs list -H -o name -t snapshot test_target1/test_source1/fs1").strip()
+        self.assertIn("test-20101111000000", r)
+
+        # with --destroy-incompatible -F the run succeeds: target is wiped and re-seeded
+        with mocktime("20101111000002"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty --destroy-incompatible -F".split(" ")).run())
+
+        r = shelltest("zfs list -H -o name -t snapshot -r test_target1")
+        self.assertNotIn("test-20101111000000", r)
+        self.assertIn("test-20101111000002", r)
+
     def test_keepsource0target10queuedsend_bookmarks(self):
         """Test if thinner doesnt destroy too much early on if there are no common snapshots YET. Issue #84"""
         # new behavior, with bookmarks. (will delete common snapshot, since there is a bookmark)
