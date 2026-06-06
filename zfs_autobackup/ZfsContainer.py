@@ -108,7 +108,9 @@ class ZfsContainer(ZfsDataset):
 
         if target_common_snapshot and self.snapshots:
             followup = True
-            for snapshot in self.snapshots[self.find_snapshot_index(target_common_snapshot) + 1:]:
+            common_index = self.find_snapshot_index(target_common_snapshot)
+            assert common_index is not None
+            for snapshot in self.snapshots[common_index + 1:]:
                 if raw or not followup or int(snapshot.properties['written']) != 0:
                     followup = False
                     ret.append(snapshot)
@@ -117,7 +119,9 @@ class ZfsContainer(ZfsDataset):
 
     @property
     def written_since_ours(self):
-        """get number of bytes written since our last snapshot"""
+        """get number of bytes written since our last snapshot
+        :rtype: int
+        """
 
         if self.__written_since_ours is None:
             latest_snapshot = self.our_snapshots[-1]
@@ -334,8 +338,9 @@ class ZfsContainer(ZfsDataset):
         """
 
         # recurse up
-        if parents and self.parent and not self.parent.exists:
-            self.parent.create_filesystem(parents, unmountable)
+        parent = self.parent
+        if parents and parent is not None and not parent.exists:
+            parent.create_filesystem(parents, unmountable)
 
         cmd = ["zfs", "create"]
 
@@ -690,6 +695,7 @@ class ZfsContainer(ZfsDataset):
         for target_snapshot in target_transfers:
 
             source_snapshot = self.find_snapshot(target_snapshot)
+            assert source_snapshot is not None
 
             # do the rollback, one time at first transfer
             if do_rollback:
@@ -735,14 +741,14 @@ class ZfsContainer(ZfsDataset):
                     source_snapshot.hold()
 
                 # release hold, cleanup obsolete snapshot
-                if prev_source_snapshot_bookmark and type(prev_source_snapshot_bookmark) is ZfsSnapshot:
+                if isinstance(prev_source_snapshot_bookmark, ZfsSnapshot):
                     prev_source_snapshot_bookmark.release()
                     if prev_source_snapshot_bookmark in source_obsoletes:
                         prev_source_snapshot_bookmark.destroy()
 
             # destroy the previous target snapshot if obsolete (usually this is only the common_snapshot,
             # the rest was already destroyed or will not be send)
-            if prev_target_snapshot in target_obsoletes:
+            if prev_target_snapshot is not None and prev_target_snapshot in target_obsoletes:
                 prev_target_snapshot.destroy()
 
             # we always try to use the bookmark during incremental send
@@ -879,3 +885,5 @@ class ZfsContainer(ZfsDataset):
                     target_dataset.abort_resume()
                 else:
                     return resume_token
+
+        return None

@@ -395,12 +395,13 @@ class ZfsAutobackup(ZfsAuto):
 
                 # ensure parents exists
                 # TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
+                target_parent = target_dataset.parent
                 if not self.args.no_send \
-                        and target_dataset.parent \
-                        and target_dataset.parent not in target_datasets \
-                        and not target_dataset.parent.exists:
+                        and target_parent is not None \
+                        and target_parent not in target_datasets \
+                        and not target_parent.exists:
                     target_dataset.debug("Creating unmountable parents")
-                    target_dataset.parent.create_filesystem(parents=True)
+                    target_parent.create_filesystem(parents=True)
 
                 # determine common zpool features (cached, so no problem we call it often)
                 source_features = source_node.get_pool(source_dataset).features

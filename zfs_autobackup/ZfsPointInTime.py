@@ -34,7 +34,7 @@ class ZfsPointInTime(ZfsDataset):
     def parent(self):
         """get parent dataset
 
-        :rtype: ZfsContainer | None
+        :rtype: ZfsContainer
         """
         return self.zfs_node.get_dataset(self.prefix)
 

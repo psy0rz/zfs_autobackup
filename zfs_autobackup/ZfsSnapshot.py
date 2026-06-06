@@ -27,6 +27,7 @@ class ZfsSnapshot(ZfsPointInTime):
             if pattern.search(suffix) is not None:
                 self.debug("Excluded (path matches snapshot exclude pattern)")
                 return True
+        return False
 
     def find_snapshot_by_suffix(self, snapshot_bookmarks):
         """return ZfsSnapshot|ZfsBookmark from the list of snapshot_bookmarks, if it matches our snapshot_name. Otherwise None
