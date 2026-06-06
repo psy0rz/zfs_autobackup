@@ -1,3 +1,5 @@
+from typing import cast
+
 from .ZfsBookmark import ZfsBookmark
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
@@ -84,8 +86,9 @@ class ZfsContainer(ZfsDataset):
                 self.name
             ]
 
-            self.__snapshots_bookmarks = self.zfs_node.get_datasets(self.zfs_node.run(cmd=cmd, readonly=True),
-                                                                    force_exists=True)
+            names = cast("list[str]", self.zfs_node.run(cmd=cmd, readonly=True))
+            self.__snapshots_bookmarks = cast("list[ZfsSnapshot|ZfsBookmark]",
+                                              self.zfs_node.get_datasets(names, force_exists=True))
 
         return self.__snapshots_bookmarks
 
@@ -126,7 +129,7 @@ class ZfsContainer(ZfsDataset):
             self.debug("Getting bytes written since our last snapshot")
             cmd = ["zfs", "get", "-H", "-ovalue", "-p", "written@" + str(latest_snapshot), self.name]
 
-            output = self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0])
+            output = cast("list[str]", self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0]))
 
             self.__written_since_ours = int(output[0])
 
@@ -298,11 +301,12 @@ class ZfsContainer(ZfsDataset):
         if self.__recursive_datasets is None:
             self.debug("Getting all recursive datasets under us")
 
-            names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
+            names = cast("list[str]", self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
                 "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
-            ])
+            ]))
 
-            self.__recursive_datasets = self.zfs_node.get_datasets(names[1:], force_exists=True)
+            self.__recursive_datasets = cast("list[ZfsContainer]",
+                                             self.zfs_node.get_datasets(names[1:], force_exists=True))
 
         return self.__recursive_datasets
 
@@ -319,11 +323,12 @@ class ZfsContainer(ZfsDataset):
         if self.__datasets is None:
             self.debug("Getting all datasets under us")
 
-            names = self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
+            names = cast("list[str]", self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
                 "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
-            ])
+            ]))
 
-            self.__datasets = self.zfs_node.get_datasets(names[1:], force_exists=True)
+            self.__datasets = cast("list[ZfsContainer]",
+                                   self.zfs_node.get_datasets(names[1:], force_exists=True))
 
         return self.__datasets
 
@@ -843,8 +848,8 @@ class ZfsContainer(ZfsDataset):
             # we want it?
             if (also_other_snapshots or source_snapshot.is_ours) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
-                target_snapshot = target_dataset.zfs_node.get_dataset(
-                    target_dataset.name + source_snapshot.typed_suffix, force_exists=False)
+                target_snapshot = cast(ZfsSnapshot, target_dataset.zfs_node.get_dataset(
+                    target_dataset.name + source_snapshot.typed_suffix, force_exists=False))
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 
