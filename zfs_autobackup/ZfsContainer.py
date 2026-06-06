@@ -106,7 +106,12 @@ class ZfsContainer(ZfsDataset):
 
         ret = []
 
-        if target_common_snapshot and self.snapshots:
+        if self.snapshots:
+            if target_common_snapshot is None:
+                # No common snapshot found: every existing target snapshot is in
+                # the way and must be handled by handle_incompatible_snapshots.
+                return list(self.snapshots)
+
             followup = True
             common_index = self.find_snapshot_index(target_common_snapshot)
             assert common_index is not None
@@ -242,6 +247,10 @@ class ZfsContainer(ZfsDataset):
         """abort current resume state"""
         self.debug("Aborting resume")
         self.zfs_node.run(["zfs", "recv", "-A", self.name])
+        if not self.snapshots:
+            #abort of an initial resume
+            self.force_exists=False
+
 
     def rollback(self):
         """rollback to latest existing snapshot on this dataset"""
@@ -475,41 +484,37 @@ class ZfsContainer(ZfsDataset):
             :type bookmark_tag: str
         """
 
-        if not target_dataset.exists or not target_dataset.snapshots:
-            # target has nothing yet
-            return None, None
-        else:
-            for target_snapshot in reversed(target_dataset.snapshots):
+        for target_snapshot in reversed(target_dataset.snapshots):
 
-                # Prefer bookmarks to snapshots
-                source_bookmark = self.find_bookmark(target_snapshot, preferred_tag=bookmark_tag)
-                if source_bookmark:
-                    if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
-                        source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
-                    else:
-                        source_bookmark.debug("Common bookmark")
-                        return source_bookmark, target_snapshot
+            # Prefer bookmarks to snapshots
+            source_bookmark = self.find_bookmark(target_snapshot, preferred_tag=bookmark_tag)
+            if source_bookmark:
+                if guid_check and source_bookmark.properties['guid'] != target_snapshot.properties['guid']:
+                    source_bookmark.warning("Bookmark has mismatching GUID, ignoring.")
+                else:
+                    source_bookmark.debug("Common bookmark")
+                    return source_bookmark, target_snapshot
 
-                # Source snapshot with same suffix?
-                source_snapshot = self.find_snapshot(target_snapshot)
-                if source_snapshot:
-                    if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
-                        source_snapshot.warning("Snapshot has mismatching GUID, ignoring.")
-                    else:
-                        source_snapshot.debug("Common snapshot")
-                        return source_snapshot, target_snapshot
+            # Source snapshot with same suffix?
+            source_snapshot = self.find_snapshot(target_snapshot)
+            if source_snapshot:
+                if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
+                    source_snapshot.warning("Snapshot has mismatching GUID, ignoring.")
+                else:
+                    source_snapshot.debug("Common snapshot")
+                    return source_snapshot, target_snapshot
 
-                # Extensive GUID search (slower but works with all names)
-                try:
-                    source_bookmark_snapshot = self.find_guid_bookmark_snapshot(target_snapshot.properties['guid'])
-                    if source_bookmark_snapshot is not None:
-                        return source_bookmark_snapshot, target_snapshot
-                except ExecuteError as e:
-                    # in readonly mode we igore a failed property read for non existing snapshots
-                    if not self.zfs_node.readonly:
-                        raise e
+            # Extensive GUID search (slower but works with all names)
+            try:
+                source_bookmark_snapshot = self.find_guid_bookmark_snapshot(target_snapshot.properties['guid'])
+                if source_bookmark_snapshot is not None:
+                    return source_bookmark_snapshot, target_snapshot
+            except ExecuteError as e:
+                # in readonly mode we igore a failed property read for non existing snapshots
+                if not self.zfs_node.readonly:
+                    raise e
 
-            raise (Exception("Cant find common bookmark or snapshot with target. (Delete snapshots on target and use -F to fix this.)"))
+        return None, None
 
     def _pre_clean(self, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
         """cleanup old stuff on the source before starting snapshot syncing
@@ -672,15 +677,19 @@ class ZfsContainer(ZfsDataset):
             source_common_snapshot=source_common_snapshot, target_dataset=target_dataset,
             target_transfers=target_transfers, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
 
+        # check if we can resume
+        if len(target_transfers)>0:
+            resume_token = self._validate_resume_token(target_dataset, target_transfers[0])
+        else:
+            resume_token = None
+
         # handle incompatible stuff on target
-        target_dataset.handle_incompatible_snapshots(incompatible_target_snapshots, destroy_incompatible)
+        target_dataset.handle_incompatible_target(incompatible_target_snapshots, destroy_incompatible, force, source_common_snapshot, resume_token is not None)
 
         # now actually transfer the snapshots, if we want
         if no_send or len(target_transfers) == 0:
             return
 
-        # check if we can resume
-        resume_token = self._validate_resume_token(target_dataset, target_transfers[0])
 
         (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties,
                                                                                         set_properties)
@@ -767,29 +776,60 @@ class ZfsContainer(ZfsDataset):
 
             prev_target_snapshot = target_snapshot
 
-    def handle_incompatible_snapshots(self, incompatible_target_snapshots, destroy_incompatible):
+    def handle_incompatible_target(self, incompatible_target_snapshots, destroy_incompatible, force, source_common_snapshot, is_resume):
         """destroy incompatbile snapshots on target before sync, or inform user
         what to do
 
         Args:
             :type incompatible_target_snapshots: list[ZfsSnapshot]
             :type destroy_incompatible: bool
+            :type force: bool
+            :type source_common_snapshot: ZfsPointInTime|None
+            :type is_resume: bool
+
         """
 
-        if incompatible_target_snapshots:
-            if not destroy_incompatible:
-                for snapshot in incompatible_target_snapshots:
-                    snapshot.error("Incompatible snapshot")
-                raise (Exception("Please destroy incompatible snapshots on target, or use --destroy-incompatible."))
-            else:
-                for snapshot in incompatible_target_snapshots:
-                    snapshot.verbose("Incompatible snapshot")
-                    snapshot.destroy(fail_exception=True)
-                    ### XXX: hacky, maybe not do it and have things check snapshot.exists instead?
-                    self.snapshots.remove(snapshot)
+        if not self.exists:
+            # no target yet, so everything ok
+            return
 
-                if len(incompatible_target_snapshots) > 0:
-                    self.rollback()
+        if not incompatible_target_snapshots and source_common_snapshot is not None:
+            # nice existing target with compatible common snapshot.
+            return
+
+        if not incompatible_target_snapshots and is_resume and len(self.snapshots)==0:
+            # its a dataset from an incremental send we probably can resume, so its fine
+            return
+
+        #from this point on things get progressively worse..
+
+        if source_common_snapshot:
+            # we just need to delete some incompatibles:
+            for snapshot in incompatible_target_snapshots:
+                snapshot.warning("Incompatible snapshot")
+
+            if not destroy_incompatible:
+                raise (Exception("Use --destroy-incompatible to get rid of these."))
+
+        else:
+            # no common snapshot, so the whole dataset is incompatbile
+            if incompatible_target_snapshots:
+                if not force or not destroy_incompatible:
+                    self.error("Incompatible dataset!")
+                    raise (Exception("Use --destroy-incompatible -F to overwrite the target dataset and start over."))
+            else:
+                if not force:
+                    self.error("Incompatible dataset!")
+                    raise (Exception("Use -F to overwrite the target dataset and start over."))
+
+            self.warning("Overwriting incompatible dataset.")
+
+        # remove incompatibles and rollback
+        for snapshot in incompatible_target_snapshots:
+            snapshot.destroy(fail_exception=True)
+
+        self.invalidate_cache()
+        self.rollback()
 
     def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw, bookmark_tag):
         """Determine at what snapshot to start syncing to target_dataset and what to sync and what to keep.
@@ -811,15 +851,17 @@ class ZfsContainer(ZfsDataset):
                 - list[ZfsSnapshot]: Incompatible target snapshots. Target snapshots that are in the way, after the common snapshot. (need to be destroyed to continue)
         """
 
-        ### 1: determine common and start snapshot
+        ### 1: determine common and start snapshot if target already exists:
 
-        target_dataset.debug("Determining start snapshot")
-        (source_common_snapshot, target_common_snapshot) = self.find_common_snapshot(target_dataset,
-                                                                                     guid_check=guid_check,
-                                                                                     bookmark_tag=bookmark_tag)
-        # if source_common_snapshot:
-        #     source_common_snapshot.verbose("Common snapshot or bookmark")
-        incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(target_common_snapshot, raw)
+        if target_dataset.exists:
+            target_dataset.debug("Determining start snapshot")
+            (source_common_snapshot, target_common_snapshot) = self.find_common_snapshot(target_dataset,
+                                                                                         guid_check=guid_check,
+                                                                                         bookmark_tag=bookmark_tag)
+            incompatible_target_snapshots = target_dataset.find_incompatible_snapshots(target_common_snapshot, raw)
+        else:
+            source_common_snapshot=None
+            incompatible_target_snapshots =[]
 
         # let thinner decide whats obsolete on source after the transfer is done
         source_obsoletes = []
@@ -836,7 +878,7 @@ class ZfsContainer(ZfsDataset):
             possible_target_snapshots = []
 
         # add all snapshots from the source, starting after the common snapshot if it exists
-        if source_common_snapshot:
+        if source_common_snapshot is not None:
             source_snapshot = self.find_next_snapshot(source_common_snapshot)
         else:
             if self.snapshots:
