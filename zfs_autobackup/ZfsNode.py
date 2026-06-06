@@ -72,9 +72,9 @@ class ZfsNode(ExecuteNode):
         """Returns a list of snapshots to keep and remove, according to current time and thinner settings.
 
         :return: ( keeps, removes )
-        :type snapshots: list[ZfsDataset]
-        :type keep_snapshots: list[ZfsDataset]
-        :rtype: ( list[ZfsDataset], list[ZfsDataset] )
+        :type snapshots: list[ZfsSnapshot]
+        :type keep_snapshots: list[ZfsSnapshot]
+        :rtype: ( list[ZfsSnapshot], list[ZfsSnapshot] )
         """
         # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
         if self.__thinner is not None:
@@ -289,7 +289,7 @@ class ZfsNode(ExecuteNode):
     def selected_datasets(self, property_name, exclude_received, exclude_paths, exclude_unchanged):
         """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide
 
-           returns: ( list of selected ZfsDataset, list of excluded ZfsDataset)
+           returns: ( list of selected ZfsContainer, list of excluded ZfsContainer)
         """
 
         self.debug("Getting selected datasets")
@@ -300,7 +300,7 @@ class ZfsNode(ExecuteNode):
             property_name
         ])
 
-        # The returnlist of selected ZfsDataset's:
+        # The returnlist of selected ZfsContainer's:
         selected_filesystems = []
         excluded_filesystems = []
 

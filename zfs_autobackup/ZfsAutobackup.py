@@ -1,15 +1,14 @@
 import argparse
 from signal import signal, SIGPIPE
-from .util import output_redir, sigpipe_handler, datetime_now
-
-from .ZfsAuto import ZfsAuto
 
 from . import compressors
 from .ExecuteNode import ExecuteNode
 from .Thinner import Thinner
-from .ZfsDataset import ZfsDataset
-from .ZfsNode import ZfsNode
 from .ThinnerRule import ThinnerRule
+from .ZfsAuto import ZfsAuto
+from .ZfsContainer import ZfsContainer
+from .ZfsNode import ZfsNode
+from .util import sigpipe_handler, datetime_now
 
 
 class ZfsAutobackup(ZfsAuto):
@@ -161,8 +160,8 @@ class ZfsAutobackup(ZfsAuto):
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def thin_missing_targets(self, target_dataset, used_target_datasets):
         """thin target datasets that are missing on the source.
-        :type used_target_datasets: list[ZfsDataset]
-        :type target_dataset: ZfsDataset
+        :type used_target_datasets: list[ZfsContainer]
+        :type target_dataset: ZfsContainer
         """
 
         self.debug("Thinning obsolete datasets")
@@ -190,8 +189,8 @@ class ZfsAutobackup(ZfsAuto):
     # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
     def destroy_missing_targets(self, target_dataset, used_target_datasets):
         """destroy target datasets that are missing on the source and that meet the requirements
-        :type used_target_datasets: list[ZfsDataset]
-        :type target_dataset: ZfsDataset
+        :type used_target_datasets: list[ZfsContainer]
+        :type target_dataset: ZfsContainer
 
         """
 
@@ -370,7 +369,7 @@ class ZfsAutobackup(ZfsAuto):
         """Sync datasets, or thin-only on both sides
         :type bookmark_tag: str
         :type target_node: ZfsNode
-        :type source_datasets: list of ZfsDataset
+        :type source_datasets: list of ZfsContainer
         :type source_node: ZfsNode
         """
 
@@ -391,6 +390,7 @@ class ZfsAutobackup(ZfsAuto):
                 # determine corresponding target_dataset
                 target_name = self.make_target_name(source_dataset)
                 target_dataset = target_node.get_dataset(target_name)
+                assert isinstance(target_dataset, ZfsContainer)
                 target_datasets.append(target_dataset)
 
                 # ensure parents exists
@@ -440,6 +440,7 @@ class ZfsAutobackup(ZfsAuto):
                     raise
 
         target_path_dataset = target_node.get_dataset(self.args.target_path)
+        assert isinstance(target_path_dataset, ZfsContainer)
         if not self.args.no_thinning:
             self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 

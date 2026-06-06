@@ -1,8 +1,3 @@
-from .ExecuteNode import ExecuteError
-import re
-import sys
-import time
-
 from .ZfsPointInTime import ZfsPointInTime
 
 
@@ -58,7 +53,7 @@ class ZfsSnapshot(ZfsPointInTime):
             :type send_pipes: list[str]
             :type features: list[str]
             :type prev_snapshot: ZfsSnapshot|ZfsBookmark|None
-            :type resume_token: str
+            :type resume_token: str|None
             :type show_progress: bool
             :type raw: bool
         """
@@ -195,14 +190,14 @@ class ZfsSnapshot(ZfsPointInTime):
         Args:
             :type send_pipes: list[str]
             :type recv_pipes: list[str]
-            :type target_snapshot: ZfsDataset
+            :type target_snapshot: ZfsSnapshot
             :type features: list[str]
-            :type prev_snapshot: ZfsDataset
+            :type prev_snapshot: ZfsSnapshot|ZfsBookmark|None
             :type show_progress: bool
             :type filter_properties: list[str]
             :type set_properties: list[str]
             :type ignore_recv_exit_code: bool
-            :type resume_token: str
+            :type resume_token: str|None
             :type raw: bool
         """
 

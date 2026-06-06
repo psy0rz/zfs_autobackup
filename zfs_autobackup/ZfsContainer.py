@@ -1,6 +1,7 @@
 from .ZfsBookmark import ZfsBookmark
 from .ZfsDataset import ZfsDataset
 from .ExecuteNode import ExecuteError
+from .ZfsPointInTime import ZfsPointInTime
 from .ZfsSnapshot import ZfsSnapshot
 
 
@@ -173,16 +174,16 @@ class ZfsContainer(ZfsDataset):
 
         Args:
             :rtype: ZfsSnapshot|None
-            :type snapshot_name: str|ZfsSnapshot|None
+            :type snapshot_name: str|ZfsPointInTime|None
         """
 
         if snapshot_name is None:
             return None
 
-        if not isinstance(snapshot_name, ZfsDataset):
-            tagless_suffix = snapshot_name
-        else:
+        if isinstance(snapshot_name, ZfsPointInTime):
             tagless_suffix = snapshot_name.tagless_suffix
+        else:
+            tagless_suffix = snapshot_name
 
         for snapshot_name in self.snapshots:
             if snapshot_name.tagless_suffix == tagless_suffix:
@@ -389,7 +390,7 @@ class ZfsContainer(ZfsDataset):
 
     def find_bookmark(self, snapshot_bookmark, preferred_tag):
         """find bookmark by bookmark name (can be a suffix or a different
-        ZfsDataset) Returns None if it cant find it.
+        ZfsSnapshot or ZfsBookmark) Returns None if it cant find it.
 
         We try to find the bookmark with the preferred tag (which is usually a target path guid, to prevent conflicting bookmarks by multiple sends)
         If that fails, we return any bookmark that matches (and ignore the tag)
@@ -431,7 +432,7 @@ class ZfsContainer(ZfsDataset):
 
     def find_snapshot_index(self, snapshot):
         """find exact snapshot index by snapshot (can be a snapshot_name or
-        ZfsDataset)
+        ZfsSnapshot)
 
         Args:
             :type snapshot: str or ZfsSnapshot
