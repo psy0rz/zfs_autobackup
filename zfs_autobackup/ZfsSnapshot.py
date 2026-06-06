@@ -1,3 +1,5 @@
+from typing import cast
+
 from .ZfsPointInTime import ZfsPointInTime
 
 
@@ -57,6 +59,9 @@ class ZfsSnapshot(ZfsPointInTime):
             :type resume_token: str|None
             :type show_progress: bool
             :type raw: bool
+            :type send_properties: bool
+            :type write_embedded: bool
+            :type zfs_compressed: bool
         """
         # build source command
         cmd = []
@@ -119,6 +124,7 @@ class ZfsSnapshot(ZfsPointInTime):
             :type filter_properties: list[str]
             :type set_properties: list[str]
             :type ignore_exit_code: bool
+            :type force: bool
         """
 
         if set_properties is None:
@@ -200,6 +206,10 @@ class ZfsSnapshot(ZfsPointInTime):
             :type ignore_recv_exit_code: bool
             :type resume_token: str|None
             :type raw: bool
+            :type send_properties: bool
+            :type write_embedded: bool
+            :type zfs_compressed: bool
+            :type force: bool
         """
 
         if set_properties is None:
@@ -261,8 +271,8 @@ class ZfsSnapshot(ZfsPointInTime):
     @property
     def holds(self):
 
-        output = self.zfs_node.run(["zfs", "holds", "-H", self.name], valid_exitcodes=[0], tab_split=True,
-                                   readonly=True)
+        output = cast("list[list[str]]", cast(object, self.zfs_node.run(
+            ["zfs", "holds", "-H", self.name], valid_exitcodes=[0], tab_split=True, readonly=True)))
         return map(lambda fields: fields[1], output)
 
     def is_hold(self):
