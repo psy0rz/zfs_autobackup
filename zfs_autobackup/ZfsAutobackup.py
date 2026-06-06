@@ -31,6 +31,15 @@ class ZfsAutobackup(ZfsAuto):
         if args.allow_empty:
             args.min_change = 0
 
+        # With --keep-source=0 nothing survives on the source between runs, so the
+        # per-dataset is_changed_ours() check has no reference snapshot to compare
+        # against — every dataset would get a fresh snapshot anyway. Force min-change=0
+        # to skip the our_snapshots / written@... lookups entirely (significant speedup
+        # on large dataset counts).
+        if args.keep_source == "0" and args.min_change > 0:
+            self.verbose("NOTE: --keep-source=0: forcing --min-change=0 (no source reference to compare against).")
+            args.min_change = 0
+
         # if args.destroy_incompatible:
         #     args.rollback = True
 
@@ -542,8 +551,6 @@ class ZfsAutobackup(ZfsAuto):
                                       thinner=target_thinner, tag_seperator=self.tag_seperator)
                 target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
-                self.set_title("Synchronising")
-
                 # check if exists, to prevent vague errors
                 target_dataset = target_node.get_dataset(self.args.target_path)
                 if not target_dataset.exists:
@@ -552,6 +559,8 @@ class ZfsAutobackup(ZfsAuto):
 
                 bookmark_tag = target_dataset.properties['guid']
                 target_node.verbose("Bookmark tag: {}".format(bookmark_tag))
+
+                self.set_title("Synchronising")
 
                 # check for collisions due to strip-path
                 self.check_target_names(source_node, source_datasets, target_node)
