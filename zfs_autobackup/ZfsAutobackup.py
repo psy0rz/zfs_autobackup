@@ -550,6 +550,9 @@ class ZfsAutobackup(ZfsAuto):
                     raise (Exception(
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
 
+                bookmark_tag = target_dataset.properties['guid']
+                target_node.verbose("Bookmark tag: {}".format(bookmark_tag))
+
                 # check for collisions due to strip-path
                 self.check_target_names(source_node, source_datasets, target_node)
 
@@ -559,7 +562,7 @@ class ZfsAutobackup(ZfsAuto):
                     source_node=source_node,
                     source_datasets=source_datasets,
                     target_node=target_node,
-                    bookmark_tag=target_dataset.properties['guid'])
+                    bookmark_tag=bookmark_tag)
 
             # no target specified, run in snapshot-only mode
             else:
