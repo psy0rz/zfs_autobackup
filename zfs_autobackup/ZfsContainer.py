@@ -5,10 +5,7 @@ from .ZfsPointInTime import ZfsPointInTime
 from .ZfsSnapshot import ZfsSnapshot
 
 
-# import re
-# from datetime import datetime
-# import sys
-# import time
+
 
 
 class ZfsContainer(ZfsDataset):
@@ -172,7 +169,7 @@ class ZfsContainer(ZfsDataset):
 
     def find_snapshot(self, snapshot_name):
         """find snapshot by snapshot name (can be a suffix or a different
-        ZfsSnapshot) Returns None if it cant find it.
+        ZfsSnapshot) Returns None if it can't find it.
 
         Note that matches with our own snapshots will be done tagless.
 
@@ -215,7 +212,7 @@ class ZfsContainer(ZfsDataset):
 
     def automount(self):
         """Mount the dataset as if one did a zfs mount -a, but only for this dataset
-        Failure to mount doesnt result in an exception, but outputs errors to STDERR.
+        Failure to mount doesn't result in an exception, but outputs errors to STDERR.
 
         """
 
@@ -335,6 +332,7 @@ class ZfsContainer(ZfsDataset):
 
         Args:
             :type parents: bool
+            :type unmountable: bool
         """
 
         # recurse up
@@ -356,6 +354,7 @@ class ZfsContainer(ZfsDataset):
         """Update our snapshot and bookmark cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
         Args:
             :type snapshot: ZfsSnapshot|ZfsBookmark
+            :type force: bool
         """
 
         if force:
@@ -395,7 +394,7 @@ class ZfsContainer(ZfsDataset):
 
     def find_bookmark(self, snapshot_bookmark, preferred_tag):
         """find bookmark by bookmark name (can be a suffix or a different
-        ZfsSnapshot or ZfsBookmark) Returns None if it cant find it.
+        ZfsSnapshot or ZfsBookmark) Returns None if it can't find it.
 
         We try to find the bookmark with the preferred tag (which is usually a target path guid, to prevent conflicting bookmarks by multiple sends)
         If that fails, we return any bookmark that matches (and ignore the tag)
@@ -629,8 +628,12 @@ class ZfsContainer(ZfsDataset):
             :type holds: bool
             :type rollback: bool
             :type decrypt: bool
+            :type encrypt: bool
             :type also_other_snapshots: bool
             :type no_send: bool
+            :type destroy_incompatible: bool
+            :type zfs_compressed: bool
+            :type force: bool
             :type guid_check: bool
             :type use_bookmarks: bool
             :type bookmark_tag: str
@@ -647,7 +650,7 @@ class ZfsContainer(ZfsDataset):
         if self.properties.get('encryption', 'off') != 'off':
             # user wants to send it over decrypted?
             if decrypt:
-                # when decrypting, zfs cant send properties
+                # when decrypting, zfs can't send properties
                 send_properties = False
             else:
                 # keep data encrypted by sending it raw (including properties)
@@ -678,9 +681,9 @@ class ZfsContainer(ZfsDataset):
                                                                                         set_properties)
 
         # always filter properties that start with 'autobackup:' (https://github.com/psy0rz/zfs_autobackup/issues/221)
-        for property in self.properties:
-            if property.startswith('autobackup:'):
-                active_filter_properties.append(property)
+        for prop in self.properties:
+            if prop.startswith('autobackup:'):
+                active_filter_properties.append(prop)
 
         # encrypt at target?
         if encrypt and not raw:
