@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING, cast
+
 from .ExecuteNode import ExecuteError
+
+if TYPE_CHECKING:
+    from .ZfsNode import ZfsNode
 
 #
 # Inheritance / overview graph (comment):
@@ -140,9 +145,10 @@ class ZfsDataset:
 
         if self.__exists_check is None:
             self.debug("Checking if dataset exists")
-            self.__exists_check = (len(self.zfs_node.run(tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
-                                                         valid_exitcodes=[0, 1],
-                                                         hide_errors=True)) > 0)
+            output = cast("list[str]", self.zfs_node.run(
+                tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
+                valid_exitcodes=[0, 1], hide_errors=True))
+            self.__exists_check = (len(output) > 0)
 
         return self.__exists_check
 
@@ -187,7 +193,9 @@ class ZfsDataset:
 
     @property
     def properties(self):
-        """all zfs properties"""
+        """all zfs properties
+        :rtype: dict[str, str]
+        """
 
         if self.__properties is None:
 
@@ -197,10 +205,13 @@ class ZfsDataset:
 
             self.debug("Getting zfs properties")
 
-            self.__properties = {}
-            for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
+            properties = {}  # type: dict[str, str]
+            output = cast("list[list[str]]", cast(object, self.zfs_node.run(
+                tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0])))
+            for pair in output:
                 if len(pair) == 2:
-                    self.__properties[pair[0]] = pair[1]
+                    properties[pair[0]] = pair[1]
+            self.__properties = properties
 
         return self.__properties
 
