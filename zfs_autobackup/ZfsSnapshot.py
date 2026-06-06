@@ -290,11 +290,11 @@ class ZfsSnapshot(ZfsPointInTime):
         self.debug("Rolling back")
         self.zfs_node.run(["zfs", "rollback", self.name])
 
-    def destroy(self, fail_exception=False, defered=False):
+    def destroy(self, fail_exception=False, deferred=False):
 
         self.verbose("Destroying")
         self.release()
-        return super().destroy(fail_exception=fail_exception, deferred=defered)
+        return super().destroy(fail_exception=fail_exception, deferred=deferred)
 
     def clone(self, name):
         """clones this snapshot and returns ZfsContainer of the clone

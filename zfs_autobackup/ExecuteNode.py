@@ -258,7 +258,7 @@ class ExecuteNode(LogStub):
             cmd.append("ssh")
 
             if self.ssh_config is not None:
-                cmd.append(["-F", self.ssh_config])
+                cmd.extend(["-F", self.ssh_config])
 
             cmd.append(self.ssh_to)
 

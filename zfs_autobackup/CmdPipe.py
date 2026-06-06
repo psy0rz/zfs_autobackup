@@ -144,20 +144,20 @@ class CmdPipe:
 
             for item in self.items:
                 if item.process.stdout in read_ready:
-                    line = item.process.stdout.readline().decode('utf-8').rstrip()
-                    if line != "":
-                        item.stdout_handler(line)
-                    else:
+                    raw = item.process.stdout.readline()
+                    if raw == b"":
                         eof_count = eof_count + 1
                         if item.next:
                             item.next.process.stdin.close()
+                    else:
+                        item.stdout_handler(raw.decode('utf-8').rstrip())
 
                 if item.process.stderr in read_ready:
-                    line = item.process.stderr.readline().decode('utf-8').rstrip()
-                    if line != "":
-                        item.stderr_handler(line)
-                    else:
+                    raw = item.process.stderr.readline()
+                    if raw == b"":
                         eof_count = eof_count + 1
+                    else:
+                        item.stderr_handler(raw.decode('utf-8').rstrip())
 
                 if item.process.poll() is not None:
                     done_count = done_count + 1

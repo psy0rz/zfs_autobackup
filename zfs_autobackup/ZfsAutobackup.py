@@ -396,7 +396,7 @@ class ZfsAutobackup(ZfsAuto):
                 # determine common zpool features (cached, so no problem we call it often)
                 source_features = source_node.get_pool(source_dataset).features
                 target_features = target_node.get_pool(target_dataset).features
-                common_features = source_features and target_features
+                common_features = [f for f in source_features if f in target_features]
 
                 if self.args.no_bookmarks:
                     use_bookmarks = False

@@ -99,6 +99,51 @@ class TestThinner(unittest2.TestCase):
         self.assertEqual(result, ok)
 
 
+    def test_always_keep_only(self):
+        """Thinner('N') with no rules: keep at most N most-recent objects, regardless of age."""
+
+        thinner = Thinner("3")
+
+        # fewer than N -> keep them all, remove nothing
+        few = [Thing(100), Thing(200)]
+        (keeps, removes) = thinner.thin(few, keep_objects=[], now=1000)
+        self.assertEqual(keeps, few)
+        self.assertEqual(removes, [])
+
+        # exactly N -> keep them all, remove nothing
+        exact = [Thing(100), Thing(200), Thing(300)]
+        (keeps, removes) = thinner.thin(exact, keep_objects=[], now=1000)
+        self.assertEqual(keeps, exact)
+        self.assertEqual(removes, [])
+
+        # more than N -> keep the last N, drop the rest
+        many = [Thing(100), Thing(200), Thing(300), Thing(400), Thing(500)]
+        (keeps, removes) = thinner.thin(many, keep_objects=[], now=1000)
+        self.assertEqual(keeps, many[-3:])
+        self.assertEqual(removes, many[:-3])
+
+    def test_keep_objects_without_timestamp(self):
+        """objects with timestamp=None are always kept (treated as 'not ours')."""
+
+        thinner = Thinner("1d1w")
+        no_ts = Thing(None)
+        old_ts = Thing(100)  # well past the ttl
+
+        (keeps, removes) = thinner.thin([no_ts, old_ts], keep_objects=[], now=10 ** 9)
+        self.assertIn(no_ts, keeps)
+        self.assertIn(old_ts, removes)
+
+    def test_empty_thinner_keeps_everything(self):
+        """Thinner('') has no rules and always_keep=0 -> nothing is kept by rules, but timestamp=None objects still pass through."""
+
+        thinner = Thinner("")
+        with_ts = Thing(100)
+        without_ts = Thing(None)
+
+        (keeps, removes) = thinner.thin([with_ts, without_ts], keep_objects=[], now=1000)
+        self.assertEqual(keeps, [without_ts])
+        self.assertEqual(removes, [with_ts])
+
     def test_full(self):
         ok=['2022-03-09 01:56:23',
             '2023-01-03 10:53:16',

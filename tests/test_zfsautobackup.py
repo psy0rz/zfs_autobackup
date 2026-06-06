@@ -538,6 +538,40 @@ test_target1/test_source2/fs2/sub@snap-test-2010-11-11
                 self.assertEqual(cm.exception.code, 255)
             self.assertIn("Invalid tag seperator", buf.getvalue())
 
+    def test_target_path_absolute_rejected(self):
+        """TARGET-PATH must be a ZFS path; a leading '/' is rejected (it's not a filesystem mountpoint)."""
+
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                with self.assertRaises(SystemExit) as cm:
+                    ZfsAutobackup("test /test_target1 --no-progress".split(" "))
+                self.assertEqual(cm.exception.code, 255)
+            self.assertIn("Target should not start with a /", buf.getvalue())
+
+    def test_tag_contains_seperator_rejected(self):
+        """--tag must not contain the tag-seperator (otherwise tagless_suffix parsing breaks)."""
+
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                with self.assertRaises(SystemExit) as cm:
+                    # default tag-seperator is "__"; a tag containing "__" should be rejected.
+                    ZfsAutobackup("test test_target1 --no-progress --tag=foo__bar".split(" "))
+                self.assertEqual(cm.exception.code, 255)
+            self.assertIn("may not contain tag seperator", buf.getvalue())
+
+    def test_ignore_replicated_renamed_warning(self):
+        """--ignore-replicated is the old name; it should warn and be mapped to --exclude-unchanged."""
+
+        with mocktime("20101111000000"):
+            with OutputIO() as buf:
+                with redirect_stdout(buf):
+                    # --ignore-replicated is hidden in --help but still accepted; run a no-op
+                    # invocation so we can capture the rename warning without doing real work.
+                    self.assertFalse(ZfsAutobackup(
+                        "test --no-progress --verbose --no-snapshot --ignore-replicated".split(" ")).run())
+
+                self.assertIn("--ignore-replicated has been renamed", buf.getvalue())
+
     def test_hold_format(self):
         """--hold-format controls the zfs-hold name placed on snapshots."""
 

@@ -3,9 +3,18 @@ from __future__ import print_function
 
 import sys
 
+try:
+    import colorama
+    _COLORAMA_AVAILABLE = True
+except ImportError:
+    _COLORAMA_AVAILABLE = False
+
 
 class LogConsole:
     """Log-class that outputs to console, adding colors if needed"""
+
+    # ANSI escape used as a fallback when colorama isn't available
+    _CLEAR_LINE = "\033[2K\r"
 
     def __init__(self, show_debug, show_verbose, color):
         self.last_log = ""
@@ -13,18 +22,7 @@ class LogConsole:
         self.show_verbose = show_verbose
         self._progress_uncleared = False
 
-        if color:
-            # try to use color, failback if colorama not available
-            self.colorama = False
-            try:
-                import colorama
-                global colorama
-                self.colorama = True
-            except ImportError:
-                pass
-
-        else:
-            self.colorama = False
+        self.colorama = color and _COLORAMA_AVAILABLE
 
     def error(self, txt):
         self.clear_progress()
@@ -69,7 +67,8 @@ class LogConsole:
 
     def clear_progress(self):
         if self._progress_uncleared:
-            import colorama
-            print(colorama.ansi.clear_line(), end='', file=sys.stderr)
-            # sys.stderr.flush()
+            if self.colorama:
+                print(colorama.ansi.clear_line(), end='', file=sys.stderr)
+            else:
+                print(self._CLEAR_LINE, end='', file=sys.stderr)
             self._progress_uncleared = False
