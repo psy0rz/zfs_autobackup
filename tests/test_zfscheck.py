@@ -46,10 +46,10 @@ class TestZfsCheck(unittest2.TestCase):
     def test_filesystem(self):
         prepare_zpools()
 
-        shelltest("cp tests/data/whole /test_source1/testfile")
+        shelltest("cp data/whole /test_source1/testfile")
         shelltest("mkdir /test_source1/emptydir")
         shelltest("mkdir /test_source1/dir")
-        shelltest("cp tests/data/whole2 /test_source1/dir/testfile")
+        shelltest("cp data/whole2 /test_source1/dir/testfile")
 
         # it should ignore these:
         shelltest("ln -s / /test_source1/symlink")
@@ -89,7 +89,7 @@ dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
         with self.subTest("Generate"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertFalse(ZfsCheck("tests/data/whole".split(" "), print_arguments=False).run())
+                    self.assertFalse(ZfsCheck("data/whole".split(" "), print_arguments=False).run())
 
                 print(buf.getvalue())
                 self.assertEqual("""0	3c0bf91170d873b8e327d3bafb6bc074580d11b7
@@ -102,7 +102,7 @@ dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
         with self.subTest("Compare"):
             with OutputIO() as buf:
                 with redirect_stdout(buf):
-                    self.assertEqual(1, ZfsCheck("tests/data/whole --check=/tmp/testhashes".split(" "),
+                    self.assertEqual(1, ZfsCheck("data/whole --check=/tmp/testhashes".split(" "),
                                                  print_arguments=False).run())
                 print(buf.getvalue())
                 self.assertEqual(
@@ -111,11 +111,11 @@ dir/testfile	0	2e863f1fcccd6642e4e28453eba10d2d3f74d798
 
     def test_tree(self):
         shelltest("rm -rf /tmp/testtree; mkdir /tmp/testtree")
-        shelltest("cp tests/data/whole /tmp/testtree")
-        shelltest("cp tests/data/whole_whole2 /tmp/testtree")
-        shelltest("cp tests/data/whole2 /tmp/testtree")
-        shelltest("cp tests/data/partial /tmp/testtree")
-        shelltest("cp tests/data/whole_whole2_partial /tmp/testtree")
+        shelltest("cp data/whole /tmp/testtree")
+        shelltest("cp data/whole_whole2 /tmp/testtree")
+        shelltest("cp data/whole2 /tmp/testtree")
+        shelltest("cp data/partial /tmp/testtree")
+        shelltest("cp data/whole_whole2_partial /tmp/testtree")
 
         ####################################
         with self.subTest("Generate, skip 1"):
@@ -189,7 +189,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
         """test if stuff is cleaned up correctly, in debugging mode , when a pipe breaks. """
 
         prepare_zpools()
-        shelltest("cp tests/data/whole /test_source1/testfile")
+        shelltest("cp data/whole /test_source1/testfile")
         shelltest("zfs snapshot test_source1@test")
 
         # breaks pipe when head exists

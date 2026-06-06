@@ -12,3 +12,4 @@ python2.env
 venv
 .idea
 password.sh
+.DS_Store

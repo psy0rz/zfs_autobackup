@@ -504,12 +504,39 @@ test_target1/test_source2/fs2/sub@snap-test-2010-11-11
         with OutputIO() as buf:
             with redirect_stderr(buf):
                 with mocktime("20101111000000"):
-                    # default tag-seperator "_" appears in the strftime output -> sys.exit(255)
+                    # rendered snapshot-format "test__2010_11_11" contains default tag-seperator "__" -> sys.exit(255)
                     with self.assertRaises(SystemExit) as cm:
                         ZfsAutobackup("test test_target1 --no-progress --snapshot-format {}__%Y_%m_%d".split(" "))
                     self.assertEqual(cm.exception.code, 255)
 
             self.assertIn("Tag seperator", buf.getvalue())
+
+    def test_tagseperator_invalid(self):
+        """--tag-seperator must be non-empty and contain only characters valid in ZFS snapshot names ('_.: -')."""
+
+        # empty string
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                with self.assertRaises(SystemExit) as cm:
+                    ZfsAutobackup("test test_target1 --no-progress --tag-seperator=".split(" "))
+                self.assertEqual(cm.exception.code, 255)
+            self.assertIn("Invalid tag seperator", buf.getvalue())
+
+        # single invalid character
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                with self.assertRaises(SystemExit) as cm:
+                    ZfsAutobackup("test test_target1 --no-progress --tag-seperator=!".split(" "))
+                self.assertEqual(cm.exception.code, 255)
+            self.assertIn("Invalid tag seperator", buf.getvalue())
+
+        # multi-char string where one character is invalid
+        with OutputIO() as buf:
+            with redirect_stderr(buf):
+                with self.assertRaises(SystemExit) as cm:
+                    ZfsAutobackup("test test_target1 --no-progress --tag-seperator=_!".split(" "))
+                self.assertEqual(cm.exception.code, 255)
+            self.assertIn("Invalid tag seperator", buf.getvalue())
 
     def test_hold_format(self):
         """--hold-format controls the zfs-hold name placed on snapshots."""
