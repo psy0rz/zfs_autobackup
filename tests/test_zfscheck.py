@@ -194,7 +194,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
 
         # breaks pipe when head exists
         # important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
-        shelltest("python -m zfs_autobackup.ZfsCheck test_source1@test --debug | head -n1")
+        shelltest("cd ..;python3 -m zfs_autobackup.ZfsCheck test_source1@test --debug | head -n1")
 
         # should NOT be mounted anymore if cleanup went ok:
         self.assertNotRegex(shelltest("mount"), "test_source1@test")
@@ -209,7 +209,7 @@ whole_whole2_partial	0	309ffffba2e1977d12f3b7469971f30d28b94bd8
 
         # breaks pipe when grep exists:
         # important to use --debug, since that generates extra output which would be problematic if we didnt do correct SIGPIPE handling
-        shelltest("python3 -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug| grep -m1 'Hashing file'")
+        shelltest("cd ..;python3 -m zfs_autobackup.ZfsCheck test_source1/vol@test --debug| grep -m1 'Hashing file'")
         # time.sleep(1)
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem,volume " + TEST_POOLS)
