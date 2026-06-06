@@ -431,7 +431,8 @@ class ZfsAutobackup(ZfsAuto):
                                               decrypt=self.args.decrypt, encrypt=self.args.encrypt,
                                               zfs_compressed=self.args.zfs_compressed, force=self.args.force,
                                               guid_check=not self.args.no_guid_check, use_bookmarks=use_bookmarks,
-                                              bookmark_tag=bookmark_tag)
+                                              bookmark_tag=bookmark_tag,
+                                              property_format=self.args.property_format)
             except Exception as e:
 
                 fail_count = fail_count + 1

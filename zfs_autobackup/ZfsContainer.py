@@ -622,7 +622,7 @@ class ZfsContainer(ZfsDataset):
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                        no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                       use_bookmarks, bookmark_tag):
+                       use_bookmarks, bookmark_tag, property_format):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -647,6 +647,7 @@ class ZfsContainer(ZfsDataset):
             :type guid_check: bool
             :type use_bookmarks: bool
             :type bookmark_tag: str
+            :type property_format: str
         """
 
         # self.verbose("-> {}".format(target_dataset))
@@ -694,9 +695,10 @@ class ZfsContainer(ZfsDataset):
         (active_filter_properties, active_set_properties) = self.get_allowed_properties(filter_properties,
                                                                                         set_properties)
 
-        # always filter properties that start with 'autobackup:' (https://github.com/psy0rz/zfs_autobackup/issues/221)
+        # always filter properties that start with the property-format prefix (https://github.com/psy0rz/zfs_autobackup/issues/221)
+        property_prefix = property_format.split(':')[0]
         for prop in self.properties:
-            if prop.startswith('autobackup:'):
+            if prop.startswith(property_prefix):
                 active_filter_properties.append(prop)
 
         # encrypt at target?
