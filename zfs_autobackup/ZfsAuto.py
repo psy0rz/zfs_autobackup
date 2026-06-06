@@ -73,8 +73,8 @@ class ZfsAuto(CliBase):
 
         # according to man 8 zfs:
         valid_tags = "_.: -"
-        if self.tag_seperator not in valid_tags or self.tag_seperator == '':
-            self.log.error("Invalid tag seperator. Allowed: '{}'".format(valid_tags))
+        if self.tag_seperator == '' or any(c not in valid_tags for c in self.tag_seperator):
+            self.log.error("Invalid tag seperator. Allowed characters: '{}'".format(valid_tags))
             sys.exit(255)
 
         if self.tag_seperator in seperator_test:
@@ -127,7 +127,7 @@ class ZfsAuto(CliBase):
                                 'Default: %(default)s')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
                            help='Number of directories to strip from target path.')
-        group.add_argument('--tag-seperator', metavar='CHAR', default="_",
+        group.add_argument('--tag-seperator', metavar='STRING', default="__",
                            help="Tag seperator for snapshots and bookmarks. Default: %(default)s")
         group.add_argument('--tag', metavar='TAG', default=None,
                            help='Backup tag to add to snapshots names. (For administrative purposes)')

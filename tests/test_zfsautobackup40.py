@@ -48,13 +48,13 @@ class TestZfsAutobackup40(unittest2.TestCase):
 
         # destroy stuff and see if it still selects the correct ones
         shelltest("zfs destroy test_source2/fs2/sub@test-20101111000001")
-        shelltest("zfs destroy test_source1/fs1/sub#test-20101111000001_" + target_guid)
+        shelltest("zfs destroy test_source1/fs1/sub#test-20101111000001__" + target_guid)
 
         # replace bookmark with incorrect GUID, should fallback to snapshot
         # NOTE: the incorrect bookmark should be ignored and not destroyed.
-        shelltest("zfs destroy test_source1/fs1#test-20101111000001_" + target_guid)
+        shelltest("zfs destroy test_source1/fs1#test-20101111000001__" + target_guid)
         shelltest("zfs snapshot test_source1/fs1@wrong")
-        shelltest("zfs bookmark test_source1/fs1@wrong \#test-20101111000001_" + target_guid)
+        shelltest("zfs bookmark test_source1/fs1@wrong \#test-20101111000001__" + target_guid)
         shelltest("zfs destroy test_source1/fs1@wrong")
 
         with mocktime("20101111000002"):
@@ -66,17 +66,17 @@ test_source1
 test_source1/fs1
 test_source1/fs1@test-20101111000001
 test_source1/fs1@test-20101111000002
-test_source1/fs1#test-20101111000001_[0-9]*
-test_source1/fs1#test-20101111000002_[0-9]*
+test_source1/fs1#test-20101111000001__[0-9]*
+test_source1/fs1#test-20101111000002__[0-9]*
 test_source1/fs1/sub
 test_source1/fs1/sub@test-20101111000001
 test_source1/fs1/sub@test-20101111000002
-test_source1/fs1/sub#test-20101111000002_[0-9]*
+test_source1/fs1/sub#test-20101111000002__[0-9]*
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
 test_source2/fs2/sub@test-20101111000002
-test_source2/fs2/sub#test-20101111000002_[0-9]*
+test_source2/fs2/sub#test-20101111000002__[0-9]*
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
@@ -110,10 +110,10 @@ test_target1/test_source2/fs2/sub@test-20101111000002
 test_source1
 test_source1/fs1
 test_source1/fs1@test-20101111000001
-test_source1/fs1#test-20101111000001_[0-9]*
+test_source1/fs1#test-20101111000001__[0-9]*
 test_source1/fs1/sub
 test_source1/fs1/sub@test-20101111000001
-test_source1/fs1/sub#test-20101111000001_[0-9]*
+test_source1/fs1/sub#test-20101111000001__[0-9]*
 """)
 
         # disable it (this should not touch the old bookmark)
@@ -127,11 +127,11 @@ test_source1
 test_source1/fs1
 test_source1/fs1@test-20101111000001
 test_source1/fs1@test-20101111000002
-test_source1/fs1#test-20101111000001_[0-9]*
+test_source1/fs1#test-20101111000001__[0-9]*
 test_source1/fs1/sub
 test_source1/fs1/sub@test-20101111000001
 test_source1/fs1/sub@test-20101111000002
-test_source1/fs1/sub#test-20101111000001_[0-9]*
+test_source1/fs1/sub#test-20101111000001__[0-9]*
 """)
 
         # re-enable (now the old bookmark should be still left alone)
@@ -145,14 +145,14 @@ test_source1/fs1
 test_source1/fs1@test-20101111000001
 test_source1/fs1@test-20101111000002
 test_source1/fs1@test-20101111000003
-test_source1/fs1#test-20101111000001_[0-9]*
-test_source1/fs1#test-20101111000003_[0-9]*
+test_source1/fs1#test-20101111000001__[0-9]*
+test_source1/fs1#test-20101111000003__[0-9]*
 test_source1/fs1/sub
 test_source1/fs1/sub@test-20101111000001
 test_source1/fs1/sub@test-20101111000002
 test_source1/fs1/sub@test-20101111000003
-test_source1/fs1/sub#test-20101111000001_[0-9]*
-test_source1/fs1/sub#test-20101111000003_[0-9]*
+test_source1/fs1/sub#test-20101111000001__[0-9]*
+test_source1/fs1/sub#test-20101111000003__[0-9]*
 """)
 
     def test_tags(self):
@@ -173,17 +173,17 @@ test_source1/fs1/sub#test-20101111000003_[0-9]*
         r = shelltest("zfs list -H -r -t snapshot -o name " + TEST_POOLS)
 
         self.assertMultiLineEqual(r, """
-test_source1/fs1@test-20101111000002_test2
+test_source1/fs1@test-20101111000002__test2
 test_source1/fs1@test-20101111000003
-test_source1/fs1/sub@test-20101111000002_test2
+test_source1/fs1/sub@test-20101111000002__test2
 test_source1/fs1/sub@test-20101111000003
-test_source2/fs2/sub@test-20101111000002_test2
+test_source2/fs2/sub@test-20101111000002__test2
 test_source2/fs2/sub@test-20101111000003
-test_target1/test_source1/fs1@test-20101111000002_test2
+test_target1/test_source1/fs1@test-20101111000002__test2
 test_target1/test_source1/fs1@test-20101111000003
-test_target1/test_source1/fs1/sub@test-20101111000002_test2
+test_target1/test_source1/fs1/sub@test-20101111000002__test2
 test_target1/test_source1/fs1/sub@test-20101111000003
-test_target1/test_source2/fs2/sub@test-20101111000002_test2
+test_target1/test_source2/fs2/sub@test-20101111000002__test2
 test_target1/test_source2/fs2/sub@test-20101111000003
 """)
 
@@ -219,56 +219,56 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         self.assertRegexpMatches(r, """
 test_source1
 test_source1/fs1
-test_source1/fs1@test-20101111000001_tagA
-test_source1/fs1@test-20101111000002_tagB
+test_source1/fs1@test-20101111000001__tagA
+test_source1/fs1@test-20101111000002__tagB
 test_source1/fs1@test-20101111000003
-test_source1/fs1#test-20101111000002_[0-9]*
-test_source1/fs1#test-20101111000003_[0-9]*
+test_source1/fs1#test-20101111000002__[0-9]*
+test_source1/fs1#test-20101111000003__[0-9]*
 test_source1/fs1/sub
-test_source1/fs1/sub@test-20101111000001_tagA
-test_source1/fs1/sub@test-20101111000002_tagB
+test_source1/fs1/sub@test-20101111000001__tagA
+test_source1/fs1/sub@test-20101111000002__tagB
 test_source1/fs1/sub@test-20101111000003
-test_source1/fs1/sub#test-20101111000002_[0-9]*
-test_source1/fs1/sub#test-20101111000003_[0-9]*
+test_source1/fs1/sub#test-20101111000002__[0-9]*
+test_source1/fs1/sub#test-20101111000003__[0-9]*
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
-test_source2/fs2/sub@test-20101111000001_tagA
-test_source2/fs2/sub@test-20101111000002_tagB
+test_source2/fs2/sub@test-20101111000001__tagA
+test_source2/fs2/sub@test-20101111000002__tagB
 test_source2/fs2/sub@test-20101111000003
-test_source2/fs2/sub#test-20101111000002_[0-9]*
-test_source2/fs2/sub#test-20101111000003_[0-9]*
+test_source2/fs2/sub#test-20101111000002__[0-9]*
+test_source2/fs2/sub#test-20101111000003__[0-9]*
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
 test_target1/a
 test_target1/a/test_source1
 test_target1/a/test_source1/fs1
-test_target1/a/test_source1/fs1@test-20101111000001_tagA
-test_target1/a/test_source1/fs1@test-20101111000002_tagB
+test_target1/a/test_source1/fs1@test-20101111000001__tagA
+test_target1/a/test_source1/fs1@test-20101111000002__tagB
 test_target1/a/test_source1/fs1/sub
-test_target1/a/test_source1/fs1/sub@test-20101111000001_tagA
-test_target1/a/test_source1/fs1/sub@test-20101111000002_tagB
+test_target1/a/test_source1/fs1/sub@test-20101111000001__tagA
+test_target1/a/test_source1/fs1/sub@test-20101111000002__tagB
 test_target1/a/test_source2
 test_target1/a/test_source2/fs2
 test_target1/a/test_source2/fs2/sub
-test_target1/a/test_source2/fs2/sub@test-20101111000001_tagA
-test_target1/a/test_source2/fs2/sub@test-20101111000002_tagB
+test_target1/a/test_source2/fs2/sub@test-20101111000001__tagA
+test_target1/a/test_source2/fs2/sub@test-20101111000002__tagB
 test_target1/b
 test_target1/b/test_source1
 test_target1/b/test_source1/fs1
-test_target1/b/test_source1/fs1@test-20101111000001_tagA
-test_target1/b/test_source1/fs1@test-20101111000002_tagB
+test_target1/b/test_source1/fs1@test-20101111000001__tagA
+test_target1/b/test_source1/fs1@test-20101111000002__tagB
 test_target1/b/test_source1/fs1@test-20101111000003
 test_target1/b/test_source1/fs1/sub
-test_target1/b/test_source1/fs1/sub@test-20101111000001_tagA
-test_target1/b/test_source1/fs1/sub@test-20101111000002_tagB
+test_target1/b/test_source1/fs1/sub@test-20101111000001__tagA
+test_target1/b/test_source1/fs1/sub@test-20101111000002__tagB
 test_target1/b/test_source1/fs1/sub@test-20101111000003
 test_target1/b/test_source2
 test_target1/b/test_source2/fs2
 test_target1/b/test_source2/fs2/sub
-test_target1/b/test_source2/fs2/sub@test-20101111000001_tagA
-test_target1/b/test_source2/fs2/sub@test-20101111000002_tagB
+test_target1/b/test_source2/fs2/sub@test-20101111000001__tagA
+test_target1/b/test_source2/fs2/sub@test-20101111000002__tagB
 test_target1/b/test_source2/fs2/sub@test-20101111000003
 """)
 
@@ -443,15 +443,15 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 test_source1
 test_source1/fs1
 test_source1/fs1@test-20101111000002
-test_source1/fs1#test-20101111000000_[0-9]*
+test_source1/fs1#test-20101111000000__[0-9]*
 test_source1/fs1/sub
 test_source1/fs1/sub@test-20101111000002
-test_source1/fs1/sub#test-20101111000000_[0-9]*
+test_source1/fs1/sub#test-20101111000000__[0-9]*
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
 test_source2/fs2/sub@test-20101111000002
-test_source2/fs2/sub#test-20101111000000_[0-9]*
+test_source2/fs2/sub#test-20101111000000__[0-9]*
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
@@ -476,13 +476,13 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         self.assertRegexpMatches(r, """
 test_source1
 test_source1/fs1
-test_source1/fs1#test-20101111000003_[0-9]*
+test_source1/fs1#test-20101111000003__[0-9]*
 test_source1/fs1/sub
-test_source1/fs1/sub#test-20101111000003_[0-9]*
+test_source1/fs1/sub#test-20101111000003__[0-9]*
 test_source2
 test_source2/fs2
 test_source2/fs2/sub
-test_source2/fs2/sub#test-20101111000003_[0-9]*
+test_source2/fs2/sub#test-20101111000003__[0-9]*
 test_source2/fs3
 test_source2/fs3/sub
 test_target1
@@ -550,7 +550,7 @@ test_source1/fs1/sub@test2-20010201000000
 test_source1/fs1/sub@other2
 test_source1/fs1/sub@test2-20010202000000
 test_source1/fs1/sub@test2-20010203000000
-test_source1/fs1/sub#test2-20010203000000_[0-9]*
+test_source1/fs1/sub#test2-20010203000000__[0-9]*
 test_target1/test_source1/fs1/sub@test2-20010101000000
 test_target1/test_source1/fs1/sub@other1
 test_target1/test_source1/fs1/sub@test2-20010201000000

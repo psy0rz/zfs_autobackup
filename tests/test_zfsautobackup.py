@@ -506,7 +506,7 @@ test_target1/test_source2/fs2/sub@snap-test-2010-11-11
                 with mocktime("20101111000000"):
                     # default tag-seperator "_" appears in the strftime output -> sys.exit(255)
                     with self.assertRaises(SystemExit) as cm:
-                        ZfsAutobackup("test test_target1 --no-progress --snapshot-format {}_%Y_%m_%d".split(" "))
+                        ZfsAutobackup("test test_target1 --no-progress --snapshot-format {}__%Y_%m_%d".split(" "))
                     self.assertEqual(cm.exception.code, 255)
 
             self.assertIn("Tag seperator", buf.getvalue())

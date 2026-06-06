@@ -22,7 +22,7 @@ class ZfsCheck(CliBase):
 
         self.node = ZfsNode(self.log, utc=self.args.utc, readonly=self.args.test, debug_output=self.args.debug_output,
                             ssh_to=None, ssh_config=None, exclude_snapshot_patterns=None, thinner=None,
-                            tag_seperator='_', description="", hold_name=None, snapshot_time_format=None)
+                            tag_seperator='__', description="", hold_name=None, snapshot_time_format=None)
 
         self.block_hasher = BlockHasher(count=self.args.count, bs=self.args.block_size, skip=self.args.skip)
 
