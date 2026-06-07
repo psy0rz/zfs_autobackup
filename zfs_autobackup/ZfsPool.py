@@ -10,10 +10,10 @@ class ZfsPool():
 
         self.zfs_node = zfs_node
         self.name = name
-        self.__properties = None
+        self._properties = None
 
     def invalidate_cache(self):
-        self.__properties = None
+        self._properties = None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -40,7 +40,7 @@ class ZfsPool():
     def properties(self):
         """all zpool properties"""
 
-        if self.__properties is None:
+        if self._properties is None:
 
             self.debug("Getting zpool properties")
 
@@ -48,12 +48,12 @@ class ZfsPool():
                 "zpool", "get", "-H", "-p", "all", self.name
             ]
 
-            self.__properties = {}
+            self._properties = {}
 
             for pair in self.zfs_node.run(tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0]):
-                self.__properties[pair[1]] = pair[2]
+                self._properties[pair[1]] = pair[2]
 
-        return self.__properties
+        return self._properties
 
     @property
     def features(self):

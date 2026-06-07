@@ -63,13 +63,13 @@ class ZfsDataset:
         self.force_exists = force_exists
 
         # caching
-        self.__exists_check = None  # type: None|bool
+        self._exists_check = None  # type: None|bool
         self._properties = None  # type: None|dict[str,str]
 
     def invalidate_cache(self):
         """clear caches"""
         self.force_exists = None
-        self.__exists_check = None
+        self._exists_check = None
         self._properties = None
 
     def __repr__(self):
@@ -143,14 +143,14 @@ class ZfsDataset:
     def exists_check(self):
         """check on disk if it exists"""
 
-        if self.__exists_check is None:
+        if self._exists_check is None:
             self.debug("Checking if dataset exists")
             output = cast("list[str]", self.zfs_node.run(
                 tab_split=True, cmd=["zfs", "list", self.name], readonly=True,
                 valid_exitcodes=[0, 1], hide_errors=True))
-            self.__exists_check = (len(output) > 0)
+            self._exists_check = (len(output) > 0)
 
-        return self.__exists_check
+        return self._exists_check
 
     @property
     def exists(self):

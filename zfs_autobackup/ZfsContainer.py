@@ -17,10 +17,10 @@ class ZfsContainer(ZfsDataset):
 
         super().__init__(zfs_node, name, force_exists=force_exists)
 
-        self.__written_since_ours = None  # type: None|int
-        self.__recursive_datasets = None  # type: None|list[ZfsContainer]
-        self.__datasets = None  # type: None|list[ZfsContainer]
-        self.__snapshots_bookmarks = None  # type: None|list[ZfsSnapshot|ZfsBookmark]
+        self._written_since_ours = None  # type: None|int
+        self._recursive_datasets = None  # type: None|list[ZfsContainer]
+        self._datasets = None  # type: None|list[ZfsContainer]
+        self._snapshots_bookmarks = None  # type: None|list[ZfsSnapshot|ZfsBookmark]
 
     @property
     def parent(self):
@@ -36,10 +36,10 @@ class ZfsContainer(ZfsDataset):
 
     def invalidate_cache(self):
         super().invalidate_cache()
-        self.__written_since_ours = None
-        self.__recursive_datasets = None
-        self.__datasets = None
-        self.__snapshots_bookmarks = None
+        self._written_since_ours = None
+        self._recursive_datasets = None
+        self._datasets = None
+        self._snapshots_bookmarks = None
 
     @property
     def snapshots(self):
@@ -78,7 +78,7 @@ class ZfsContainer(ZfsDataset):
         """
 
         # cached?
-        if self.__snapshots_bookmarks is None:
+        if self._snapshots_bookmarks is None:
             self.debug("Getting snapshots and bookmarks")
 
             cmd = [
@@ -87,10 +87,10 @@ class ZfsContainer(ZfsDataset):
             ]
 
             names = cast("list[str]", self.zfs_node.run(cmd=cmd, readonly=True))
-            self.__snapshots_bookmarks = cast("list[ZfsSnapshot|ZfsBookmark]",
-                                              self.zfs_node.get_datasets(names, force_exists=True))
+            self._snapshots_bookmarks = cast("list[ZfsSnapshot|ZfsBookmark]",
+                                             self.zfs_node.get_datasets(names, force_exists=True))
 
-        return self.__snapshots_bookmarks
+        return self._snapshots_bookmarks
 
     def find_incompatible_snapshots(self, target_common_snapshot, raw):
         """returns a list[snapshots] that is incompatible for a zfs recv onto
@@ -128,7 +128,7 @@ class ZfsContainer(ZfsDataset):
         :rtype: int
         """
 
-        if self.__written_since_ours is None:
+        if self._written_since_ours is None:
             latest_snapshot = self.our_snapshots[-1]
 
             self.debug("Getting bytes written since our last snapshot")
@@ -136,9 +136,9 @@ class ZfsContainer(ZfsDataset):
 
             output = cast("list[str]", self.zfs_node.run(readonly=True, tab_split=False, cmd=cmd, valid_exitcodes=[0]))
 
-            self.__written_since_ours = int(output[0])
+            self._written_since_ours = int(output[0])
 
-        return self.__written_since_ours
+        return self._written_since_ours
 
     def is_changed(self, min_changed_bytes=1):
         """dataset is changed since ANY latest snapshot ?
@@ -307,17 +307,17 @@ class ZfsContainer(ZfsDataset):
             :rtype: list[ZfsContainer]
         """
 
-        if self.__recursive_datasets is None:
+        if self._recursive_datasets is None:
             self.debug("Getting all recursive datasets under us")
 
             names = cast("list[str]", self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
                 "zfs", "list", "-r", "-t", types, "-o", "name", "-H", self.name
             ]))
 
-            self.__recursive_datasets = cast("list[ZfsContainer]",
-                                             self.zfs_node.get_datasets(names[1:], force_exists=True))
+            self._recursive_datasets = cast("list[ZfsContainer]",
+                                            self.zfs_node.get_datasets(names[1:], force_exists=True))
 
-        return self.__recursive_datasets
+        return self._recursive_datasets
 
     @property
     def datasets(self, types="filesystem,volume"):
@@ -329,17 +329,17 @@ class ZfsContainer(ZfsDataset):
 
         """
 
-        if self.__datasets is None:
+        if self._datasets is None:
             self.debug("Getting all datasets under us")
 
             names = cast("list[str]", self.zfs_node.run(tab_split=False, readonly=True, valid_exitcodes=[0], cmd=[
                 "zfs", "list", "-r", "-t", types, "-o", "name", "-H", "-d", "1", self.name
             ]))
 
-            self.__datasets = cast("list[ZfsContainer]",
-                                   self.zfs_node.get_datasets(names[1:], force_exists=True))
+            self._datasets = cast("list[ZfsContainer]",
+                                  self.zfs_node.get_datasets(names[1:], force_exists=True))
 
-        return self.__datasets
+        return self._datasets
 
     def create_filesystem(self, parents=False, unmountable=True):
         """create this container as a filesystem
@@ -374,8 +374,8 @@ class ZfsContainer(ZfsDataset):
         if force:
             self.snapshots_bookmarks.append(snapshot)
 
-        elif self.__snapshots_bookmarks is not None:
-            self.__snapshots_bookmarks.append(snapshot)
+        elif self._snapshots_bookmarks is not None:
+            self._snapshots_bookmarks.append(snapshot)
 
     @property
     def our_snapshots(self):

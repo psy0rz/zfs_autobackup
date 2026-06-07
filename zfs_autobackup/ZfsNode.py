@@ -36,8 +36,8 @@ class ZfsNode(ExecuteNode):
 
         self.logger = logger
 
-        self.__supported_send_options = None
-        self.__supported_recv_options = None
+        self._supported_send_options = None
+        self._supported_recv_options = None
 
         self.exclude_snapshot_patterns = exclude_snapshot_patterns
 
@@ -57,11 +57,11 @@ class ZfsNode(ExecuteNode):
             else:
                 self.verbose("Keep no old snaphots")
 
-        self.__thinner = thinner
+        self._thinner = thinner
 
         # list of ZfsPools
-        self.__pools = {}  # type: dict[str, ZfsPool]
-        self.__datasets = {}  # type: dict[str, ZfsContainer | ZfsBookmark | ZfsSnapshot]
+        self._pools = {}  # type: dict[str, ZfsPool]
+        self._datasets = {}  # type: dict[str, ZfsContainer | ZfsBookmark | ZfsSnapshot]
 
         self._progress_total_bytes = 0
         self._progress_start_time = time.time()
@@ -77,9 +77,9 @@ class ZfsNode(ExecuteNode):
         :rtype: ( list[ZfsSnapshot], list[ZfsSnapshot] )
         """
         # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
-        if self.__thinner is not None:
+        if self._thinner is not None:
 
-            return self.__thinner.thin(snapshots, keep_snapshots, datetime_now(self.utc).timestamp())
+            return self._thinner.thin(snapshots, keep_snapshots, datetime_now(self.utc).timestamp())
         else:
             return (keep_snapshots, [])
 
@@ -88,25 +88,25 @@ class ZfsNode(ExecuteNode):
         """list of supported options, for optimizing sends"""
         # not every zfs implementation supports them all
 
-        if self.__supported_send_options is None:
-            self.__supported_send_options = []
+        if self._supported_send_options is None:
+            self._supported_send_options = []
             for option in ["-L", "-e", "-c"]:
                 if self.valid_command(["zfs", "send", option, "zfs_autobackup_option_test"]):
-                    self.__supported_send_options.append(option)
-        return self.__supported_send_options
+                    self._supported_send_options.append(option)
+        return self._supported_send_options
 
     @property
     def supported_recv_options(self):
         """list of supported options"""
         # not every zfs implementation supports them all
 
-        if self.__supported_recv_options is None:
-            self.__supported_recv_options = []
+        if self._supported_recv_options is None:
+            self._supported_recv_options = []
             for option in ["-s"]:
                 if self.valid_command(["zfs", "recv", option, "zfs_autobackup_option_test"]):
-                    self.__supported_recv_options.append(option)
+                    self._supported_recv_options.append(option)
 
-        return self.__supported_recv_options
+        return self._supported_recv_options
 
     def valid_command(self, cmd):
         """test if a specified zfs options are valid exit code. use this to determine support options"""
@@ -126,7 +126,7 @@ class ZfsNode(ExecuteNode):
 
         zpool_name = dataset.name.split("/")[0]
 
-        return self.__pools.setdefault(zpool_name, ZfsPool(self, zpool_name))
+        return self._pools.setdefault(zpool_name, ZfsPool(self, zpool_name))
 
     def get_dataset(self, name, force_exists=None):
         """get a ZfsDataset() object from name. stores objects internally to enable caching
@@ -134,20 +134,20 @@ class ZfsNode(ExecuteNode):
         :rtype: ZfsContainer | ZfsBookmark | ZfsSnapshot
         """
 
-        if name in self.__datasets:
-            return self.__datasets[name]
+        if name in self._datasets:
+            return self._datasets[name]
 
         if '@' in name:
 
-            self.__datasets[name] = ZfsSnapshot(self, name, force_exists=force_exists)
+            self._datasets[name] = ZfsSnapshot(self, name, force_exists=force_exists)
         elif '#' in name:
 
-            self.__datasets[name] = ZfsBookmark(self, name, force_exists=force_exists)
+            self._datasets[name] = ZfsBookmark(self, name, force_exists=force_exists)
         else:
 
-            self.__datasets[name] = ZfsContainer(self, name, force_exists=force_exists)
+            self._datasets[name] = ZfsContainer(self, name, force_exists=force_exists)
 
-        return self.__datasets[name]
+        return self._datasets[name]
 
     def get_datasets(self, names, force_exists=None):
         """get a list of ZfsDataset() object from names. stores objects internally to enable caching
