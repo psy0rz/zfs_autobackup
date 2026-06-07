@@ -641,8 +641,6 @@ class ZfsContainer(ZfsDataset):
 
         # self.verbose("-> {}".format(target_dataset))
 
-        if show_progress:
-            self.zfs_node.logger.progress("Planning sync..")
 
         # defaults for these settings if there is no encryption stuff going on:
         send_properties = True

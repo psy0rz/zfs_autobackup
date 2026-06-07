@@ -174,7 +174,7 @@ class ZfsAutobackup(ZfsAuto):
 
             count = count + 1
             if self.args.progress:
-                self.progress("Analysing missing {}/{}".format(count, len(missing_datasets)))
+                self.progress("Analysing missing..",count, len(missing_datasets), 0)
 
             try:
                 dataset.debug("Missing on source, thinning")
@@ -204,7 +204,7 @@ class ZfsAutobackup(ZfsAuto):
 
             count = count + 1
             if self.args.progress:
-                self.progress("Analysing destroy missing {}/{}".format(count, len(missing_datasets)))
+                self.progress("Analysing destroy missing...", count,  len(missing_datasets),0)
 
             try:
                 # cant do anything without our own snapshots
@@ -384,7 +384,7 @@ class ZfsAutobackup(ZfsAuto):
             # stats
             if self.args.progress:
                 count = count + 1
-                self.progress("Analysing dataset {}/{} ({} failed)".format(count, len(source_datasets), fail_count))
+                self.progress("Analysing dataset...", count, len(source_datasets), fail_count)
 
             try:
                 # determine corresponding target_dataset
@@ -514,7 +514,7 @@ class ZfsAutobackup(ZfsAuto):
             ################# select source datasets
             self.set_title("Selecting")
             if self.args.progress:
-                self.progress(f"Selecting datasets with property {self.property_name}")
+                self.progress(f"Loading...")
 
             (source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
                                                                                  exclude_paths=self.exclude_paths,

@@ -99,8 +99,8 @@ class CliBase(object):
     def debug(self, txt):
         self.log.debug(txt)
 
-    def progress(self, txt):
-        self.log.progress(txt)
+    def progress(self, txt, current=None, total=None, failed=None):
+        self.log.progress(txt, current, total, failed)
 
     def clear_progress(self):
         self.log.clear_progress()
