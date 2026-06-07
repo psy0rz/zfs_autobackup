@@ -2,7 +2,6 @@ from typing import cast
 
 from .ZfsBookmark import ZfsBookmark
 from .ZfsDataset import ZfsDataset
-from .ExecuteNode import ExecuteError
 from .ZfsPointInTime import ZfsPointInTime
 from .ZfsSnapshot import ZfsSnapshot
 
@@ -608,18 +607,12 @@ class ZfsContainer(ZfsDataset):
         self.verbose("Destroying")
         return super().destroy(fail_exception=fail_exception)
 
-    def resolve_clone_origin(self, target_node, make_target_name, guid_check):
-        """If this dataset is a ZFS clone, return the source-side origin snapshot
-        suitable for use as zfs send -i <origin> when the corresponding target-side
-        origin exists. Returns None when the dataset is not a clone, when the target
-        origin is missing, when guids do not match, or when the strip-path mapping
-        does not apply.
+    def get_clone_origin_snapshot(self):
+        """If this dataset is a ZFS clone whose origin can be replicated, return the
+        source-side origin snapshot. Returns None when the dataset is not a clone,
+        the origin cannot be parsed, or the clone topology is unreplicatable.
 
-        Args:
-            :type target_node: ZfsNode
-            :type make_target_name: callable taking a ZfsContainer, returning str
-            :type guid_check: bool
-            :rtype: ZfsSnapshot|None
+        :rtype: ZfsSnapshot|None
         """
 
         origin = self.properties.get('origin', '-')
@@ -630,7 +623,7 @@ class ZfsContainer(ZfsDataset):
             self.warning("Cannot replicate as clone: cannot parse origin '{}'.".format(origin))
             return None
 
-        parent_path, snap_name = origin.split('@', 1)
+        parent_path = origin.split('@', 1)[0]
 
         # Reverse-clone topology (after 'zfs promote' of a child): origin lives on
         # a namespace descendant of this dataset. zfs recv has no way to land a
@@ -640,31 +633,7 @@ class ZfsContainer(ZfsDataset):
             self.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(origin))
             return None
 
-        source_origin_parent = self.zfs_node.get_dataset(parent_path)
-
-        try:
-            target_origin_parent = make_target_name(source_origin_parent)
-        except Exception as e:
-            self.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(origin, str(e)))
-            return None
-
-        source_origin_snap = self.zfs_node.get_dataset(origin)
-        target_origin_snap = target_node.get_dataset(target_origin_parent + '@' + snap_name)
-
-        if not target_origin_snap.exists:
-            self.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(origin))
-            return None
-
-        if guid_check:
-            try:
-                if source_origin_snap.properties.get('guid') != target_origin_snap.properties.get('guid'):
-                    self.warning("Cannot replicate as clone: origin guid mismatch between source and target. Falling back to full send.")
-                    return None
-            except ExecuteError:
-                # properties not readable (e.g. test mode after a simulated recv) — skip the check
-                self.debug("Cannot read origin guid; skipping guid check for clone replication.")
-
-        return source_origin_snap
+        return self.zfs_node.get_dataset(origin)
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,

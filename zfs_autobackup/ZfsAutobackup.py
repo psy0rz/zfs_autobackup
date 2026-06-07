@@ -2,7 +2,7 @@ import argparse
 from signal import signal, SIGPIPE
 
 from . import compressors
-from .ExecuteNode import ExecuteNode
+from .ExecuteNode import ExecuteNode, ExecuteError
 from .Thinner import Thinner
 from .ThinnerRule import ThinnerRule
 from .ZfsAuto import ZfsAuto
@@ -348,11 +348,50 @@ class ZfsAutobackup(ZfsAuto):
         else:
             return self.args.target_path
 
+    def _resolve_clone_origin(self, source_dataset, target_node):
+        """Return the source-side origin snapshot to use as zfs send -i base for
+        a clone, or None if the clone relationship cannot be preserved on the target.
+
+        :type source_dataset: ZfsContainer
+        :type target_node: ZfsNode
+        :rtype: ZfsSnapshot|None
+        """
+
+
+        source_origin_snap = source_dataset.get_clone_origin_snapshot()
+        if source_origin_snap is None:
+            return None
+
+        try:
+            target_origin_parent = self.make_target_name(source_origin_snap.parent)
+        except Exception as e:
+            source_dataset.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(source_origin_snap.name, str(e)))
+            return None
+
+        target_origin_snap = target_node.get_dataset(target_origin_parent + '@' + source_origin_snap.suffix)
+
+        if not target_origin_snap.exists:
+            source_dataset.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(source_origin_snap.name))
+            return None
+
+        if not self.args.no_guid_check:
+            try:
+                if source_origin_snap.properties.get('guid') != target_origin_snap.properties.get('guid'):
+                    source_dataset.warning("Cannot replicate as clone: origin guid mismatch between source and target. Falling back to full send.")
+                    return None
+            except ExecuteError:
+                # properties not readable (e.g. test mode after a simulated recv) — skip the check
+                source_dataset.debug("Cannot read origin guid; skipping guid check for clone replication.")
+
+        return source_origin_snap
+
     def _topological_sort_for_clones(self, source_datasets):
         """Reorder source_datasets so an origin is processed before any selected clone of it.
         Datasets whose origin is not in the selection (or who are not clones) are independent
         and keep their relative order. On a detected cycle (should not happen with valid ZFS)
         the original list is returned with a warning.
+
+        :rtype: list[ZfsContainer]
         """
 
         by_name = {d.name: d for d in source_datasets}
@@ -476,10 +515,7 @@ class ZfsAutobackup(ZfsAuto):
                 # relationship is preserved on the target.
                 clone_origin_snapshot = None
                 if not self.args.no_clone:
-                    clone_origin_snapshot = source_dataset.resolve_clone_origin(
-                        target_node=target_node,
-                        make_target_name=self.make_target_name,
-                        guid_check=not self.args.no_guid_check)
+                    clone_origin_snapshot = self._resolve_clone_origin(source_dataset, target_node)
 
                 # sync the snapshots of this dataset
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
