@@ -36,6 +36,10 @@ class ZfsAuto(CliBase):
             self.warning("--ignore-replicated has been renamed, using --exclude-unchanged")
             args.exclude_unchanged = True
 
+        if args.exclude_received:
+            self.log.error("--exclude-received is no longer needed. zfs-autobackup now filters all the autobackup:... properties for newly received datasets to solve this problem. To get rid of existing properties on the target do this one time: 'zfs inherit -r autobackup:backup1 pool/backup1'")
+            sys.exit(255)
+
         # Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanted to
         # replicate an existing backup to another host and use the same backupname/snapshots. However, exclude_received
         # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
@@ -136,11 +140,8 @@ class ZfsAuto(CliBase):
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
         group.add_argument('--exclude-unchanged', metavar='BYTES', default=0, type=int,
                            help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
-        group.add_argument('--exclude-received', action='store_true',
-                           help='Exclude datasets that have the origin of their autobackup: property as "received".', )
+        group.add_argument('--exclude-received', action='store_true', help=argparse.SUPPRESS)
 
-        # group.add_argument('--include-received', action='store_true',
-        #                    help=argparse.SUPPRESS)
 
         def regex_argument_type(input_line):
             """Parses regex arguments into re.Pattern objects"""

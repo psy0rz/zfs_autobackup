@@ -60,16 +60,16 @@ class TestZfsEncryption(unittest2.TestCase):
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --allow-empty --exclude-received".split(" ")).run())
+                "test test_target1 --verbose --no-progress --allow-empty".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --no-snapshot --exclude-received".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --no-snapshot".split(
                     " ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --allow-empty --exclude-received".split(" ")).run())
+                "test test_target1 --verbose --no-progress --allow-empty".split(" ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --no-snapshot --exclude-received".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --no-snapshot".split(
                     " ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
@@ -103,19 +103,19 @@ test_target1/test_source2/fs2/sub                                     encryption
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(
+                "test test_target1 --verbose --no-progress --decrypt --allow-empty".split(
                     " ")).run())
             # NOTE: this also tests if sending a source to a second target works correctly (this failed during bookmark implementation)
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received --debug".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --debug".split(
                     " ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --decrypt --allow-empty --exclude-received".split(
+                "test test_target1 --verbose --no-progress --decrypt --allow-empty".split(
                     " ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot --exclude-received".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --no-snapshot".split(
                     " ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
@@ -147,18 +147,18 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received --clear-mountpoint".split(
+                "test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --clear-mountpoint".split(
                     " ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received --clear-mountpoint".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --clear-mountpoint".split(
                     " ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --exclude-received --clear-mountpoint".split(
+                "test test_target1 --verbose --no-progress --encrypt --debug --allow-empty --clear-mountpoint".split(
                     " ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --exclude-received --clear-mountpoint".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --debug --no-snapshot --clear-mountpoint".split(
                     " ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
@@ -190,18 +190,18 @@ test_target1/test_source2/fs2/sub                              encryptionroot  -
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received --clear-mountpoint".split(
+                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --clear-mountpoint".split(
                     " ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received --clear-mountpoint".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --clear-mountpoint".split(
                     " ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty --exclude-received".split(
+                "test test_target1 --verbose --no-progress --decrypt --encrypt --debug --allow-empty".split(
                     " ")).run())
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot --exclude-received".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --decrypt --encrypt --debug --no-snapshot".split(
                     " ")).run())
 
         r = shelltest("zfs get -r -t filesystem encryptionroot test_target1")
@@ -265,7 +265,7 @@ test_target1/test_source2/fs2/sub              encryptionroot  -                
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --allow-empty --exclude-received --clear-mountpoint".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --allow-empty --clear-mountpoint".split(
                     " ")).run())
 
         r = shelltest("zfs set compress=off test_source1 test_target1")
@@ -279,7 +279,7 @@ test_target1/test_source2/fs2/sub              encryptionroot  -                
         # should fail and leave resume token
         with mocktime("20101111000001"):
             self.assertTrue(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --exclude-received --allow-empty --clear-mountpoint".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --allow-empty --clear-mountpoint".split(
                     " ")).run())
         #
         # free up space
@@ -296,7 +296,7 @@ test_target1/test_source2/fs2/sub              encryptionroot  -                
         # resume should fail
         with mocktime("20101111000001"):
             self.assertEqual(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --exclude-received --allow-empty --no-snapshot --clear-mountpoint".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --allow-empty --no-snapshot --clear-mountpoint".split(
                     " ")).run(), 3)
 
         # NOTE: On some versions this leaves 2 weird sub-datasets that should'nt be there (its probably a zfs bug?)
@@ -330,5 +330,5 @@ test_target1/test_source2/fs2/sub              encryptionroot  -                
         # resume should complete
         with mocktime("20101111000001"):
             self.assertEqual(ZfsAutobackup(
-                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --exclude-received --allow-empty --no-snapshot --clear-mountpoint --debug".split(
+                "test test_target1/encryptedtarget --verbose --no-progress --encrypt --allow-empty --no-snapshot --clear-mountpoint --debug".split(
                     " ")).run(), 0)

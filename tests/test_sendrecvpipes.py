@@ -16,7 +16,7 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("local local pipe"):
             with mocktime("20101111000000"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--clear-mountpoint",
                      "--send-pipe=dd bs=1M", "--recv-pipe=dd bs=2M"]).run())
 
@@ -25,7 +25,7 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("remote local pipe"):
             with mocktime("20101111000001"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--ssh-source=localhost", "--send-pipe=dd bs=1M", "--recv-pipe=dd bs=2M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -33,7 +33,7 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("local remote pipe"):
             with mocktime("20101111000002"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--ssh-target=localhost", "--send-pipe=dd bs=1M", "--recv-pipe=dd bs=2M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -41,7 +41,7 @@ class TestSendRecvPipes(unittest2.TestCase):
         with self.subTest("remote remote pipe"):
             with mocktime("20101111000003"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--ssh-source=localhost", "--ssh-target=localhost", "--send-pipe=dd bs=1M",
                      "--recv-pipe=dd bs=2M"]).run())
 
@@ -75,7 +75,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
             with self.subTest("compress " + compress):
                 with mocktime("20101111000000"):
                     self.assertFalse(ZfsAutobackup(
-                        ["test", "test_target1", "--exclude-received", "--no-holds", "--no-progress", "--verbose",
+                        ["test", "test_target1",  "--no-holds", "--no-progress", "--verbose",
                          "--compress=" + compress]).run())
 
                 shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -86,7 +86,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with self.subTest("local local pipe"):
             with mocktime("20101111000000"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--clear-mountpoint", "--buffer=1M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -94,7 +94,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with self.subTest("remote local pipe"):
             with mocktime("20101111000001"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--verbose", "--exclude-received", "--no-holds",
+                    ["test", "test_target1", "--allow-empty", "--verbose",  "--no-holds",
                      "--no-progress", "--ssh-source=localhost", "--buffer=1M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -102,7 +102,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with self.subTest("local remote pipe"):
             with mocktime("20101111000002"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--ssh-target=localhost", "--buffer=1M"]).run())
 
             shelltest("zfs destroy -r test_target1/test_source1/fs1/sub")
@@ -110,7 +110,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         with self.subTest("remote remote pipe"):
             with mocktime("20101111000003"):
                 self.assertFalse(ZfsAutobackup(
-                    ["test", "test_target1", "--allow-empty", "--exclude-received", "--no-holds", "--no-progress",
+                    ["test", "test_target1", "--allow-empty",  "--no-holds", "--no-progress",
                      "--ssh-source=localhost", "--ssh-target=localhost", "--buffer=1M"]).run())
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
@@ -142,7 +142,7 @@ test_target1/test_source2/fs2/sub@test-20101111000003
         start = time.time()
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                ["test", "test_target1", "--exclude-received", "--no-holds", "--no-progress", "--rate=50k"]).run())
+                ["test", "test_target1",  "--no-holds", "--no-progress", "--rate=50k"]).run())
 
         # not a great way of verifying but it works.
         self.assertGreater(time.time() - start, 5)

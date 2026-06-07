@@ -746,12 +746,12 @@ test_target1/test_source2/fs2/sub@test-20101111000003
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost --exclude-received".split(
+                "test test_target1 --no-progress --verbose --allow-empty --ssh-source localhost".split(
                     " ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --allow-empty --ssh-target localhost --exclude-received".split(
+                "test test_target1 --no-progress --verbose --allow-empty --ssh-target localhost".split(
                     " ")).run())
 
         with mocktime("20101111000002"):
