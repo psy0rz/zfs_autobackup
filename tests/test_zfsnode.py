@@ -19,7 +19,7 @@ class TestZfsNode(unittest2.TestCase):
 
         with self.subTest("first snapshot"):
             (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
-                                                                            exclude_paths=[], exclude_received=False,
+                                                                            exclude_paths=[], 
                                                                             exclude_unchanged=0)
             node.consistent_snapshot(selected_datasets, "test-20101111000001", 100000)
             r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
@@ -40,7 +40,7 @@ test_target1
 
         with self.subTest("second snapshot, no changes, no snapshot"):
             (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
-                                                                            exclude_paths=[], exclude_received=False,
+                                                                            exclude_paths=[],
                                                                             exclude_unchanged=0)
             node.consistent_snapshot(selected_datasets, "test-20101111000002", 1)
             r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
@@ -61,7 +61,7 @@ test_target1
 
         with self.subTest("second snapshot, no changes, empty snapshot"):
             (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
-                                                                            exclude_paths=[], exclude_received=False,
+                                                                            exclude_paths=[],
                                                                             exclude_unchanged=0)
             node.consistent_snapshot(selected_datasets, "test-20101111000002", 0)
             r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
@@ -95,7 +95,6 @@ test_target1
                 with redirect_stdout(buf):
                     (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
                                                                                     exclude_paths=[],
-                                                                                    exclude_received=False,
                                                                                     exclude_unchanged=0)
                     node.consistent_snapshot(selected_datasets, "test-1",
                                              0,
@@ -115,7 +114,6 @@ test_target1
                     with self.assertRaises(ExecuteError):
                         (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
                                                                                         exclude_paths=[],
-                                                                                        exclude_received=False,
                                                                                         exclude_unchanged=0)
                         node.consistent_snapshot(selected_datasets, "test-1",
                                                  0,
@@ -136,7 +134,6 @@ test_target1
                         # same snapshot name as before so it fails
                         (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
                                                                                         exclude_paths=[],
-                                                                                        exclude_received=False,
                                                                                         exclude_unchanged=0)
                         node.consistent_snapshot(selected_datasets, "test-1",
                                                  0,
@@ -189,7 +186,7 @@ test_target1
                        logger=logger, description=description, debug_output=False, ssh_to=None, ssh_config=None,
                        exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
         (selected_datasets, excluded_datasets) = node.selected_datasets(property_name="autobackup:test",
-                                                                        exclude_paths=[], exclude_received=False,
+                                                                        exclude_paths=[],
                                                                         exclude_unchanged=1)
         s = pformat(selected_datasets)
         print(s)

@@ -45,7 +45,7 @@ class ZfsAuto(CliBase):
         # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
         # recursive replication of a zvol that is currently being received in another session (as it will have changes).
 
-        # Follow up note: This isnt a problem anymore since v3.4, we now filter the autobackup-property by default to prevent these difficult issues.
+        # Follow up note: This isnt a problem anymore since v4.0, we now filter the autobackup-property by default to prevent these difficult issues.
 
         self.exclude_paths = []
         if args.ssh_source == args.ssh_target:

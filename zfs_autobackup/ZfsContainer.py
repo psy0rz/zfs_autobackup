@@ -538,7 +538,7 @@ class ZfsContainer(ZfsDataset):
                     if target_snapshot.exists:
                         target_snapshot.destroy()
 
-    def is_selected(self, value, source, inherited, exclude_received, exclude_paths, exclude_unchanged):
+    def is_selected(self, value, source, inherited,  exclude_paths, exclude_unchanged):
         """determine if dataset should be selected for backup (called from
         ZfsNode)
 
@@ -547,7 +547,6 @@ class ZfsContainer(ZfsDataset):
             :type value: str
             :type source: str
             :type inherited: bool
-            :type exclude_received: bool
             :type exclude_unchanged: int
 
             :param value: Value of the zfs property ("false"/"true"/"child"/parent/"-")
@@ -595,11 +594,6 @@ class ZfsContainer(ZfsDataset):
             if (self.name + "/").startswith(exclude_path + "/"):
                 # too noisy for verbose
                 self.debug("Excluded (path in exclude list)")
-                return False
-
-        if source == "received":
-            if exclude_received:
-                self.verbose("Excluded (dataset already received)")
                 return False
 
         if not self.is_changed(exclude_unchanged):
