@@ -638,7 +638,8 @@ class ZfsContainer(ZfsDataset):
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                        no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                       use_bookmarks, bookmark_tag, property_format, clone_origin_snapshot=None):
+                       use_bookmarks, bookmark_tag, property_format, clone_origin_snapshot=None,
+                       required_snapshots=None):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -665,6 +666,7 @@ class ZfsContainer(ZfsDataset):
             :type bookmark_tag: str
             :type property_format: str
             :type clone_origin_snapshot: ZfsSnapshot|None
+            :type required_snapshots: set[str]|None
         """
 
         # self.verbose("-> {}".format(target_dataset))
@@ -689,7 +691,8 @@ class ZfsContainer(ZfsDataset):
         (source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
-                            guid_check=guid_check, raw=raw, bookmark_tag=bookmark_tag)
+                            guid_check=guid_check, raw=raw, bookmark_tag=bookmark_tag,
+                            required_snapshots=required_snapshots)
 
         if show_progress:
             self.zfs_node.logger.progress("Pre-cleaning..")
@@ -872,7 +875,7 @@ class ZfsContainer(ZfsDataset):
         self.invalidate_cache()
         self.rollback()
 
-    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw, bookmark_tag):
+    def _plan_sync(self, target_dataset, also_other_snapshots, guid_check, raw, bookmark_tag, required_snapshots=None):
         """Determine at what snapshot to start syncing to target_dataset and what to sync and what to keep.
 
         Args:
@@ -882,6 +885,7 @@ class ZfsContainer(ZfsDataset):
             :type guid_check: bool
             :type raw: bool
             :type bookmark_tag: str
+            :type required_snapshots: set[str]|None
 
         Returns:
             tuple: A tuple containing:
@@ -929,7 +933,8 @@ class ZfsContainer(ZfsDataset):
 
         while source_snapshot:
             # we want it?
-            if (also_other_snapshots or source_snapshot.is_ours) and not source_snapshot.is_snapshot_excluded:
+            is_required = required_snapshots is not None and source_snapshot.name in required_snapshots
+            if (also_other_snapshots or source_snapshot.is_ours or is_required) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
                 target_snapshot = cast(ZfsSnapshot, target_dataset.zfs_node.get_dataset(
                     target_dataset.name + source_snapshot.typed_suffix, force_exists=False))

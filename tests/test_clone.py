@@ -11,9 +11,9 @@ class TestZfsAutobackupClone(unittest2.TestCase):
         self.longMessage = True
 
     def test_clone_happy_path(self):
-        """Single run, both origin and clone selected.
-        --other-snapshots ensures the origin snapshot itself reaches the target,
-        so the clone can pin to it."""
+        """Single run, both origin and clone selected. The origin snapshot is
+        auto-included because a clone in the selection depends on it, so the user
+        doesn't need --other-snapshots."""
 
         shelltest("zfs snapshot test_source1/fs1@base")
         shelltest("zfs clone test_source1/fs1@base test_source1/fs1_clone")
@@ -21,7 +21,7 @@ class TestZfsAutobackupClone(unittest2.TestCase):
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --other-snapshots".split(" ")).run())
+                "test test_target1 --no-progress --verbose".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem " + TEST_POOLS)
         self.assertMultiLineEqual(r, """
@@ -104,7 +104,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --other-snapshots --no-clone".split(" ")).run())
+                "test test_target1 --no-progress --verbose --no-clone".split(" ")).run())
 
         origin = shelltest("zfs get -H -o value origin test_target1/test_source1/fs1_clone").strip()
         self.assertEqual(origin, "-")
@@ -118,7 +118,7 @@ test_target1/test_source2/fs2/sub@test-20101111000000
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --other-snapshots".split(" ")).run())
+                "test test_target1 --no-progress --verbose".split(" ")).run())
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
@@ -143,7 +143,7 @@ test_target1/test_source1/fs1_clone@test-20101111000001
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --other-snapshots".split(" ")).run())
+                "test test_target1 --no-progress --verbose".split(" ")).run())
 
         origin = shelltest("zfs get -H -o value origin test_target1/test_source1/aaa_clone").strip()
         self.assertEqual(origin, "test_target1/test_source1/fs1@base")
@@ -157,7 +157,7 @@ test_target1/test_source1/fs1_clone@test-20101111000001
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --test --other-snapshots".split(" ")).run())
+                "test test_target1 --no-progress --verbose --test".split(" ")).run())
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
@@ -183,7 +183,7 @@ test_target1
             with redirect_stdout(buf), redirect_stderr(buf):
                 with mocktime("20101111000000"):
                     result = ZfsAutobackup(
-                        "test test_target1 --no-progress --verbose --other-snapshots".split(" ")).run()
+                        "test test_target1 --no-progress --verbose".split(" ")).run()
 
             output = buf.getvalue()
             print(output)

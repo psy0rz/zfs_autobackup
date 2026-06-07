@@ -434,6 +434,28 @@ class ZfsAutobackup(ZfsAuto):
 
         return result
 
+    def _required_origin_snapshots(self, source_datasets):
+        """Build a map parent_dataset_name -> set of origin snapshot full names that
+        downstream clones (also in the selection) need pinned on the target. Used to
+        force-include those specific snapshots even without --other-snapshots.
+
+        :rtype: dict[str, set[str]]
+        """
+
+        by_name = {d.name: d for d in source_datasets}
+        required = {}
+        for d in source_datasets:
+            try:
+                origin = d.properties.get('origin', '-')
+            except Exception:
+                origin = '-'
+            if origin == '-' or '@' not in origin:
+                continue
+            parent_path = origin.split('@', 1)[0]
+            if parent_path in by_name and parent_path != d.name:
+                required.setdefault(parent_path, set()).add(origin)
+        return required
+
     def check_target_names(self, source_node, source_datasets, target_node):
         """check all target names for collesions etc due to strip-options"""
 
@@ -467,6 +489,9 @@ class ZfsAutobackup(ZfsAuto):
 
         if not self.args.no_clone:
             source_datasets = self._topological_sort_for_clones(source_datasets)
+            required_origin_snapshots = self._required_origin_snapshots(source_datasets)
+        else:
+            required_origin_snapshots = {}
 
         fail_count = 0
         count = 0
@@ -532,7 +557,8 @@ class ZfsAutobackup(ZfsAuto):
                                               guid_check=not self.args.no_guid_check, use_bookmarks=use_bookmarks,
                                               bookmark_tag=bookmark_tag,
                                               property_format=self.args.property_format,
-                                              clone_origin_snapshot=clone_origin_snapshot)
+                                              clone_origin_snapshot=clone_origin_snapshot,
+                                              required_snapshots=required_origin_snapshots.get(source_dataset.name))
             except Exception as e:
 
                 fail_count = fail_count + 1
