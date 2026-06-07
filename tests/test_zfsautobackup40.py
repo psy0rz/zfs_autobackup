@@ -678,3 +678,41 @@ test_target1/test_source1/fs1/sub@other2
 test_target1/test_source1/fs1/sub@test2-20010203000000
 """)
 
+    def test_filter_autobackup_properties(self):
+        """All autobackup:* properties from the source must be filtered during
+        replication, and properties set directly on the target must not be
+        touched by subsequent backups."""
+
+        # an extra autobackup:* property on the source (besides the default autobackup:test=true on test_source1/fs1)
+        shelltest("zfs set autobackup:extra=sourceonly test_source1/fs1")
+
+        # first backup, creates target hierarchy
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose".split(" ")).run())
+
+        # set autobackup:* properties directly on the target.
+        # autobackup:test deliberately collides with the source property to verify the source
+        # value does not overwrite the target on subsequent receives.
+        shelltest("zfs set autobackup:targetonly=targetvalue test_target1/test_source1/fs1")
+        shelltest("zfs set autobackup:test=false test_target1/test_source1/fs1/sub")
+
+        properties = "autobackup:test,autobackup:extra,autobackup:targetonly"
+        before = shelltest(
+            "zfs get -H -o name,property,value,source -r -s local,received -t filesystem "
+            + properties + " test_target1")
+
+        # second backup, must not change any autobackup:* property on the target
+        with mocktime("20101111000001"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+        after = shelltest(
+            "zfs get -H -o name,property,value,source -r -s local,received -t filesystem "
+            + properties + " test_target1")
+
+        self.assertMultiLineEqual(before, after)
+
+        # autobackup:extra was only set on the source and must not have leaked to the target
+        self.assertNotIn("sourceonly", after)
+
