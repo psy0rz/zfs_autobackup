@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import sys
+import time
 
 try:
     import colorama
@@ -72,3 +73,4 @@ class LogConsole:
             else:
                 print(self._CLEAR_LINE, end='', file=sys.stderr)
             self._progress_uncleared = False
+            sys.stderr.flush()

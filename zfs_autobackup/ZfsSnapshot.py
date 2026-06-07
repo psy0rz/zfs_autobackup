@@ -229,6 +229,9 @@ class ZfsSnapshot(ZfsPointInTime):
             # incremental
             self.verbose("-> {}".format(target_snapshot.prefix))
 
+        if show_progress:
+            self.zfs_node.logger.progress("Transferring...")
+
         # do it
         pipe = self.send_pipe(features=features, show_progress=show_progress, prev_snapshot=prev_snapshot,
                               resume_token=resume_token, raw=raw, send_properties=send_properties,

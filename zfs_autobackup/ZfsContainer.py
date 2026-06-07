@@ -641,6 +641,9 @@ class ZfsContainer(ZfsDataset):
 
         # self.verbose("-> {}".format(target_dataset))
 
+        if show_progress:
+            self.zfs_node.logger.progress("Planning sync..")
+
         # defaults for these settings if there is no encryption stuff going on:
         send_properties = True
         raw = False
@@ -656,10 +659,14 @@ class ZfsContainer(ZfsDataset):
                 # keep data encrypted by sending it raw (including properties)
                 raw = True
 
+
         (source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers,
          incompatible_target_snapshots) = \
             self._plan_sync(target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
                             guid_check=guid_check, raw=raw, bookmark_tag=bookmark_tag)
+
+        if show_progress:
+            self.zfs_node.logger.progress("Pre-cleaning..")
 
         # NOTE: we do a pre-clean because we dont want filesystems to fillup when backups keep failing.
         # Also usefull with no_send to still cleanup stuff.
@@ -667,11 +674,19 @@ class ZfsContainer(ZfsDataset):
             source_common_snapshot=source_common_snapshot, target_dataset=target_dataset,
             target_transfers=target_transfers, target_obsoletes=target_obsoletes, source_obsoletes=source_obsoletes)
 
+
         # check if we can resume
         if len(target_transfers)>0:
+
+            if show_progress:
+                self.zfs_node.logger.progress("Verifying resume token...")
+
             resume_token = self._validate_resume_token(target_dataset, target_transfers[0])
         else:
             resume_token = None
+
+        if show_progress:
+            self.zfs_node.logger.progress("Preparing...")
 
         # handle incompatible stuff on target
         target_dataset.handle_incompatible_target(incompatible_target_snapshots, destroy_incompatible, force, source_common_snapshot, resume_token is not None)
@@ -707,6 +722,9 @@ class ZfsContainer(ZfsDataset):
 
             # do the rollback, one time at first transfer
             if do_rollback:
+                if show_progress:
+                    self.zfs_node.logger.progress(f"Rolling back {target_dataset}...")
+
                 target_dataset.rollback()
                 do_rollback = False
 

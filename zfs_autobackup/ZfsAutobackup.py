@@ -513,6 +513,9 @@ class ZfsAutobackup(ZfsAuto):
 
             ################# select source datasets
             self.set_title("Selecting")
+            if self.args.progress:
+                self.progress(f"Selecting datasets with property {self.property_name}")
+
             (source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
                                                                                  exclude_paths=self.exclude_paths,
                                                                                  exclude_unchanged=self.args.exclude_unchanged)
