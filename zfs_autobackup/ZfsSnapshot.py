@@ -51,6 +51,9 @@ class ZfsSnapshot(ZfsPointInTime):
         resume_token: resume sending from this token. (in that case we don't
         need to know snapshot names)
 
+        If prev_snapshot is on a different parent dataset (clone-of-origin case),
+        its full name is passed to zfs send -i; otherwise the short @suffix form is used.
+
         Args:
             :param send_pipes: output cmd array that will be added to actual zfs send command. (e.g. mbuffer or compression program)
             :type send_pipes: list[str]
@@ -99,7 +102,11 @@ class ZfsSnapshot(ZfsPointInTime):
 
             # incremental?
             if prev_snapshot:
-                cmd.extend(["-i", prev_snapshot.typed_suffix])
+                if prev_snapshot.prefix != self.prefix:
+                    # cross-dataset (clone replicated from its origin snapshot): full path required
+                    cmd.extend(["-i", prev_snapshot.name])
+                else:
+                    cmd.extend(["-i", prev_snapshot.typed_suffix])
 
             cmd.append(self.name)
 

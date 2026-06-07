@@ -92,6 +92,9 @@ class ZfsAutobackup(ZfsAuto):
                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
         group.add_argument('--no-bookmarks', action='store_true',
                            help='Don\'t use bookmarks.')
+        group.add_argument('--no-clone', action='store_true',
+                           help="Don't preserve clone relationships during replication. "
+                                "Source datasets that are clones will be replicated as full standalone datasets.")
 
         group.add_argument('--clear-refreservation', action='store_true',
                            help='Filter "refreservation" property. (recommended, saves space. same as '
@@ -345,6 +348,53 @@ class ZfsAutobackup(ZfsAuto):
         else:
             return self.args.target_path
 
+    def _topological_sort_for_clones(self, source_datasets):
+        """Reorder source_datasets so an origin is processed before any selected clone of it.
+        Datasets whose origin is not in the selection (or who are not clones) are independent
+        and keep their relative order. On a detected cycle (should not happen with valid ZFS)
+        the original list is returned with a warning.
+        """
+
+        by_name = {d.name: d for d in source_datasets}
+
+        parent_dep = {}  # dataset_name -> parent_dataset_name in selection, or None
+        for d in source_datasets:
+            try:
+                origin = d.properties.get('origin', '-')
+            except Exception:
+                origin = '-'
+            if origin == '-' or '@' not in origin:
+                parent_dep[d.name] = None
+                continue
+            parent_path = origin.split('@', 1)[0]
+            if parent_path in by_name and parent_path != d.name:
+                parent_dep[d.name] = parent_path
+            else:
+                parent_dep[d.name] = None
+
+        indegree = {name: 0 for name in by_name}
+        children = {name: [] for name in by_name}
+        for name, parent in parent_dep.items():
+            if parent is not None:
+                indegree[name] += 1
+                children[parent].append(name)
+
+        queue = [d.name for d in source_datasets if indegree[d.name] == 0]
+        result = []
+        while queue:
+            name = queue.pop(0)
+            result.append(by_name[name])
+            for child in children[name]:
+                indegree[child] -= 1
+                if indegree[child] == 0:
+                    queue.append(child)
+
+        if len(result) != len(source_datasets):
+            self.warning("Clone topological sort: cycle detected, keeping original dataset order.")
+            return source_datasets
+
+        return result
+
     def check_target_names(self, source_node, source_datasets, target_node):
         """check all target names for collesions etc due to strip-options"""
 
@@ -375,6 +425,9 @@ class ZfsAutobackup(ZfsAuto):
 
         send_pipes = self.get_send_pipes(source_node.verbose)
         recv_pipes = self.get_recv_pipes(target_node.verbose)
+
+        if not self.args.no_clone:
+            source_datasets = self._topological_sort_for_clones(source_datasets)
 
         fail_count = 0
         count = 0
@@ -418,6 +471,16 @@ class ZfsAutobackup(ZfsAuto):
                     else:
                         use_bookmarks = True
 
+                # if the source is a clone and the target-side origin is available, send
+                # the first snapshot as an incremental from the origin so the clone
+                # relationship is preserved on the target.
+                clone_origin_snapshot = None
+                if not self.args.no_clone:
+                    clone_origin_snapshot = source_dataset.resolve_clone_origin(
+                        target_node=target_node,
+                        make_target_name=self.make_target_name,
+                        guid_check=not self.args.no_guid_check)
+
                 # sync the snapshots of this dataset
                 source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
                                               features=common_features, filter_properties=self.filter_properties_list(),
@@ -432,7 +495,8 @@ class ZfsAutobackup(ZfsAuto):
                                               zfs_compressed=self.args.zfs_compressed, force=self.args.force,
                                               guid_check=not self.args.no_guid_check, use_bookmarks=use_bookmarks,
                                               bookmark_tag=bookmark_tag,
-                                              property_format=self.args.property_format)
+                                              property_format=self.args.property_format,
+                                              clone_origin_snapshot=clone_origin_snapshot)
             except Exception as e:
 
                 fail_count = fail_count + 1

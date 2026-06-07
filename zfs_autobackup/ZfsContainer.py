@@ -608,10 +608,59 @@ class ZfsContainer(ZfsDataset):
         self.verbose("Destroying")
         return super().destroy(fail_exception=fail_exception)
 
+    def resolve_clone_origin(self, target_node, make_target_name, guid_check):
+        """If this dataset is a ZFS clone, return the source-side origin snapshot
+        suitable for use as zfs send -i <origin> when the corresponding target-side
+        origin exists. Returns None when the dataset is not a clone, when the target
+        origin is missing, when guids do not match, or when the strip-path mapping
+        does not apply.
+
+        Args:
+            :type target_node: ZfsNode
+            :type make_target_name: callable taking a ZfsContainer, returning str
+            :type guid_check: bool
+            :rtype: ZfsSnapshot|None
+        """
+
+        origin = self.properties.get('origin', '-')
+        if origin == '-':
+            return None
+
+        if '@' not in origin:
+            self.warning("Cannot replicate as clone: cannot parse origin '{}'.".format(origin))
+            return None
+
+        parent_path, snap_name = origin.split('@', 1)
+        source_origin_parent = self.zfs_node.get_dataset(parent_path)
+
+        try:
+            target_origin_parent = make_target_name(source_origin_parent)
+        except Exception as e:
+            self.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(origin, str(e)))
+            return None
+
+        source_origin_snap = self.zfs_node.get_dataset(origin)
+        target_origin_snap = target_node.get_dataset(target_origin_parent + '@' + snap_name)
+
+        if not target_origin_snap.exists:
+            self.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(origin))
+            return None
+
+        if guid_check:
+            try:
+                if source_origin_snap.properties.get('guid') != target_origin_snap.properties.get('guid'):
+                    self.warning("Cannot replicate as clone: origin guid mismatch between source and target. Falling back to full send.")
+                    return None
+            except ExecuteError:
+                # properties not readable (e.g. test mode after a simulated recv) — skip the check
+                self.debug("Cannot read origin guid; skipping guid check for clone replication.")
+
+        return source_origin_snap
+
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                        no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                       use_bookmarks, bookmark_tag, property_format):
+                       use_bookmarks, bookmark_tag, property_format, clone_origin_snapshot=None):
         """sync this dataset's snapshots to target_dataset, while also thinning
         out old snapshots along the way.
 
@@ -637,6 +686,7 @@ class ZfsContainer(ZfsDataset):
             :type use_bookmarks: bool
             :type bookmark_tag: str
             :type property_format: str
+            :type clone_origin_snapshot: ZfsSnapshot|None
         """
 
         # self.verbose("-> {}".format(target_dataset))
@@ -711,7 +761,13 @@ class ZfsContainer(ZfsDataset):
 
         # now actually transfer the snapshots
         do_rollback = rollback
-        prev_source_snapshot_bookmark = source_common_snapshot
+        # When the target dataset is being created fresh and the source is a clone whose
+        # origin's target equivalent exists, send the first snapshot as an incremental from
+        # that origin so zfs recv reconstructs the clone relationship on the target.
+        if source_common_snapshot is None and clone_origin_snapshot is not None:
+            prev_source_snapshot_bookmark = clone_origin_snapshot
+        else:
+            prev_source_snapshot_bookmark = source_common_snapshot
         prev_target_snapshot = target_dataset.find_snapshot(source_common_snapshot)
         for target_snapshot in target_transfers:
 
