@@ -934,6 +934,8 @@ class ZfsContainer(ZfsDataset):
         while source_snapshot:
             # we want it?
             is_required = required_snapshots is not None and source_snapshot.name in required_snapshots
+            if is_required and not source_snapshot.is_ours and not also_other_snapshots:
+                source_snapshot.verbose("Including as clone origin for a selected clone")
             if (also_other_snapshots or source_snapshot.is_ours or is_required) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
                 target_snapshot = cast(ZfsSnapshot, target_dataset.zfs_node.get_dataset(
