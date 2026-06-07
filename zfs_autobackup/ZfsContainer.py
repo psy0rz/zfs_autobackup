@@ -631,6 +631,15 @@ class ZfsContainer(ZfsDataset):
             return None
 
         parent_path, snap_name = origin.split('@', 1)
+
+        # Reverse-clone topology (after 'zfs promote' of a child): origin lives on
+        # a namespace descendant of this dataset. zfs recv has no way to land a
+        # clone-creating stream on top of the placeholder that has to exist for
+        # the descendant, so replication can't preserve the relationship.
+        if parent_path == self.name or parent_path.startswith(self.name + "/"):
+            self.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(origin))
+            return None
+
         source_origin_parent = self.zfs_node.get_dataset(parent_path)
 
         try:

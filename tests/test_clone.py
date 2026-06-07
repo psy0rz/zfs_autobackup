@@ -163,3 +163,30 @@ test_target1/test_source1/fs1_clone@test-20101111000001
         self.assertMultiLineEqual(r, """
 test_target1
 """)
+
+    def test_promoted_clone_origin_on_namespace_descendant_warns_and_falls_back(self):
+        """After 'zfs promote', the original parent becomes a clone whose origin lives
+        on one of its own namespace descendants. zfs recv can't land a clone-creating
+        stream on top of the placeholder we have to create for that descendant, so we
+        detect this upfront, warn, and fall back to a full send (which will itself
+        fail at the placeholder — user can destroy target and rerun, or promote the
+        source dataset to flip the lineage back)."""
+
+        shelltest("zfs snapshot test_source1/fs1@s1")
+        shelltest("zfs clone test_source1/fs1@s1 test_source1/fs1/inner_clone")
+        shelltest("zfs promote test_source1/fs1/inner_clone")
+
+        origin = shelltest("zfs get -H -o value origin test_source1/fs1").strip()
+        self.assertEqual(origin, "test_source1/fs1/inner_clone@s1")
+
+        with OutputIO() as buf:
+            with redirect_stdout(buf), redirect_stderr(buf):
+                with mocktime("20101111000000"):
+                    result = ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --other-snapshots".split(" ")).run()
+
+            output = buf.getvalue()
+            print(output)
+
+        self.assertTrue(result)
+        self.assertIn("lives on a namespace descendant", output)
