@@ -64,13 +64,13 @@ class ZfsDataset:
 
         # caching
         self.__exists_check = None  # type: None|bool
-        self.__properties = None  # type: None|dict[str,str]
+        self._properties = None  # type: None|dict[str,str]
 
     def invalidate_cache(self):
         """clear caches"""
         self.force_exists = None
         self.__exists_check = None
-        self.__properties = None
+        self._properties = None
 
     def __repr__(self):
         return "{}: {}".format(self.zfs_node, self.name)
@@ -197,7 +197,7 @@ class ZfsDataset:
         :rtype: dict[str, str]
         """
 
-        if self.__properties is None:
+        if self._properties is None:
 
             cmd = [
                 "zfs", "get", "-H", "-o", "property,value", "-p", "all", self.name
@@ -211,9 +211,10 @@ class ZfsDataset:
             for pair in output:
                 if len(pair) == 2:
                     properties[pair[0]] = pair[1]
-            self.__properties = properties
+            self._properties = properties
 
-        return self.__properties
+        return self._properties
+
 
     def get_allowed_properties(self, filter_properties, set_properties):
         """only returns lists of allowed properties for this dataset type
@@ -249,7 +250,7 @@ class ZfsDataset:
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
         # invalidate cache
-        self.__properties = None
+        self._properties = None
 
     def inherit(self, prop):
         """inherit zfs property"""
@@ -263,7 +264,7 @@ class ZfsDataset:
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
         # invalidate cache
-        self.__properties = None
+        self._properties = None
 
     def mount(self, mount_point):
         """Mount the container or snapshot at mount_point, if it is a filesystem."""

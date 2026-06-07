@@ -316,6 +316,94 @@ test_target1/b/test_source2/fs2/sub@test-20101111000003
         self.assertNotIn("test-20101111000000", r)
         self.assertIn("test-20101111000002", r)
 
+    def test_incompatible_dataset_test_mode(self):
+        """In --test mode, when no common snapshot exists, target dataset is
+        flagged as incompatible. Verify the output strings and that nothing
+        is actually changed."""
+
+        # initial backup
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
+
+        # wipe every source snapshot and bookmark so nothing matches target
+        shelltest("zfs list -H -o name -t snapshot,bookmark -r test_source1 test_source2 "
+                  "| xargs -rn1 zfs destroy")
+
+        # snapshot listing BEFORE running --test (to verify nothing changes)
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        # --test without --destroy-incompatible -F: must fail and report "Incompatible dataset!"
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000001"):
+                    self.assertTrue(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --allow-empty --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertIn("Incompatible dataset", combined)
+        self.assertNotIn("STDERR", combined)
+
+
+        # --test WITH --destroy-incompatible -F: must succeed and warn "Overwriting incompatible dataset"
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000002"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --allow-empty --test --destroy-incompatible -F".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        self.assertIn("Overwriting incompatible dataset", combined)
+        self.assertNotIn("STDERR", combined)
+
+        # --test must not have changed anything on disk
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
+    def test_incompatible_snapshot_test_mode(self):
+        """In --test mode, when a common snapshot exists but extra incompatible
+        target snapshots are in the way, those must be reported as incompatible.
+        Verify the output string and that nothing is actually changed."""
+
+        # initial backup
+        with mocktime("20101111000000"):
+            self.assertFalse(ZfsAutobackup(
+                "test test_target1 --no-progress --verbose".split(" ")).run())
+
+        # add an incompatible target snapshot (data written after common snapshot)
+        shelltest("touch /test_target1/test_source1/fs1/change.txt")
+        shelltest("zfs snapshot test_target1/test_source1/fs1@incompatible1")
+
+        # snapshot listing BEFORE running --test (to verify nothing changes)
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        # --test without --destroy-incompatible: must fail and warn about "Incompatible snapshot"
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000001"):
+                    self.assertTrue(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --allow-empty --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        self.assertIn("Incompatible snapshot", combined)
+        self.assertNotIn("STDERR", combined)
+
+        # --test WITH --destroy-incompatible: must succeed and still report "Incompatible snapshot"
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000002"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --allow-empty --test --destroy-incompatible".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        self.assertIn("Incompatible snapshot", combined)
+        self.assertNotIn("STDERR", combined)
+
+        # --test must not have changed anything on disk
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
     def test_keepsource0target10queuedsend_bookmarks(self):
         """Test if thinner doesnt destroy too much early on if there are no common snapshots YET. Issue #84"""
         # new behavior, with bookmarks. (will delete common snapshot, since there is a bookmark)

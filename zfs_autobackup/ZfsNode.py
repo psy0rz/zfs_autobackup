@@ -249,6 +249,11 @@ class ZfsNode(ExecuteNode):
 
             # force_exist, since we're making it
             snapshot = self.get_dataset(dataset.name + "@" + snapshot_name, force_exists=True)
+            assert(isinstance(snapshot,ZfsSnapshot))
+
+            if self.readonly:
+                snapshot.simulate_properties()
+
 
             pool = dataset.split_path()[0]
             if pool not in pools:

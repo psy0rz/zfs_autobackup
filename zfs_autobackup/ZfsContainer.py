@@ -505,14 +505,9 @@ class ZfsContainer(ZfsDataset):
                     return source_snapshot, target_snapshot
 
             # Extensive GUID search (slower but works with all names)
-            try:
-                source_bookmark_snapshot = self.find_guid_bookmark_snapshot(target_snapshot.properties['guid'])
-                if source_bookmark_snapshot is not None:
-                    return source_bookmark_snapshot, target_snapshot
-            except ExecuteError as e:
-                # in readonly mode we igore a failed property read for non existing snapshots
-                if not self.zfs_node.readonly:
-                    raise e
+            source_bookmark_snapshot = self.find_guid_bookmark_snapshot(target_snapshot.properties['guid'])
+            if source_bookmark_snapshot is not None:
+                return source_bookmark_snapshot, target_snapshot
 
         return None, None
 
