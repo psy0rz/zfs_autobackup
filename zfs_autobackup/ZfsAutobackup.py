@@ -390,12 +390,35 @@ class ZfsAutobackup(ZfsAuto):
                 # do the actual sync
                 # NOTE: even with no_send, no_thinning and no_snapshot it does a usefull thing because it checks if the common snapshots and shows incompatible snapshots
                 fail_count = sync_datasets(
-                    self,
                     self.log,
                     source_node=source_node,
                     source_datasets=source_datasets,
                     target_node=target_node,
-                    bookmark_tag=bookmark_tag)
+                    bookmark_tag=bookmark_tag,
+                    send_pipes=self.get_send_pipes(source_node.verbose),
+                    recv_pipes=self.get_recv_pipes(target_node.verbose),
+                    make_target_name=self.make_target_name,
+                    no_clone=self.args.no_clone,
+                    no_send=self.args.no_send,
+                    no_bookmarks=self.args.no_bookmarks,
+                    no_thinning=self.args.no_thinning,
+                    filter_properties=self.filter_properties_list(),
+                    set_properties=self.set_properties_list(),
+                    ignore_transfer_errors=self.args.ignore_transfer_errors,
+                    holds=not self.args.no_holds,
+                    rollback=self.args.rollback,
+                    other_snapshots=self.args.other_snapshots,
+                    destroy_incompatible=self.args.destroy_incompatible,
+                    decrypt=self.args.decrypt,
+                    encrypt=self.args.encrypt,
+                    zfs_compressed=self.args.zfs_compressed,
+                    force=self.args.force,
+                    guid_check=not self.args.no_guid_check,
+                    property_format=self.args.property_format,
+                    debug=self.args.debug,
+                    target_path=self.args.target_path,
+                    destroy_missing=self.args.destroy_missing,
+                    utc=self.args.utc)
 
             # no target specified, run in snapshot-only mode
             else:

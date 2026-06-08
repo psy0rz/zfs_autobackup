@@ -30,14 +30,13 @@ def thin_missing_targets(logger, target_dataset, used_target_datasets):
             dataset.error("Error during thinning of missing datasets ({})".format(str(e)))
 
 
-# NOTE: this function also uses backup.args. args that need extra processing are passed as function parameters:
-def destroy_missing_targets(backup, logger, target_dataset, used_target_datasets):
+def destroy_missing_targets(logger, target_dataset, used_target_datasets, destroy_missing, utc):
     """destroy target datasets that are missing on the source and that meet the requirements
-    :type backup: ZfsAutobackup
     :type logger: LogConsole
     :type used_target_datasets: list[ZfsContainer]
     :type target_dataset: ZfsContainer
-
+    :type destroy_missing: str
+    :type utc: bool
     """
 
     logger.debug("Destroying obsolete datasets")
@@ -62,8 +61,8 @@ def destroy_missing_targets(backup, logger, target_dataset, used_target_datasets
                         "Destroy missing: has no snapshots made by us (please destroy manually).")
             else:
                 # past the deadline?
-                deadline_ttl = ThinnerRule("0s" + backup.args.destroy_missing).ttl
-                now = datetime_now(backup.args.utc).timestamp()
+                deadline_ttl = ThinnerRule("0s" + destroy_missing).ttl
+                now = datetime_now(utc).timestamp()
                 if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
                     dataset.verbose("Destroy missing: Waiting for deadline.")
                 else:
@@ -95,11 +94,12 @@ def destroy_missing_targets(backup, logger, target_dataset, used_target_datasets
             dataset.error("Error during --destroy-missing: {}".format(str(e)))
 
 
-def _resolve_clone_origin(backup, source_dataset, target_node):
-    """Return the source-side origin snapshot to use as zfs send -i base for
-    a clone, or None if the clone relationship cannot be preserved on the target.
+def _resolve_clone_origin(make_target_name, guid_check, source_dataset, target_node):
+    """Return the source-side origin snapshot to use as zfs send -i base for a clone,
+    or None if the clone relationship cannot be preserved on the target.
 
-    :type backup: ZfsAutobackup
+    :type make_target_name: callable
+    :type guid_check: bool
     :type source_dataset: ZfsContainer
     :type target_node: ZfsNode
     :rtype: ZfsSnapshot|None
@@ -110,7 +110,7 @@ def _resolve_clone_origin(backup, source_dataset, target_node):
         return None
 
     try:
-        target_origin_parent = backup.make_target_name(source_origin_snap.parent)
+        target_origin_parent = make_target_name(source_origin_snap.parent)
     except Exception as e:
         source_dataset.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(source_origin_snap.name, str(e)))
         return None
@@ -121,7 +121,7 @@ def _resolve_clone_origin(backup, source_dataset, target_node):
         source_dataset.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(source_origin_snap.name))
         return None
 
-    if not backup.args.no_guid_check:
+    if guid_check:
         try:
             if source_origin_snap.properties.get('guid') != target_origin_snap.properties.get('guid'):
                 source_dataset.warning("Cannot replicate as clone: origin guid mismatch between source and target. Falling back to full send.")
@@ -140,6 +140,7 @@ def _topological_sort_for_clones(logger, source_datasets):
     the original list is returned with a warning.
 
     :type logger: LogConsole
+    :type source_datasets: list[ZfsContainer]
     :rtype: list[ZfsContainer]
     """
 
@@ -189,6 +190,7 @@ def _required_origin_snapshots(source_datasets):
     downstream clones (also in the selection) need pinned on the target. Used to
     force-include those specific snapshots even without --other-snapshots.
 
+    :type source_datasets: list[ZfsContainer]
     :rtype: dict[str, set[str]]
     """
 
@@ -207,21 +209,48 @@ def _required_origin_snapshots(source_datasets):
     return required
 
 
-# NOTE: this function also uses backup.args. args that need extra processing are passed as function parameters:
-def sync_datasets(backup, logger, source_node, source_datasets, target_node, bookmark_tag):
-    """Sync datasets, or thin-only on both sides
-    :type backup: ZfsAutobackup
+def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_tag,
+                  send_pipes, recv_pipes, make_target_name,
+                  no_clone, no_send, no_bookmarks, no_thinning,
+                  filter_properties, set_properties,
+                  ignore_transfer_errors, holds, rollback, other_snapshots,
+                  destroy_incompatible, decrypt, encrypt, zfs_compressed, force,
+                  guid_check, property_format, debug,
+                  target_path, destroy_missing, utc):
+    """Sync datasets, or thin-only on both sides.
     :type logger: LogConsole
-    :type bookmark_tag: str
-    :type target_node: ZfsNode
-    :type source_datasets: list of ZfsContainer
     :type source_node: ZfsNode
+    :type source_datasets: list[ZfsContainer]
+    :type target_node: ZfsNode
+    :type bookmark_tag: str
+    :type send_pipes: list
+    :type recv_pipes: list
+    :type make_target_name: callable
+    :type no_clone: bool
+    :type no_send: bool
+    :type no_bookmarks: bool
+    :type no_thinning: bool
+    :type filter_properties: list[str]
+    :type set_properties: list[str]
+    :type ignore_transfer_errors: bool
+    :type holds: bool
+    :type rollback: bool
+    :type other_snapshots: bool
+    :type destroy_incompatible: bool
+    :type decrypt: bool
+    :type encrypt: bool
+    :type zfs_compressed: bool
+    :type force: bool
+    :type guid_check: bool
+    :type property_format: str
+    :type debug: bool
+    :type target_path: str
+    :type destroy_missing: str|None
+    :type utc: bool
+    :rtype: int
     """
 
-    send_pipes = backup.get_send_pipes(source_node.verbose)
-    recv_pipes = backup.get_recv_pipes(target_node.verbose)
-
-    if not backup.args.no_clone:
+    if not no_clone:
         source_datasets = _topological_sort_for_clones(logger, source_datasets)
         required_origin_snapshots = _required_origin_snapshots(source_datasets)
     else:
@@ -232,13 +261,12 @@ def sync_datasets(backup, logger, source_node, source_datasets, target_node, boo
     target_datasets = []
     for source_dataset in source_datasets:
 
-        # stats
         count = count + 1
         logger.progress("Analysing dataset...", count, len(source_datasets), fail_count)
 
         try:
             # determine corresponding target_dataset
-            target_name = backup.make_target_name(source_dataset)
+            target_name = make_target_name(source_dataset)
             target_dataset = target_node.get_dataset(target_name)
             assert isinstance(target_dataset, ZfsContainer)
             target_datasets.append(target_dataset)
@@ -246,7 +274,7 @@ def sync_datasets(backup, logger, source_node, source_datasets, target_node, boo
             # ensure parents exists
             # TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
             target_parent = target_dataset.parent
-            if not backup.args.no_send \
+            if not no_send \
                     and target_parent is not None \
                     and target_parent not in target_datasets \
                     and not target_parent.exists:
@@ -258,11 +286,11 @@ def sync_datasets(backup, logger, source_node, source_datasets, target_node, boo
             target_features = target_node.get_pool(target_dataset).features
             common_features = [f for f in source_features if f in target_features]
 
-            if backup.args.no_bookmarks:
+            if no_bookmarks:
                 use_bookmarks = False
             else:
                 # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
-                if not 'bookmark_written' in common_features:
+                if 'bookmark_written' not in common_features:
                     source_dataset.warning("Disabling bookmarks, not supported on both pools.")
                     use_bookmarks = False
                 else:
@@ -272,40 +300,41 @@ def sync_datasets(backup, logger, source_node, source_datasets, target_node, boo
             # the first snapshot as an incremental from the origin so the clone
             # relationship is preserved on the target.
             clone_origin_snapshot = None
-            if not backup.args.no_clone:
-                clone_origin_snapshot = _resolve_clone_origin(backup, source_dataset, target_node)
+            if not no_clone:
+                clone_origin_snapshot = _resolve_clone_origin(make_target_name, guid_check, source_dataset, target_node)
 
             # sync the snapshots of this dataset
-            source_dataset.sync_snapshots(target_dataset, show_progress=backup.args.progress,
-                                          features=common_features, filter_properties=backup.filter_properties_list(),
-                                          set_properties=backup.set_properties_list(),
-                                          ignore_recv_exit_code=backup.args.ignore_transfer_errors,
-                                          holds=not backup.args.no_holds, rollback=backup.args.rollback,
-                                          also_other_snapshots=backup.args.other_snapshots,
-                                          no_send=backup.args.no_send,
-                                          destroy_incompatible=backup.args.destroy_incompatible,
+            source_dataset.sync_snapshots(target_dataset, show_progress=True,
+                                          features=common_features, filter_properties=filter_properties,
+                                          set_properties=set_properties,
+                                          ignore_recv_exit_code=ignore_transfer_errors,
+                                          holds=holds, rollback=rollback,
+                                          also_other_snapshots=other_snapshots,
+                                          no_send=no_send,
+                                          destroy_incompatible=destroy_incompatible,
                                           send_pipes=send_pipes, recv_pipes=recv_pipes,
-                                          decrypt=backup.args.decrypt, encrypt=backup.args.encrypt,
-                                          zfs_compressed=backup.args.zfs_compressed, force=backup.args.force,
-                                          guid_check=not backup.args.no_guid_check, use_bookmarks=use_bookmarks,
+                                          decrypt=decrypt, encrypt=encrypt,
+                                          zfs_compressed=zfs_compressed, force=force,
+                                          guid_check=guid_check, use_bookmarks=use_bookmarks,
                                           bookmark_tag=bookmark_tag,
-                                          property_format=backup.args.property_format,
+                                          property_format=property_format,
                                           clone_origin_snapshot=clone_origin_snapshot,
                                           required_snapshots=required_origin_snapshots.get(source_dataset.name))
         except Exception as e:
 
             fail_count = fail_count + 1
             source_dataset.error("FAILED: " + str(e))
-            if backup.args.debug:
+            if debug:
                 logger.verbose("Debug mode, aborting on first error")
                 raise
 
-    target_path_dataset = target_node.get_dataset(backup.args.target_path)
+    target_path_dataset = target_node.get_dataset(target_path)
     assert isinstance(target_path_dataset, ZfsContainer)
-    if not backup.args.no_thinning:
+    if not no_thinning:
         thin_missing_targets(logger, target_dataset=target_path_dataset, used_target_datasets=target_datasets)
 
-    if backup.args.destroy_missing is not None:
-        destroy_missing_targets(backup, logger, target_dataset=target_path_dataset, used_target_datasets=target_datasets)
+    if destroy_missing is not None:
+        destroy_missing_targets(logger, target_dataset=target_path_dataset, used_target_datasets=target_datasets,
+                                destroy_missing=destroy_missing, utc=utc)
 
     return fail_count

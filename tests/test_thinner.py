@@ -2,6 +2,7 @@ from basetest import *
 import pprint
 
 from zfs_autobackup.Thinner import Thinner
+from zfs_autobackup.ThinnerRule import ThinnerRule
 
 # randint is different in python 2 vs 3
 randint_compat = lambda lo, hi: lo + int(random.random() * (hi + 1 - lo))
