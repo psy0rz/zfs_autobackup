@@ -274,7 +274,7 @@ class ZfsSnapshot(ZfsPointInTime):
 
         self.zfs_node.run(cmd=cmd)
 
-        bookmark = self.zfs_node.get_dataset(bookmark_name, force_exists=True)
+        bookmark = self.zfs_node.get_bookmark(bookmark_name, force_exists=True)
         self.parent.cache_snapshot_bookmark(bookmark)
         return bookmark
 
@@ -325,5 +325,5 @@ class ZfsSnapshot(ZfsPointInTime):
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
 
-        return self.zfs_node.get_dataset(name, force_exists=True)
+        return self.zfs_node.get_container(name, force_exists=True)
 

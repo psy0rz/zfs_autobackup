@@ -29,7 +29,7 @@ class ZfsContainer(ZfsDataset):
         """
         stripped = self.rstrip_path(1)
         if stripped:
-            return self.zfs_node.get_dataset(stripped)
+            return self.zfs_node.get_container(stripped)
         else:
             return None
 
@@ -633,7 +633,7 @@ class ZfsContainer(ZfsDataset):
             self.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(origin))
             return None
 
-        return self.zfs_node.get_dataset(origin)
+        return self.zfs_node.get_snapshot(origin)
 
     def sync_snapshots(self, target_dataset, features, show_progress, filter_properties, set_properties,
                        ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
@@ -938,8 +938,8 @@ class ZfsContainer(ZfsDataset):
                 source_snapshot.verbose("Including as clone origin for a selected clone")
             if (also_other_snapshots or source_snapshot.is_ours or is_required) and not source_snapshot.is_snapshot_excluded:
                 # create virtual target snapshot
-                target_snapshot = cast(ZfsSnapshot, target_dataset.zfs_node.get_dataset(
-                    target_dataset.name + source_snapshot.typed_suffix, force_exists=False))
+                target_snapshot = target_dataset.zfs_node.get_snapshot(
+                    target_dataset.name + source_snapshot.typed_suffix, force_exists=False)
                 possible_target_snapshots.append(target_snapshot)
             source_snapshot = self.find_next_snapshot(source_snapshot)
 

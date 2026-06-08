@@ -130,7 +130,7 @@ class ZfsCheck(CliBase):
 
         """
         clone_name = get_tmp_clone_name(snapshot)
-        clone = snapshot.zfs_node.get_dataset(clone_name)
+        clone = snapshot.zfs_node.get_container(clone_name)
         clone.destroy()
 
     def generate_tree_hashes(self, prepared_target):
@@ -243,7 +243,7 @@ class ZfsCheck(CliBase):
 
         if "@" in self.args.target:
             # zfs snapshot
-            snapshot = self.node.get_dataset(self.args.target)
+            snapshot = self.node.get_snapshot(self.args.target)
             if not snapshot.exists:
                 raise Exception("ZFS snapshot {} does not exist!".format(snapshot))
             dataset_type = snapshot.parent.properties['type']
@@ -259,7 +259,7 @@ class ZfsCheck(CliBase):
     def cleanup_target(self):
         if "@" in self.args.target:
             # zfs snapshot
-            snapshot = self.node.get_dataset(self.args.target)
+            snapshot = self.node.get_snapshot(self.args.target)
             if not snapshot.exists:
                 return
 

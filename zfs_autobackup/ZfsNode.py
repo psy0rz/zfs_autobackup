@@ -276,8 +276,7 @@ class ZfsNode(ExecuteNode):
                 continue
 
             # force_exist, since we're making it
-            snapshot = self.get_dataset(dataset.name + "@" + snapshot_name, force_exists=True)
-            assert(isinstance(snapshot,ZfsSnapshot))
+            snapshot = self.get_snapshot(dataset.name + "@" + snapshot_name, force_exists=True)
 
             if self.readonly:
                 snapshot.simulate_properties()
@@ -342,7 +341,7 @@ class ZfsNode(ExecuteNode):
 
         for line in lines:
             (name, value, raw_source) = line
-            dataset = self.get_dataset(name, force_exists=True)
+            dataset = self.get_container(name, force_exists=True)
 
             # "resolve" inherited sources
             sources[name] = raw_source
@@ -385,7 +384,7 @@ class ZfsNode(ExecuteNode):
         for line in lines:
             matches = re.findall("toname = (.*@.*)", line)
             if matches:
-                snapshot = self.get_dataset(matches[0])
+                snapshot = self.get_snapshot(matches[0])
                 snapshot.debug("resume token belongs to this snapshot")
                 return snapshot
 

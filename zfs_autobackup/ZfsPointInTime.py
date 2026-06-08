@@ -36,7 +36,7 @@ class ZfsPointInTime(ZfsDataset):
 
         :rtype: ZfsContainer
         """
-        return self.zfs_node.get_dataset(self.prefix)
+        return self.zfs_node.get_container(self.prefix)
 
 
     @property

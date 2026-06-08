@@ -182,7 +182,7 @@ class ZfsAutoverify(ZfsAuto):
             try:
                 # determine corresponding target_dataset
                 target_name = self.make_target_name(source_dataset)
-                target_dataset = target_node.get_dataset(target_name)
+                target_dataset = target_node.get_container(target_name)
 
                 # find common snapshots to  verify
                 source_snapshot = source_dataset.find_common_snapshot(target_dataset, True)
