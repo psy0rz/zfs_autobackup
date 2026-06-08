@@ -15,6 +15,7 @@ from .ExecuteNode import ExecuteError
 from .util import datetime_now
 
 
+
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
