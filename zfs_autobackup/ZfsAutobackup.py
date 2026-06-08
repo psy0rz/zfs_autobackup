@@ -374,7 +374,7 @@ class ZfsAutobackup(ZfsAuto):
                 target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
                 # check if exists, to prevent vague errors
-                target_dataset = target_node.get_dataset(self.args.target_path)
+                target_dataset = target_node.get_container(self.args.target_path)
                 if not target_dataset.exists:
                     raise (Exception(
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
@@ -416,7 +416,7 @@ class ZfsAutobackup(ZfsAuto):
                     guid_check=not self.args.no_guid_check,
                     property_format=self.args.property_format,
                     debug=self.args.debug,
-                    target_path=self.args.target_path,
+                    target_dataset_base=target_dataset,
                     destroy_missing=self.args.destroy_missing,
                     utc=self.args.utc)
 

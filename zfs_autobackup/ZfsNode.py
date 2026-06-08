@@ -150,6 +150,33 @@ class ZfsNode(ExecuteNode):
 
         return self._datasets[name]
 
+    def get_container(self, name, force_exists=None):
+        """get a ZfsContainer from name, asserting the name contains no @ or #.
+        :type name: str
+        :rtype: ZfsContainer
+        """
+        dataset = self.get_dataset(name, force_exists=force_exists)
+        assert isinstance(dataset, ZfsContainer)
+        return dataset
+
+    def get_snapshot(self, name, force_exists=None):
+        """get a ZfsSnapshot from name, asserting the name contains @.
+        :type name: str
+        :rtype: ZfsSnapshot
+        """
+        dataset = self.get_dataset(name, force_exists=force_exists)
+        assert isinstance(dataset, ZfsSnapshot)
+        return dataset
+
+    def get_bookmark(self, name, force_exists=None):
+        """get a ZfsBookmark from name, asserting the name contains #.
+        :type name: str
+        :rtype: ZfsBookmark
+        """
+        dataset = self.get_dataset(name, force_exists=force_exists)
+        assert isinstance(dataset, ZfsBookmark)
+        return dataset
+
     def get_datasets(self, names, force_exists=None):
         """get a list of ZfsDataset() object from names. stores objects internally to enable caching
         :rtype: list[ZfsContainer | ZfsBookmark | ZfsSnapshot]

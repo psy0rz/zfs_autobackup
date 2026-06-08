@@ -115,7 +115,7 @@ def _resolve_clone_origin(make_target_name, guid_check, source_dataset, target_n
         source_dataset.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(source_origin_snap.name, str(e)))
         return None
 
-    target_origin_snap = target_node.get_dataset(target_origin_parent + '@' + source_origin_snap.suffix)
+    target_origin_snap = target_node.get_snapshot(target_origin_parent + '@' + source_origin_snap.suffix)
 
     if not target_origin_snap.exists:
         source_dataset.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(source_origin_snap.name))
@@ -216,7 +216,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                   ignore_transfer_errors, holds, rollback, other_snapshots,
                   destroy_incompatible, decrypt, encrypt, zfs_compressed, force,
                   guid_check, property_format, debug,
-                  target_path, destroy_missing, utc):
+                  target_dataset_base, destroy_missing, utc):
     """Sync datasets, or thin-only on both sides.
     :type logger: LogConsole
     :type source_node: ZfsNode
@@ -244,7 +244,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
     :type guid_check: bool
     :type property_format: str
     :type debug: bool
-    :type target_path: str
+    :type target_dataset: ZfsContainer
     :type destroy_missing: str|None
     :type utc: bool
     :rtype: int
@@ -267,8 +267,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
         try:
             # determine corresponding target_dataset
             target_name = make_target_name(source_dataset)
-            target_dataset = target_node.get_dataset(target_name)
-            assert isinstance(target_dataset, ZfsContainer)
+            target_dataset = target_node.get_container(target_name)
             target_datasets.append(target_dataset)
 
             # ensure parents exists
@@ -328,13 +327,11 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                 logger.verbose("Debug mode, aborting on first error")
                 raise
 
-    target_path_dataset = target_node.get_dataset(target_path)
-    assert isinstance(target_path_dataset, ZfsContainer)
     if not no_thinning:
-        thin_missing_targets(logger, target_dataset=target_path_dataset, used_target_datasets=target_datasets)
+        thin_missing_targets(logger, target_dataset=target_dataset_base, used_target_datasets=target_datasets)
 
     if destroy_missing is not None:
-        destroy_missing_targets(logger, target_dataset=target_path_dataset, used_target_datasets=target_datasets,
+        destroy_missing_targets(logger, target_dataset=target_dataset_base, used_target_datasets=target_datasets,
                                 destroy_missing=destroy_missing, utc=utc)
 
     return fail_count
