@@ -160,6 +160,3 @@ class ZfsAuto(CliBase):
             "No source filesystems selected, please do a 'zfs set {}=true' on the source datasets "
             "you want to select.".format(self.property_name))
 
-    def make_target_name(self, source_dataset):
-        """make target_name from a source_dataset"""
-        return self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)

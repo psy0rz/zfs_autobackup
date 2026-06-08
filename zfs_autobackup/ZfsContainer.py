@@ -33,6 +33,18 @@ class ZfsContainer(ZfsDataset):
         else:
             return None
 
+    def map_to_target_path(self, target_path, strip_path):
+        """Map this dataset's name to a target path by stripping strip_path components and prepending target_path.
+        :type target_path: str
+        :type strip_path: int
+        :rtype: str
+        """
+        stripped = self.lstrip_path(strip_path)
+        if stripped:
+            return target_path + "/" + stripped
+        else:
+            return target_path
+
     def invalidate_cache(self):
         super().invalidate_cache()
         self._written_since_ours = None

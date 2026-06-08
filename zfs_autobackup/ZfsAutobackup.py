@@ -241,14 +241,6 @@ class ZfsAutobackup(ZfsAuto):
 
         return ret
 
-    def make_target_name(self, source_dataset):
-        """make target_name from a source_dataset"""
-        stripped = source_dataset.lstrip_path(self.args.strip_path)
-        if stripped != "":
-            return self.args.target_path + "/" + stripped
-        else:
-            return self.args.target_path
-
     def check_target_names(self, source_node, source_datasets, target_node):
         """check all target names for collesions etc due to strip-options"""
 
@@ -256,7 +248,7 @@ class ZfsAutobackup(ZfsAuto):
         target_datasets = {}
         for source_dataset in source_datasets:
 
-            target_name = self.make_target_name(source_dataset)
+            target_name = source_dataset.map_to_target_path(self.args.target_path, self.args.strip_path)
             source_dataset.debug("-> {}".format(target_name))
 
             if target_name in target_datasets:
@@ -397,7 +389,8 @@ class ZfsAutobackup(ZfsAuto):
                     bookmark_tag=bookmark_tag,
                     send_pipes=self.get_send_pipes(source_node.verbose),
                     recv_pipes=self.get_recv_pipes(target_node.verbose),
-                    make_target_name=self.make_target_name,
+                    target_path=self.args.target_path,
+                    strip_path=self.args.strip_path,
                     no_clone=self.args.no_clone,
                     no_send=self.args.no_send,
                     no_bookmarks=self.args.no_bookmarks,

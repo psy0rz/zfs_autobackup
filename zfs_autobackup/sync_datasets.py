@@ -94,11 +94,12 @@ def destroy_missing_targets(logger, target_dataset, used_target_datasets, destro
             dataset.error("Error during --destroy-missing: {}".format(str(e)))
 
 
-def _resolve_clone_origin(make_target_name, guid_check, source_dataset, target_node):
+def _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_node):
     """Return the source-side origin snapshot to use as zfs send -i base for a clone,
     or None if the clone relationship cannot be preserved on the target.
 
-    :type make_target_name: callable
+    :type target_path: str
+    :type strip_path: int
     :type guid_check: bool
     :type source_dataset: ZfsContainer
     :type target_node: ZfsNode
@@ -110,7 +111,7 @@ def _resolve_clone_origin(make_target_name, guid_check, source_dataset, target_n
         return None
 
     try:
-        target_origin_parent = make_target_name(source_origin_snap.parent)
+        target_origin_parent = source_origin_snap.parent.map_to_target_path(target_path, strip_path)
     except Exception as e:
         source_dataset.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(source_origin_snap.name, str(e)))
         return None
@@ -210,7 +211,7 @@ def _required_origin_snapshots(source_datasets):
 
 
 def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_tag,
-                  send_pipes, recv_pipes, make_target_name,
+                  send_pipes, recv_pipes, target_path, strip_path,
                   no_clone, no_send, no_bookmarks, no_thinning,
                   filter_properties, set_properties,
                   ignore_transfer_errors, holds, rollback, other_snapshots,
@@ -225,7 +226,8 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
     :type bookmark_tag: str
     :type send_pipes: list
     :type recv_pipes: list
-    :type make_target_name: callable
+    :type target_path: str
+    :type strip_path: int
     :type no_clone: bool
     :type no_send: bool
     :type no_bookmarks: bool
@@ -266,7 +268,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
 
         try:
             # determine corresponding target_dataset
-            target_name = make_target_name(source_dataset)
+            target_name = source_dataset.map_to_target_path(target_path, strip_path)
             target_dataset = target_node.get_container(target_name)
             target_datasets.append(target_dataset)
 
@@ -300,7 +302,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
             # relationship is preserved on the target.
             clone_origin_snapshot = None
             if not no_clone:
-                clone_origin_snapshot = _resolve_clone_origin(make_target_name, guid_check, source_dataset, target_node)
+                clone_origin_snapshot = _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_node)
 
             # sync the snapshots of this dataset
             source_dataset.sync_snapshots(target_dataset, show_progress=True,
