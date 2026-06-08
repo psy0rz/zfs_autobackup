@@ -107,8 +107,16 @@ def _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, t
     :rtype: ZfsSnapshot|None
     """
 
-    source_origin_snap = source_dataset.get_clone_origin_snapshot()
+    source_origin_snap = source_dataset.origin
     if source_origin_snap is None:
+        return None
+
+    # Reverse-clone topology (after 'zfs promote' of a child): origin lives on a namespace descendant
+    # of this dataset. zfs recv cannot land a clone-creating stream on top of the placeholder that has
+    # to exist for the descendant, so replication can't preserve the relationship.
+    origin_parent_path = source_origin_snap.name.split('@', 1)[0]
+    if origin_parent_path == source_dataset.name or origin_parent_path.startswith(source_dataset.name + "/"):
+        source_dataset.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(source_origin_snap.name))
         return None
 
     try:

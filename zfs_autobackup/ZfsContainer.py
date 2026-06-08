@@ -592,10 +592,9 @@ class ZfsContainer(ZfsDataset):
         self.verbose("Destroying")
         return super().destroy(fail_exception=fail_exception)
 
-    def get_clone_origin_snapshot(self):
-        """If this dataset is a ZFS clone whose origin can be replicated, return the
-        source-side origin snapshot. Returns None when the dataset is not a clone,
-        the origin cannot be parsed, or the clone topology is unreplicatable.
+    @property
+    def origin(self):
+        """The origin snapshot of this clone, or None if this dataset is not a clone or the origin cannot be parsed.
 
         :rtype: ZfsSnapshot|None
         """
@@ -605,17 +604,7 @@ class ZfsContainer(ZfsDataset):
             return None
 
         if '@' not in origin:
-            self.warning("Cannot replicate as clone: cannot parse origin '{}'.".format(origin))
-            return None
-
-        parent_path = origin.split('@', 1)[0]
-
-        # Reverse-clone topology (after 'zfs promote' of a child): origin lives on
-        # a namespace descendant of this dataset. zfs recv has no way to land a
-        # clone-creating stream on top of the placeholder that has to exist for
-        # the descendant, so replication can't preserve the relationship.
-        if parent_path == self.name or parent_path.startswith(self.name + "/"):
-            self.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(origin))
+            self.warning("Cannot parse clone origin '{}'.".format(origin))
             return None
 
         return self.zfs_node.get_snapshot(origin)
