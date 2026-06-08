@@ -1,6 +1,7 @@
 from .ExecuteNode import ExecuteError
 from .ThinnerRule import ThinnerRule
 from .ZfsContainer import ZfsContainer
+from .sync_snapshots import sync_snapshots
 from .util import datetime_now
 
 
@@ -305,7 +306,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                 clone_origin_snapshot = _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_node)
 
             # sync the snapshots of this dataset
-            source_dataset.sync_snapshots(target_dataset, show_progress=True,
+            sync_snapshots(source_dataset, target_dataset, show_progress=True,
                                           features=common_features, filter_properties=filter_properties,
                                           set_properties=set_properties,
                                           ignore_recv_exit_code=ignore_transfer_errors,
