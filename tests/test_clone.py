@@ -19,6 +19,20 @@ class TestZfsAutobackupClone(unittest2.TestCase):
         shelltest("zfs clone test_source1/fs1@base test_source1/fs1_clone")
         shelltest("zfs set autobackup:test=true test_source1/fs1_clone")
 
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000000"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose".split(" ")).run())
@@ -65,15 +79,31 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         shelltest("zfs clone test_source1/fs1@base test_source1/fs1_clone")
         shelltest("zfs set autobackup:test=true test_source1/fs1_clone")
 
-        with OutputIO() as buf:
-            with redirect_stdout(buf), redirect_stderr(buf):
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000000"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertIn("Cannot replicate as clone", combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
                 with mocktime("20101111000000"):
                     self.assertFalse(ZfsAutobackup(
                         "test test_target1 --no-progress --verbose".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
 
-            output = buf.getvalue()
-            print(output)
-            self.assertIn("Cannot replicate as clone", output)
+        print(combined)
+        self.assertIn("Cannot replicate as clone", combined)
+        self.assertNotIn("STDERR", combined)
 
         origin = shelltest("zfs get -H -o value origin test_target1/test_source1/fs1_clone").strip()
         self.assertEqual(origin, "-")
@@ -88,6 +118,20 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         shelltest("zfs clone test_source1/fs1@test-20101111000000 test_source1/fs1_clone")
         shelltest("zfs set autobackup:test=true test_source1/fs1_clone")
 
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000001"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --allow-empty --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose --allow-empty".split(" ")).run())
@@ -101,6 +145,20 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         shelltest("zfs snapshot test_source1/fs1@base")
         shelltest("zfs clone test_source1/fs1@base test_source1/fs1_clone")
         shelltest("zfs set autobackup:test=true test_source1/fs1_clone")
+
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000000"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --no-clone --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
 
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
@@ -119,6 +177,20 @@ test_target1/test_source2/fs2/sub@test-20101111000000
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose".split(" ")).run())
+
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000001"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --allow-empty --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
 
         with mocktime("20101111000001"):
             self.assertFalse(ZfsAutobackup(
@@ -141,6 +213,20 @@ test_target1/test_source1/fs1_clone@test-20101111000001
         shelltest("zfs clone test_source1/fs1@base test_source1/aaa_clone")
         shelltest("zfs set autobackup:test=true test_source1/aaa_clone")
 
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000000"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
         with mocktime("20101111000000"):
             self.assertFalse(ZfsAutobackup(
                 "test test_target1 --no-progress --verbose".split(" ")).run())
@@ -155,9 +241,15 @@ test_target1/test_source1/fs1_clone@test-20101111000001
         shelltest("zfs clone test_source1/fs1@base test_source1/fs1_clone")
         shelltest("zfs set autobackup:test=true test_source1/fs1_clone")
 
-        with mocktime("20101111000000"):
-            self.assertFalse(ZfsAutobackup(
-                "test test_target1 --no-progress --verbose --test".split(" ")).run())
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000000"):
+                    self.assertFalse(ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --test".split(" ")).run())
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertNotIn("STDERR", combined)
 
         r = shelltest("zfs list -H -o name -r -t snapshot,filesystem test_target1")
         self.assertMultiLineEqual(r, """
@@ -179,14 +271,29 @@ test_target1
         origin = shelltest("zfs get -H -o value origin test_source1/fs1").strip()
         self.assertEqual(origin, "test_source1/fs1/inner_clone@s1")
 
-        with OutputIO() as buf:
-            with redirect_stdout(buf), redirect_stderr(buf):
+        before = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
+                with mocktime("20101111000000"):
+                    result = ZfsAutobackup(
+                        "test test_target1 --no-progress --verbose --test".split(" ")).run()
+            combined = buf_out.getvalue() + buf_err.getvalue()
+
+        print(combined)
+        self.assertTrue(result)
+        self.assertIn("lives on a namespace descendant", combined)
+        self.assertNotIn("STDERR", combined)
+        after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
+        self.assertMultiLineEqual(before, after)
+
+        with OutputIO() as buf_out, OutputIO() as buf_err:
+            with redirect_stdout(buf_out), redirect_stderr(buf_err):
                 with mocktime("20101111000000"):
                     result = ZfsAutobackup(
                         "test test_target1 --no-progress --verbose".split(" ")).run()
+            combined = buf_out.getvalue() + buf_err.getvalue()
 
-            output = buf.getvalue()
-            print(output)
-
+        print(combined)
         self.assertTrue(result)
-        self.assertIn("lives on a namespace descendant", output)
+        self.assertIn("lives on a namespace descendant", combined)
