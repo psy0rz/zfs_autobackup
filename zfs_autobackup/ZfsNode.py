@@ -223,11 +223,12 @@ class ZfsNode(ExecuteNode):
                     self._progress_start_time = time.time()
                 elif progress_fields[1].isnumeric():
                     bytes_ = int(progress_fields[1])
-                    if self._progress_total_bytes:
+                    elapsed = time.time() - self._progress_start_time
+                    if self._progress_total_bytes and elapsed > 0 and bytes_ > 0:
                         percentage = min(100, int(bytes_ * 100 / self._progress_total_bytes))
-                        speed = int(bytes_ / (time.time() - self._progress_start_time) / (1024 * 1024))
+                        speed = int(bytes_ / elapsed / (1024 * 1024))
                         bytes_left = self._progress_total_bytes - bytes_
-                        minutes_left = int((bytes_left / (bytes_ / (time.time() - self._progress_start_time))) / 60)
+                        minutes_left = int(bytes_left / (bytes_ / elapsed) / 60)
 
                         self.logger.progress(
                             "Transfering {}% {}MB/s (total {}MB, {} minutes left)".format(percentage, speed, int(
