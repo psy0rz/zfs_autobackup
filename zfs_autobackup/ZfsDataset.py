@@ -87,6 +87,9 @@ class ZfsDataset:
 
         return self.name == dataset.name
 
+    def __hash__(self):
+        return hash(self.name)
+
     def verbose(self, txt):
         """
         Args:

@@ -154,40 +154,32 @@ def _topological_sort_for_clones(logger, source_datasets):
     :rtype: list[ZfsContainer]
     """
 
-    by_name = {d.name: d for d in source_datasets}
-
-    parent_dep = {}  # dataset_name -> parent_dataset_name in selection, or None
+    # build edge map: for each dataset that is a clone of another selected dataset,
+    # record that dependency so the origin is emitted first.
+    indegree = {d: 0 for d in source_datasets}
+    children = {d: [] for d in source_datasets}
     for d in source_datasets:
-        try:
-            origin = d.properties.get('origin', '-')
-        except Exception:
-            origin = '-'
-        if origin == '-' or '@' not in origin:
-            parent_dep[d.name] = None
+        origin = d.origin
+        if origin is None:
             continue
-        parent_path = origin.split('@', 1)[0]
-        if parent_path in by_name and parent_path != d.name:
-            parent_dep[d.name] = parent_path
-        else:
-            parent_dep[d.name] = None
+        parent = origin.parent
+        # only a dependency if the origin dataset is itself in the selection
+        if parent in source_datasets and parent is not d:
+            indegree[d] += 1
+            children[parent].append(d)
 
-    indegree = {name: 0 for name in by_name}
-    children = {name: [] for name in by_name}
-    for name, parent in parent_dep.items():
-        if parent is not None:
-            indegree[name] += 1
-            children[parent].append(name)
-
-    queue = [d.name for d in source_datasets if indegree[d.name] == 0]
+    # Kahn's algorithm: start with datasets that have no in-selection origin
+    queue = [d for d in source_datasets if indegree[d] == 0]
     result = []
     while queue:
-        name = queue.pop(0)
-        result.append(by_name[name])
-        for child in children[name]:
+        d = queue.pop(0)
+        result.append(d)
+        for child in children[d]:
             indegree[child] -= 1
             if indegree[child] == 0:
                 queue.append(child)
 
+    # a cycle means ZFS state is inconsistent; fall back to original order
     if len(result) != len(source_datasets):
         logger.warning("Clone topological sort: cycle detected, keeping original dataset order.")
         return source_datasets
@@ -201,21 +193,17 @@ def _required_origin_snapshots(source_datasets):
     force-include those specific snapshots even without --other-snapshots.
 
     :type source_datasets: list[ZfsContainer]
-    :rtype: dict[str, set[str]]
+    :rtype: dict[ZfsContainer, set[ZfsSnapshot]]
     """
 
-    by_name = {d.name: d for d in source_datasets}
     required = {}
     for d in source_datasets:
-        try:
-            origin = d.properties.get('origin', '-')
-        except Exception:
-            origin = '-'
-        if origin == '-' or '@' not in origin:
+        origin = d.origin
+        if origin is None:
             continue
-        parent_path = origin.split('@', 1)[0]
-        if parent_path in by_name and parent_path != d.name:
-            required.setdefault(parent_path, set()).add(origin)
+        parent = origin.parent
+        if parent in source_datasets and parent is not d:
+            required.setdefault(parent, set()).add(origin)
     return required
 
 
@@ -329,7 +317,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                                           bookmark_tag=bookmark_tag,
                                           property_format=property_format,
                                           clone_origin_snapshot=clone_origin_snapshot,
-                                          required_snapshots=required_origin_snapshots.get(source_dataset.name))
+                                          required_snapshots=required_origin_snapshots.get(source_dataset))
         except Exception as e:
 
             fail_count = fail_count + 1

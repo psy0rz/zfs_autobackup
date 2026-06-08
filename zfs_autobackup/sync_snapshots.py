@@ -121,7 +121,7 @@ def _plan_sync(source_dataset, target_dataset, also_other_snapshots, guid_check,
     :type guid_check: bool
     :type raw: bool
     :type bookmark_tag: str
-    :type required_snapshots: set[str]|None
+    :type required_snapshots: set[ZfsSnapshot]|None
     :rtype: ( ZfsSnapshot|ZfsBookmark, list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot] )
 
     Returns:
@@ -170,7 +170,7 @@ def _plan_sync(source_dataset, target_dataset, also_other_snapshots, guid_check,
 
     while source_snapshot:
         # we want it?
-        is_required = required_snapshots is not None and source_snapshot.name in required_snapshots
+        is_required = required_snapshots is not None and source_snapshot in required_snapshots
         if is_required and not source_snapshot.is_ours and not also_other_snapshots:
             source_snapshot.verbose("Including as clone origin for a selected clone")
         if (also_other_snapshots or source_snapshot.is_ours or is_required) and not source_snapshot.is_snapshot_excluded:
@@ -229,7 +229,7 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
     :type bookmark_tag: str
     :type property_format: str
     :type clone_origin_snapshot: ZfsSnapshot|None
-    :type required_snapshots: set[str]|None
+    :type required_snapshots: set[ZfsSnapshot]|None
     """
 
     # defaults for these settings if there is no encryption stuff going on:
