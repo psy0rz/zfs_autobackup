@@ -273,7 +273,6 @@ class ZfsContainer(ZfsDataset):
     def rollback(self):
         """rollback to latest existing snapshot on this dataset"""
 
-        print (f"HIJ IS {self._snapshots_bookmarks}")
 
         for snapshot in reversed(self.snapshots):
             if snapshot.exists:
