@@ -1,97 +1,128 @@
+"""Dataset-level replication: sync a selection of source datasets to a target node,
+and thin or destroy target datasets that are missing on the source."""
+
+from collections import deque
+
 from .ThinnerRule import ThinnerRule
 from .ZfsContainer import ZfsContainer
 from .sync_snapshots import sync_snapshots
 from .util import datetime_now
 
 
+def _missing_datasets(target_dataset, used_target_datasets):
+    """list the datasets under target_dataset that are not used as a backup target (anymore)
+
+    :type target_dataset: ZfsContainer
+    :type used_target_datasets: list[ZfsContainer]
+    :rtype: list[ZfsContainer]
+    """
+
+    return [dataset for dataset in target_dataset.recursive_datasets if dataset not in used_target_datasets]
+
+
 def thin_missing_targets(logger, target_dataset, used_target_datasets):
     """thin target datasets that are missing on the source.
+
     :type logger: LogConsole
-    :type used_target_datasets: list[ZfsContainer]
     :type target_dataset: ZfsContainer
+    :type used_target_datasets: list[ZfsContainer]
     """
 
     logger.debug("Thinning obsolete datasets")
-    missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
-                        dataset not in used_target_datasets]
+    missing_datasets = _missing_datasets(target_dataset, used_target_datasets)
 
-    count = 0
-    for dataset in missing_datasets:
+    for count, dataset in enumerate(missing_datasets, start=1):
         logger.debug("analyse missing {}".format(dataset))
-
-        count = count + 1
         logger.progress("Analysing missing..", count, len(missing_datasets), 0)
 
         try:
             dataset.debug("Missing on source, thinning")
             dataset.thin()
-
         except Exception as e:
             dataset.error("Error during thinning of missing datasets ({})".format(str(e)))
 
 
+def _destroy_missing_dataset(dataset, destroy_missing, utc):
+    """destroy a single missing dataset if it meets all the requirements, otherwise tell the user why not.
+
+    :type dataset: ZfsContainer
+    :type destroy_missing: str
+    :type utc: bool
+    """
+
+    # cant do anything without our own snapshots
+    if not dataset.our_snapshots:
+        if dataset.datasets:
+            # its not a leaf, just ignore
+            dataset.debug("Destroy missing: ignoring")
+        else:
+            dataset.verbose("Destroy missing: has no snapshots made by us (please destroy manually).")
+        return
+
+    # past the deadline?
+    deadline_ttl = ThinnerRule("0s" + destroy_missing).ttl
+    now = datetime_now(utc).timestamp()
+    if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
+        dataset.verbose("Destroy missing: Waiting for deadline.")
+        return
+
+    dataset.debug("Destroy missing: Removing our snapshots.")
+
+    # remove all our snaphots, except last, to safe space in case we fail later on
+    for snapshot in dataset.our_snapshots[:-1]:
+        snapshot.destroy(fail_exception=True)
+
+    # does it have other snapshots?
+    if any(not snapshot.is_ours for snapshot in dataset.snapshots):
+        dataset.verbose("Destroy missing: Still in use by other snapshots")
+        return
+
+    if dataset.datasets:
+        dataset.verbose("Destroy missing: Still has children here.")
+        return
+
+    dataset.verbose("Destroy missing.")
+    dataset.our_snapshots[-1].destroy(fail_exception=True)
+    dataset.destroy(fail_exception=True)
+
+
 def destroy_missing_targets(logger, target_dataset, used_target_datasets, destroy_missing, utc):
     """destroy target datasets that are missing on the source and that meet the requirements
+
     :type logger: LogConsole
-    :type used_target_datasets: list[ZfsContainer]
     :type target_dataset: ZfsContainer
+    :type used_target_datasets: list[ZfsContainer]
     :type destroy_missing: str
     :type utc: bool
     """
 
     logger.debug("Destroying obsolete datasets")
+    missing_datasets = _missing_datasets(target_dataset, used_target_datasets)
 
-    missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
-                        dataset not in used_target_datasets]
-
-    count = 0
-    for dataset in missing_datasets:
-
-        count = count + 1
+    for count, dataset in enumerate(missing_datasets, start=1):
         logger.progress("Analysing destroy missing...", count, len(missing_datasets), 0)
 
         try:
-            # cant do anything without our own snapshots
-            if not dataset.our_snapshots:
-                if dataset.datasets:
-                    # its not a leaf, just ignore
-                    dataset.debug("Destroy missing: ignoring")
-                else:
-                    dataset.verbose(
-                        "Destroy missing: has no snapshots made by us (please destroy manually).")
-            else:
-                # past the deadline?
-                deadline_ttl = ThinnerRule("0s" + destroy_missing).ttl
-                now = datetime_now(utc).timestamp()
-                if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
-                    dataset.verbose("Destroy missing: Waiting for deadline.")
-                else:
-
-                    dataset.debug("Destroy missing: Removing our snapshots.")
-
-                    # remove all our snaphots, except last, to safe space in case we fail later on
-                    for snapshot in dataset.our_snapshots[:-1]:
-                        snapshot.destroy(fail_exception=True)
-
-                    # does it have other snapshots?
-                    has_others = False
-                    for snapshot in dataset.snapshots:
-                        if not snapshot.is_ours:
-                            has_others = True
-                            break
-
-                    if has_others:
-                        dataset.verbose("Destroy missing: Still in use by other snapshots")
-                    else:
-                        if dataset.datasets:
-                            dataset.verbose("Destroy missing: Still has children here.")
-                        else:
-                            dataset.verbose("Destroy missing.")
-                            dataset.our_snapshots[-1].destroy(fail_exception=True)
-                            dataset.destroy(fail_exception=True)
-
+            _destroy_missing_dataset(dataset, destroy_missing, utc)
         except Exception as e:
             dataset.error("Error during --destroy-missing: {}".format(str(e)))
+
+
+def _clone_dependencies(source_datasets):
+    """yield (clone_dataset, origin_snapshot, origin_dataset) for every selected dataset that is a
+    clone of another selected dataset.
+
+    :type source_datasets: list[ZfsContainer]
+    """
+
+    for dataset in source_datasets:
+        origin_snapshot = dataset.origin
+        if origin_snapshot is None:
+            continue
+        origin_dataset = origin_snapshot.parent
+        # only a dependency if the origin dataset is itself in the selection
+        if origin_dataset in source_datasets and origin_dataset is not dataset:
+            yield dataset, origin_snapshot, origin_dataset
 
 
 def _topological_sort_for_clones(logger, source_datasets):
@@ -107,25 +138,19 @@ def _topological_sort_for_clones(logger, source_datasets):
 
     # build edge map: for each dataset that is a clone of another selected dataset,
     # record that dependency so the origin is emitted first.
-    indegree = {d: 0 for d in source_datasets}
-    children = {d: [] for d in source_datasets}
-    for d in source_datasets:
-        origin = d.origin
-        if origin is None:
-            continue
-        parent = origin.parent
-        # only a dependency if the origin dataset is itself in the selection
-        if parent in source_datasets and parent is not d:
-            indegree[d] += 1
-            children[parent].append(d)
+    indegree = {dataset: 0 for dataset in source_datasets}
+    children = {dataset: [] for dataset in source_datasets}
+    for clone_dataset, origin_snapshot, origin_dataset in _clone_dependencies(source_datasets):
+        indegree[clone_dataset] += 1
+        children[origin_dataset].append(clone_dataset)
 
     # Kahn's algorithm: start with datasets that have no in-selection origin
-    queue = [d for d in source_datasets if indegree[d] == 0]
+    queue = deque(dataset for dataset in source_datasets if indegree[dataset] == 0)
     result = []
     while queue:
-        d = queue.pop(0)
-        result.append(d)
-        for child in children[d]:
+        dataset = queue.popleft()
+        result.append(dataset)
+        for child in children[dataset]:
             indegree[child] -= 1
             if indegree[child] == 0:
                 queue.append(child)
@@ -139,22 +164,17 @@ def _topological_sort_for_clones(logger, source_datasets):
 
 
 def _required_origin_snapshots(source_datasets):
-    """Build a map parent_dataset_name -> set of origin snapshot full names that
-    downstream clones (also in the selection) need pinned on the target. Used to
-    force-include those specific snapshots even without --other-snapshots.
+    """Build a map origin_dataset -> set of origin snapshots that downstream clones (also in the
+    selection) need pinned on the target. Used to force-include those specific snapshots even
+    without --other-snapshots.
 
     :type source_datasets: list[ZfsContainer]
     :rtype: dict[ZfsContainer, set[ZfsSnapshot]]
     """
 
     required = {}
-    for d in source_datasets:
-        origin = d.origin
-        if origin is None:
-            continue
-        parent = origin.parent
-        if parent in source_datasets and parent is not d:
-            required.setdefault(parent, set()).add(origin)
+    for clone_dataset, origin_snapshot, origin_dataset in _clone_dependencies(source_datasets):
+        required.setdefault(origin_dataset, set()).add(origin_snapshot)
     return required
 
 
@@ -167,13 +187,14 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                   guid_check, property_format, debug,
                   target_dataset_base, destroy_missing, utc):
     """Sync datasets, or thin-only on both sides.
+
     :type logger: LogConsole
     :type source_node: ZfsNode
     :type source_datasets: list[ZfsContainer]
     :type target_node: ZfsNode
     :type bookmark_tag: str
-    :type send_pipes: list
-    :type recv_pipes: list
+    :type send_pipes: list[str]
+    :type recv_pipes: list[str]
     :type target_path: str
     :type strip_path: int
     :type no_clone: bool
@@ -194,7 +215,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
     :type guid_check: bool
     :type property_format: str
     :type debug: bool
-    :type target_dataset: ZfsContainer
+    :type target_dataset_base: ZfsContainer
     :type destroy_missing: str|None
     :type utc: bool
     :rtype: int
@@ -207,11 +228,9 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
         required_origin_snapshots = {}
 
     fail_count = 0
-    count = 0
     target_datasets = []
-    for source_dataset in source_datasets:
+    for count, source_dataset in enumerate(source_datasets, start=1):
 
-        count = count + 1
         logger.progress("Analysing dataset...", count, len(source_datasets), fail_count)
 
         try:
@@ -233,41 +252,33 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
             # determine common zpool features (cached, so no problem we call it often)
             source_features = source_node.get_pool(source_dataset).features
             target_features = target_node.get_pool(target_dataset).features
-            common_features = [f for f in source_features if f in target_features]
+            common_features = [feature for feature in source_features if feature in target_features]
 
-            if no_bookmarks:
+            # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
+            use_bookmarks = not no_bookmarks
+            if use_bookmarks and 'bookmark_written' not in common_features:
+                source_dataset.warning("Disabling bookmarks, not supported on both pools.")
                 use_bookmarks = False
-            else:
-                # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
-                if 'bookmark_written' not in common_features:
-                    source_dataset.warning("Disabling bookmarks, not supported on both pools.")
-                    use_bookmarks = False
-                else:
-                    use_bookmarks = True
 
-            # if the source is a clone and the target-side origin is available, send
-            # the first snapshot as an incremental from the origin so the clone
-            # relationship is preserved on the target.
             # sync the snapshots of this dataset
             sync_snapshots(source_dataset, target_dataset, show_progress=True,
-                                          features=common_features, filter_properties=filter_properties,
-                                          set_properties=set_properties,
-                                          ignore_recv_exit_code=ignore_transfer_errors,
-                                          holds=holds, rollback=rollback,
-                                          also_other_snapshots=other_snapshots,
-                                          no_send=no_send,
-                                          destroy_incompatible=destroy_incompatible,
-                                          send_pipes=send_pipes, recv_pipes=recv_pipes,
-                                          decrypt=decrypt, encrypt=encrypt,
-                                          zfs_compressed=zfs_compressed, force=force,
-                                          guid_check=guid_check, use_bookmarks=use_bookmarks,
-                                          bookmark_tag=bookmark_tag,
-                                          property_format=property_format,
-                                          no_clone=no_clone,
-                                          target_path=target_path, strip_path=strip_path,
-                                          required_snapshots=required_origin_snapshots.get(source_dataset))
+                           features=common_features, filter_properties=filter_properties,
+                           set_properties=set_properties,
+                           ignore_recv_exit_code=ignore_transfer_errors,
+                           holds=holds, rollback=rollback,
+                           also_other_snapshots=other_snapshots,
+                           no_send=no_send,
+                           destroy_incompatible=destroy_incompatible,
+                           send_pipes=send_pipes, recv_pipes=recv_pipes,
+                           decrypt=decrypt, encrypt=encrypt,
+                           zfs_compressed=zfs_compressed, force=force,
+                           guid_check=guid_check, use_bookmarks=use_bookmarks,
+                           bookmark_tag=bookmark_tag,
+                           property_format=property_format,
+                           no_clone=no_clone,
+                           target_path=target_path, strip_path=strip_path,
+                           required_snapshots=required_origin_snapshots.get(source_dataset))
         except Exception as e:
-
             fail_count = fail_count + 1
             source_dataset.error("FAILED: " + str(e))
             if debug:
