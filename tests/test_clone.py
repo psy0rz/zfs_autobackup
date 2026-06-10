@@ -29,6 +29,7 @@ class TestZfsAutobackupClone(unittest2.TestCase):
             combined = buf_out.getvalue() + buf_err.getvalue()
 
         print(combined)
+        self.assertNotIn("guid", combined) # testing can give guid errors
         self.assertNotIn("STDERR", combined)
         after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
         self.assertMultiLineEqual(before, after)
@@ -277,11 +278,11 @@ test_target1
             with redirect_stdout(buf_out), redirect_stderr(buf_err):
                 with mocktime("20101111000000"):
                     result = ZfsAutobackup(
-                        "test test_target1 --no-progress --verbose --test".split(" ")).run()
+                        "test test_target1 --no-progress --verbose --test -F".split(" ")).run()
             combined = buf_out.getvalue() + buf_err.getvalue()
 
         print(combined)
-        self.assertTrue(result)
+        self.assertFalse(result)
         self.assertIn("lives on a namespace descendant", combined)
         self.assertNotIn("STDERR", combined)
         after = shelltest("zfs list -H -o name -r -t snapshot " + TEST_POOLS)
@@ -291,9 +292,9 @@ test_target1
             with redirect_stdout(buf_out), redirect_stderr(buf_err):
                 with mocktime("20101111000000"):
                     result = ZfsAutobackup(
-                        "test test_target1 --no-progress --verbose".split(" ")).run()
+                        "test test_target1 --no-progress --verbose -F".split(" ")).run()
             combined = buf_out.getvalue() + buf_err.getvalue()
 
         print(combined)
-        self.assertTrue(result)
+        self.assertFalse(result)
         self.assertIn("lives on a namespace descendant", combined)

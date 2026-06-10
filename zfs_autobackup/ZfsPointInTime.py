@@ -101,8 +101,3 @@ class ZfsPointInTime(ZfsDataset):
             return None
 
 
-    def simulate_properties(self):
-        """in test mode when we create fake snapshots or bookmarks, we also need to simluate properties"""
-        self._properties={
-            'guid': self.tagless_suffix  # just use the snapshot name as "guid"
-        }

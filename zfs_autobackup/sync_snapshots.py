@@ -1,7 +1,52 @@
+from .ExecuteNode import ExecuteError
 from .ZfsBookmark import ZfsBookmark
 from .ZfsContainer import ZfsContainer
 from .ZfsPointInTime import ZfsPointInTime
 from .ZfsSnapshot import ZfsSnapshot
+
+
+def _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_node):
+    """Return the source-side origin snapshot to use as zfs send -i base for a clone,
+    or None if the clone relationship cannot be preserved on the target.
+
+    :type target_path: str
+    :type strip_path: int
+    :type guid_check: bool
+    :type source_dataset: ZfsContainer
+    :type target_node: ZfsNode
+    :rtype: ZfsSnapshot|None
+    """
+
+    source_origin_snap = source_dataset.origin
+    if source_origin_snap is None:
+        return None
+
+    # Reverse-clone topology (after 'zfs promote' of a child): origin lives on a namespace descendant
+    # of this dataset. zfs recv cannot land a clone-creating stream on top of the placeholder that has
+    # to exist for the descendant, so replication can't preserve the relationship.
+    origin_parent_path = source_origin_snap.name.split('@', 1)[0]
+    if origin_parent_path == source_dataset.name or origin_parent_path.startswith(source_dataset.name + "/"):
+        source_dataset.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(source_origin_snap.name))
+        return None
+
+    try:
+        target_origin_parent = source_origin_snap.parent.map_to_target_path(target_path, strip_path)
+    except Exception as e:
+        source_dataset.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(source_origin_snap.name, str(e)))
+        return None
+
+    target_origin_snap = target_node.get_snapshot(target_origin_parent + '@' + source_origin_snap.suffix)
+
+    if not target_origin_snap.exists:
+        source_dataset.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(source_origin_snap.name))
+        return None
+
+    if guid_check:
+        if not source_origin_snap.guid_matches(target_origin_snap):
+            source_dataset.warning("Cannot replicate as clone: origin guid mismatch between source and target. Falling back to full send.")
+            return None
+
+    return source_origin_snap
 
 
 def _pre_clean(source_dataset, source_common_snapshot, target_dataset, source_obsoletes, target_obsoletes, target_transfers):
@@ -82,7 +127,7 @@ def handle_incompatible_target(target_dataset, incompatible_target_snapshots, de
     for snapshot in incompatible_target_snapshots:
         snapshot.destroy(fail_exception=True)
 
-    target_dataset.invalidate_cache()
+    # target_dataset.invalidate_cache()
     target_dataset.rollback()
 
 
@@ -202,8 +247,8 @@ def _plan_sync(source_dataset, target_dataset, also_other_snapshots, guid_check,
 def sync_snapshots(source_dataset, target_dataset, features, show_progress, filter_properties, set_properties,
                    ignore_recv_exit_code, holds, rollback, decrypt, encrypt, also_other_snapshots,
                    no_send, destroy_incompatible, send_pipes, recv_pipes, zfs_compressed, force, guid_check,
-                   use_bookmarks, bookmark_tag, property_format, clone_origin_snapshot=None,
-                   required_snapshots=None):
+                   use_bookmarks, bookmark_tag, property_format, no_clone=True,
+                   target_path=None, strip_path=0, required_snapshots=None):
     """sync source_dataset's snapshots to target_dataset, while also thinning out old snapshots along the way.
 
     :type source_dataset: ZfsContainer
@@ -228,7 +273,9 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
     :type use_bookmarks: bool
     :type bookmark_tag: str
     :type property_format: str
-    :type clone_origin_snapshot: ZfsSnapshot|None
+    :type no_clone: bool
+    :type target_path: str
+    :type strip_path: int
     :type required_snapshots: set[ZfsSnapshot]|None
     """
 
@@ -303,7 +350,13 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
     # When the target dataset is being created fresh and the source is a clone whose
     # origin's target equivalent exists, send the first snapshot as an incremental from
     # that origin so zfs recv reconstructs the clone relationship on the target.
-    if source_common_snapshot is None and clone_origin_snapshot is not None:
+    # Only resolve this now (not earlier) — checking target origin existence is only
+    # valid when we know this is actually a new full transfer.
+    if source_common_snapshot is None and not no_clone:
+        clone_origin_snapshot = _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_dataset.zfs_node)
+    else:
+        clone_origin_snapshot = None
+    if clone_origin_snapshot is not None:
         prev_source_snapshot_bookmark = clone_origin_snapshot
     else:
         prev_source_snapshot_bookmark = source_common_snapshot

@@ -77,6 +77,7 @@ class ZfsDataset:
 
     def __str__(self):
 
+        # return f"{self.zfs_node}: {self.name} {'force_exists' if self.force_exists else ''}"
         return self.name
 
     def __eq__(self, dataset):
@@ -90,33 +91,46 @@ class ZfsDataset:
     def __hash__(self):
         return hash(self.name)
 
+    def guid_matches(self, other):
+        """Compare GUIDs between this dataset and other. Returns True if they match,
+        or if either side has an empty guid (test mode simulation — can't compare).
+
+        :type other: ZfsDataset
+        :rtype: bool
+        """
+        guid_self = self.properties.get('guid', '')
+        guid_other = other.properties.get('guid', '')
+        if guid_self == '' or guid_other == '':
+            return True
+        return guid_self == guid_other
+
     def verbose(self, txt):
         """
         Args:
             :type txt: str
         """
-        self.zfs_node.verbose("{}: {}".format(self.name, txt))
+        self.zfs_node.verbose("{}: {}".format(self, txt))
 
     def error(self, txt):
         """
         Args:
             :type txt: str
         """
-        self.zfs_node.error("{}: {}".format(self.name, txt))
+        self.zfs_node.error("{}: {}".format(self, txt))
 
     def warning(self, txt):
         """
         Args:
             :type txt: str
         """
-        self.zfs_node.warning("{}: {}".format(self.name, txt))
+        self.zfs_node.warning("{}: {}".format(self, txt))
 
     def debug(self, txt):
         """
         Args:
             :type txt: str
         """
-        self.zfs_node.debug("{}: {}".format(self.name, txt))
+        self.zfs_node.debug("{}: {}".format(self, txt))
 
     def split_path(self):
         """return the path elements as an array"""
@@ -207,8 +221,8 @@ class ZfsDataset:
             ]
 
             self.debug("Getting zfs properties")
-
             properties = {}  # type: dict[str, str]
+
             output = cast("list[list[str]]", cast(object, self.zfs_node.run(
                 tab_split=True, cmd=cmd, readonly=True, valid_exitcodes=[0])))
             for pair in output:
@@ -289,3 +303,10 @@ class ZfsDataset:
         ]
 
         self.zfs_node.run(cmd=cmd, valid_exitcodes=[0])
+
+    def simulate_properties(self):
+        """in test mode when we create fake snapshots or bookmarks, we also need to simluate properties"""
+        if self._properties is None:
+            self._properties={
+                'guid': ''
+            }

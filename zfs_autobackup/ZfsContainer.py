@@ -21,6 +21,13 @@ class ZfsContainer(ZfsDataset):
         self._datasets = None  # type: None|list[ZfsContainer]
         self._snapshots_bookmarks = None  # type: None|list[ZfsSnapshot|ZfsBookmark]
 
+
+    # def __str__(self):
+    #
+    #     return f"{self.zfs_node}: {self.name} {'force_exists' if self.force_exists else ''} {len(self._snapshots_bookmarks) if self._snapshots_bookmarks is not None else ''}"
+
+
+
     @property
     def parent(self):
         """get parent dataset
@@ -266,6 +273,8 @@ class ZfsContainer(ZfsDataset):
     def rollback(self):
         """rollback to latest existing snapshot on this dataset"""
 
+        print (f"HIJ IS {self._snapshots_bookmarks}")
+
         for snapshot in reversed(self.snapshots):
             if snapshot.exists:
                 snapshot.rollback()
@@ -374,6 +383,10 @@ class ZfsContainer(ZfsDataset):
         self.zfs_node.run(cmd)
 
         self.force_exists = True
+
+        if self.zfs_node.readonly:
+            self._snapshots_bookmarks=[]
+            self.simulate_properties()
 
     def cache_snapshot_bookmark(self, snapshot, force=False):
         """Update our snapshot and bookmark cache (if we have any). Use force if you want to force the caching, potentially triggering a zfs list
@@ -509,7 +522,7 @@ class ZfsContainer(ZfsDataset):
             # Source snapshot with same suffix?
             source_snapshot = self.find_snapshot(target_snapshot)
             if source_snapshot:
-                if guid_check and source_snapshot.properties['guid'] != target_snapshot.properties['guid']:
+                if guid_check and not source_snapshot.guid_matches(target_snapshot):
                     source_snapshot.warning("Snapshot has mismatching GUID, ignoring.")
                 else:
                     source_snapshot.debug("Common snapshot")

@@ -183,6 +183,7 @@ class ZfsSnapshot(ZfsPointInTime):
         # in test mode we pretend everything was ok and it exists
         if self.zfs_node.readonly:
             self.force_exists = True
+            self.simulate_properties()
 
         # check if transfer was really ok (exit codes have been wrong before due to bugs in zfs-utils and some
         # errors should be ignored, thats where the ignore_exitcodes is for.)
@@ -249,7 +250,7 @@ class ZfsSnapshot(ZfsPointInTime):
 
         # try to automount it, if its the initial transfer
         if not prev_snapshot:
-            # in test mode it doesnt actually exist, so dont try to mount it/read properties
+            # in test mode it doesnt actually exist, so dont try to mount it/read properties, and simulate properties.
             if not target_snapshot.zfs_node.readonly:
                 target_snapshot.parent.automount()
 

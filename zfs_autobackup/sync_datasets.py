@@ -1,4 +1,3 @@
-from .ExecuteNode import ExecuteError
 from .ThinnerRule import ThinnerRule
 from .ZfsContainer import ZfsContainer
 from .sync_snapshots import sync_snapshots
@@ -93,54 +92,6 @@ def destroy_missing_targets(logger, target_dataset, used_target_datasets, destro
 
         except Exception as e:
             dataset.error("Error during --destroy-missing: {}".format(str(e)))
-
-
-def _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_node):
-    """Return the source-side origin snapshot to use as zfs send -i base for a clone,
-    or None if the clone relationship cannot be preserved on the target.
-
-    :type target_path: str
-    :type strip_path: int
-    :type guid_check: bool
-    :type source_dataset: ZfsContainer
-    :type target_node: ZfsNode
-    :rtype: ZfsSnapshot|None
-    """
-
-    source_origin_snap = source_dataset.origin
-    if source_origin_snap is None:
-        return None
-
-    # Reverse-clone topology (after 'zfs promote' of a child): origin lives on a namespace descendant
-    # of this dataset. zfs recv cannot land a clone-creating stream on top of the placeholder that has
-    # to exist for the descendant, so replication can't preserve the relationship.
-    origin_parent_path = source_origin_snap.name.split('@', 1)[0]
-    if origin_parent_path == source_dataset.name or origin_parent_path.startswith(source_dataset.name + "/"):
-        source_dataset.warning("Cannot replicate as clone: origin '{}' lives on a namespace descendant of this dataset. Falling back to full send.".format(source_origin_snap.name))
-        return None
-
-    try:
-        target_origin_parent = source_origin_snap.parent.map_to_target_path(target_path, strip_path)
-    except Exception as e:
-        source_dataset.warning("Cannot replicate as clone: cannot map origin '{}' to target ({}). Falling back to full send.".format(source_origin_snap.name, str(e)))
-        return None
-
-    target_origin_snap = target_node.get_snapshot(target_origin_parent + '@' + source_origin_snap.suffix)
-
-    if not target_origin_snap.exists:
-        source_dataset.warning("Cannot replicate as clone: origin '{}' not available on target. Falling back to full send.".format(source_origin_snap.name))
-        return None
-
-    if guid_check:
-        try:
-            if source_origin_snap.properties.get('guid') != target_origin_snap.properties.get('guid'):
-                source_dataset.warning("Cannot replicate as clone: origin guid mismatch between source and target. Falling back to full send.")
-                return None
-        except ExecuteError:
-            # properties not readable (e.g. test mode after a simulated recv) — skip the check
-            source_dataset.debug("Cannot read origin guid; skipping guid check for clone replication.")
-
-    return source_origin_snap
 
 
 def _topological_sort_for_clones(logger, source_datasets):
@@ -297,10 +248,6 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
             # if the source is a clone and the target-side origin is available, send
             # the first snapshot as an incremental from the origin so the clone
             # relationship is preserved on the target.
-            clone_origin_snapshot = None
-            if not no_clone:
-                clone_origin_snapshot = _resolve_clone_origin(target_path, strip_path, guid_check, source_dataset, target_node)
-
             # sync the snapshots of this dataset
             sync_snapshots(source_dataset, target_dataset, show_progress=True,
                                           features=common_features, filter_properties=filter_properties,
@@ -316,7 +263,8 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                                           guid_check=guid_check, use_bookmarks=use_bookmarks,
                                           bookmark_tag=bookmark_tag,
                                           property_format=property_format,
-                                          clone_origin_snapshot=clone_origin_snapshot,
+                                          no_clone=no_clone,
+                                          target_path=target_path, strip_path=strip_path,
                                           required_snapshots=required_origin_snapshots.get(source_dataset))
         except Exception as e:
 
