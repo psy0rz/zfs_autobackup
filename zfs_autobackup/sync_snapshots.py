@@ -90,7 +90,7 @@ def _pre_clean(source_dataset, target_dataset, source_common_snapshot, source_ob
 
 
 def _handle_incompatible_target(target_dataset, incompatible_target_snapshots, destroy_incompatible, force,
-                                source_common_snapshot, is_resume):
+                                source_common_snapshot, is_clone_origin, is_resume):
     """destroy incompatible snapshots on target before sync, or inform user what to do
 
     :type target_dataset: ZfsContainer
@@ -98,8 +98,14 @@ def _handle_incompatible_target(target_dataset, incompatible_target_snapshots, d
     :type destroy_incompatible: bool
     :type force: bool
     :type source_common_snapshot: ZfsPointInTime|None
+    :type is_clone_origin: bool
     :type is_resume: bool
     """
+
+    # a clone origin is not a real common snapshot of this dataset: it lives on a different
+    # target dataset, so it doesnt make existing content of this target dataset compatible.
+    if is_clone_origin:
+        source_common_snapshot = None
 
     if not target_dataset.exists:
         # no target yet, so everything ok
@@ -171,7 +177,7 @@ def _validate_resume_token(source_dataset, target_dataset, start_snapshot):
 
 
 def _plan_sync(source_dataset, target_dataset, also_other_snapshots, guid_check, raw, bookmark_tag,
-               required_snapshots=None):
+               no_clone, target_path, strip_path, required_snapshots=None):
     """Determine at what snapshot to start syncing to target_dataset and what to sync and what to keep.
 
     :type source_dataset: ZfsContainer
@@ -180,12 +186,16 @@ def _plan_sync(source_dataset, target_dataset, also_other_snapshots, guid_check,
     :type guid_check: bool
     :type raw: bool
     :type bookmark_tag: str
+    :type no_clone: bool
+    :type target_path: str
+    :type strip_path: int
     :type required_snapshots: set[ZfsSnapshot]|None
-    :rtype: ( ZfsSnapshot|ZfsBookmark|None, list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot] )
+    :rtype: ( ZfsSnapshot|ZfsBookmark|None, bool, list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot], list[ZfsSnapshot] )
 
     Returns:
         tuple: A tuple containing:
-            - ZfsSnapshot|ZfsBookmark|None: The source common snapshot
+            - ZfsSnapshot|ZfsBookmark|None: The source common snapshot. (the clone origin snapshot when is_clone_origin is True)
+            - bool: is_clone_origin: the common snapshot is actually the clone origin, which lives on a different dataset.
             - list[ZfsSnapshot]: Our obsolete source snapshots, after transfer is done. (will be thinned asap)
             - list[ZfsSnapshot]: Our obsolete target snapshots, after transfer is done. (will be thinned asap)
             - list[ZfsSnapshot]: Transfer target snapshots. These need to be transferred.
@@ -250,7 +260,17 @@ def _plan_sync(source_dataset, target_dataset, also_other_snapshots, guid_check,
     ### 4: look at what the thinner wants to keep and create a list of snapshots we still need to transfer
     target_transfers = [target_keep for target_keep in target_keeps if not target_keep.exists]
 
-    return source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers, incompatible_target_snapshots
+    ### 5: no common snapshot, but the source is a clone? then the origin acts as the common snapshot:
+    # the first send becomes an incremental from the origin, so zfs recv reconstructs the clone
+    # relationship on the target.
+    is_clone_origin = False
+    if source_common_snapshot is None and not no_clone and target_transfers:
+        source_common_snapshot = _resolve_clone_origin(source_dataset, target_dataset.zfs_node, target_path,
+                                                       strip_path, guid_check)
+        is_clone_origin = source_common_snapshot is not None
+
+    return (source_common_snapshot, is_clone_origin, source_obsoletes, target_obsoletes, target_transfers,
+            incompatible_target_snapshots)
 
 
 def _active_properties(source_dataset, filter_properties, set_properties, property_format):
@@ -365,10 +385,11 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
             # keep data encrypted by sending it raw (including properties)
             raw = True
 
-    (source_common_snapshot, source_obsoletes, target_obsoletes, target_transfers,
+    (source_common_snapshot, is_clone_origin, source_obsoletes, target_obsoletes, target_transfers,
      incompatible_target_snapshots) = \
         _plan_sync(source_dataset, target_dataset=target_dataset, also_other_snapshots=also_other_snapshots,
                    guid_check=guid_check, raw=raw, bookmark_tag=bookmark_tag,
+                   no_clone=no_clone, target_path=target_path, strip_path=strip_path,
                    required_snapshots=required_snapshots)
 
     if show_progress:
@@ -394,7 +415,7 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
 
     # handle incompatible stuff on target
     _handle_incompatible_target(target_dataset, incompatible_target_snapshots, destroy_incompatible, force,
-                                source_common_snapshot, resume_token is not None)
+                                source_common_snapshot, is_clone_origin, resume_token is not None)
 
     # now actually transfer the snapshots, if we want
     if no_send or len(target_transfers) == 0:
@@ -410,24 +431,16 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
         active_filter_properties.extend(["keylocation", "pbkdf2iters", "keyformat", "encryption"])
         write_embedded = False
 
-    # When the target dataset is being created fresh and the source is a clone whose
-    # origin's target equivalent exists, send the first snapshot as an incremental from
-    # that origin so zfs recv reconstructs the clone relationship on the target.
-    # Only resolve this now (not earlier) — checking target origin existence is only
-    # valid when we know this is actually a new full transfer.
-    if source_common_snapshot is None and not no_clone:
-        clone_origin_snapshot = _resolve_clone_origin(source_dataset, target_dataset.zfs_node, target_path,
-                                                      strip_path, guid_check)
-    else:
-        clone_origin_snapshot = None
+    # the source-side point-in-time (snapshot, bookmark or clone origin) to use as base for the
+    # next incremental send
+    incremental_base = source_common_snapshot
 
-    # the source-side point-in-time (snapshot or bookmark) to use as base for the next incremental send
-    if clone_origin_snapshot is not None:
-        incremental_base = clone_origin_snapshot
+    # the target-side counterpart of the common snapshot. (a clone origin has no counterpart here:
+    # it lives on the origin's target dataset)
+    if is_clone_origin:
+        prev_target_snapshot = None
     else:
-        incremental_base = source_common_snapshot
-
-    prev_target_snapshot = target_dataset.find_snapshot(source_common_snapshot)
+        prev_target_snapshot = target_dataset.find_snapshot(source_common_snapshot)
 
     do_rollback = rollback
     for target_snapshot in target_transfers:
