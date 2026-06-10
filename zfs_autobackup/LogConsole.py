@@ -21,6 +21,8 @@ class LogConsole:
         self.last_log = ""
         self.show_debug = show_debug
         self.show_verbose = show_verbose
+        self.show_progress=True
+
         self._progress_uncleared = False
 
         self.colorama = color and _COLORAMA_AVAILABLE
@@ -64,6 +66,8 @@ class LogConsole:
             sys.stdout.flush()
 
     def progress(self, txt, current=None, total=None, failed=None):
+        if not self.show_progress:
+            return
 
         if current is not None:
             self._current=current
@@ -91,6 +95,9 @@ class LogConsole:
         sys.stderr.flush()
 
     def clear_progress(self):
+        if not self.show_progress:
+            return
+
         if self._progress_uncleared:
             if self.colorama:
                 print(colorama.ansi.clear_line(), end='', file=sys.stderr)

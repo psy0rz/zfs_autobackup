@@ -52,6 +52,8 @@ class CliBase(object):
 
         self.log = LogConsole(show_debug=args.debug, show_verbose=args.verbose, color=sys.stdout.isatty())
 
+        self.log.show_progress=args.progress
+
         self.verbose(self.HEADER)
         self.verbose("")
 

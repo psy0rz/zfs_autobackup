@@ -392,8 +392,7 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
                    no_clone=no_clone, target_path=target_path, strip_path=strip_path,
                    required_snapshots=required_snapshots)
 
-    if show_progress:
-        source_dataset.zfs_node.logger.progress("Pre-cleaning..")
+    source_dataset.zfs_node.logger.progress("Pre-cleaning..")
 
     # NOTE: we do a pre-clean because we dont want filesystems to fillup when backups keep failing.
     # Also usefull with no_send to still cleanup stuff.
@@ -403,15 +402,13 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
 
     # check if we can resume
     if len(target_transfers) > 0:
-        if show_progress:
-            source_dataset.zfs_node.logger.progress("Verifying resume token...")
+        source_dataset.zfs_node.logger.progress("Verifying resume token...")
 
         resume_token = _validate_resume_token(source_dataset, target_dataset, target_transfers[0])
     else:
         resume_token = None
 
-    if show_progress:
-        source_dataset.zfs_node.logger.progress("Preparing...")
+    source_dataset.zfs_node.logger.progress("Preparing...")
 
     # handle incompatible stuff on target
     _handle_incompatible_target(target_dataset, incompatible_target_snapshots, destroy_incompatible, force,
@@ -450,8 +447,7 @@ def sync_snapshots(source_dataset, target_dataset, features, show_progress, filt
 
         # do the rollback, one time at first transfer
         if do_rollback:
-            if show_progress:
-                source_dataset.zfs_node.logger.progress("Rolling back {}...".format(target_dataset))
+            source_dataset.zfs_node.logger.progress("Rolling back {}...".format(target_dataset))
 
             target_dataset.rollback()
             do_rollback = False
