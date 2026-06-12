@@ -10,7 +10,7 @@ class CliBase(object):
     Overridden in subclasses that add stuff for the specific programs."""
 
     # also used by setup.py
-    VERSION = "4.0-beta3"
+    VERSION = "4.0-beta4"
     HEADER = "{} v{} - (c)2026 E.H.Eefting (edwin@datux.nl)".format(os.path.basename(sys.argv[0]), VERSION)
 
     def __init__(self, argv, print_arguments=True):
