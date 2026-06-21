@@ -256,7 +256,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
 
             # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
             use_bookmarks = not no_bookmarks
-            if use_bookmarks and 'bookmark_written' not in common_features:
+            if use_bookmarks and 'bookmarks' not in common_features:
                 source_dataset.warning("Disabling bookmarks, not supported on both pools.")
                 use_bookmarks = False
 
