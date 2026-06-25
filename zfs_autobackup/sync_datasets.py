@@ -229,6 +229,7 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
 
     fail_count = 0
     target_datasets = []
+    bookmarks_unsupported_pools = set()  # source pools we've already warned about
     for count, source_dataset in enumerate(source_datasets, start=1):
 
         logger.progress("Analysing dataset...", count, len(source_datasets), fail_count)
@@ -240,7 +241,6 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
             target_datasets.append(target_dataset)
 
             # ensure parents exists
-            # TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
             target_parent = target_dataset.parent
             if not no_send \
                     and target_parent is not None \
@@ -249,15 +249,17 @@ def sync_datasets(logger, source_node, source_datasets, target_node, bookmark_ta
                 target_dataset.debug("Creating unmountable parents")
                 target_parent.create_filesystem(parents=True)
 
-            # determine common zpool features (cached, so no problem we call it often)
-            source_features = source_node.get_pool(source_dataset).features
+            # determine common zpool features
+            source_pool = source_node.get_pool(source_dataset)
+            source_features = source_pool.features
             target_features = target_node.get_pool(target_dataset).features
             common_features = [feature for feature in source_features if feature in target_features]
 
-            # NOTE: bookmark_written seems to be needed. (only 'bookmarks' was not enough on ubuntu 20)
             use_bookmarks = not no_bookmarks
             if use_bookmarks and 'bookmarks' not in common_features:
-                source_dataset.warning("Disabling bookmarks, not supported on both pools.")
+                if source_pool.name not in bookmarks_unsupported_pools:
+                    source_pool.warning("Disabling bookmarks, not supported on both pools.")
+                    bookmarks_unsupported_pools.add(source_pool.name)
                 use_bookmarks = False
 
             # sync the snapshots of this dataset

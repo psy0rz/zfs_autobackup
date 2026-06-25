@@ -30,6 +30,9 @@ class ZfsPool():
     def verbose(self, txt):
         self.zfs_node.verbose("zpool {}: {}".format(self.name, txt))
 
+    def warning(self, txt):
+        self.zfs_node.warning("zpool {}: {}".format(self.name, txt))
+
     def error(self, txt):
         self.zfs_node.error("zpool {}: {}".format(self.name, txt))
 
