@@ -15,10 +15,10 @@ class TestTreeHasher(unittest2.TestCase):
 
     def test_treehasher(self):
         shelltest("rm -rf /tmp/treehashertest; mkdir /tmp/treehashertest")
-        shelltest("cp tests/data/whole /tmp/treehashertest")
+        shelltest("cp data/whole /tmp/treehashertest")
         shelltest("mkdir /tmp/treehashertest/emptydir")
         shelltest("mkdir /tmp/treehashertest/dir")
-        shelltest("cp tests/data/whole_whole2_partial /tmp/treehashertest/dir")
+        shelltest("cp data/whole_whole2_partial /tmp/treehashertest/dir")
 
         # it should ignore these:
         shelltest("ln -s / /tmp/treehashertest/symlink")
@@ -66,7 +66,7 @@ class TestTreeHasher(unittest2.TestCase):
 
         with self.subTest("Test mismatch"):
             generator = list(tree_hasher.generate("/tmp/treehashertest"))
-            shelltest("cp tests/data/whole2 /tmp/treehashertest/whole")
+            shelltest("cp data/whole2 /tmp/treehashertest/whole")
 
             self.assertEqual(list(tree_hasher.compare("/tmp/treehashertest", generator)),
                              [('whole',

@@ -1,5 +1,5 @@
-#Used for baseclasses that dont implement their own logging (Like ExecuteNode)
-#Usually logging is implemented in subclasses (Like ZfsNode thats a subclass of ExecuteNode), but for regression testing its nice to have these stubs.
+# Used for baseclasses that dont implement their own logging (Like ExecuteNode)
+# Usually logging is implemented in subclasses (Like ZfsNode thats a subclass of ExecuteNode), but for regression testing its nice to have these stubs.
 
 class LogStub:
     """Just a stub, usually overriden in subclasses."""

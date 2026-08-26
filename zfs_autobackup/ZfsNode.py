@@ -1,35 +1,44 @@
 # python 2 compatibility
 from __future__ import print_function
-from operator import attrgetter
 import re
 import shlex
-import subprocess
-import sys
+
 import time
 
 from .ExecuteNode import ExecuteNode
-from .Thinner import Thinner
-from .CachedProperty import CachedProperty
+from .ZfsContainer import ZfsContainer
 from .ZfsPool import ZfsPool
 from .ZfsDataset import ZfsDataset
+from .ZfsSnapshot import ZfsSnapshot
+from .ZfsBookmark import ZfsBookmark
 from .ExecuteNode import ExecuteError
 from .util import datetime_now
+
 
 
 class ZfsNode(ExecuteNode):
     """a node that contains zfs datasets. implements global (systemwide/pool wide) zfs commands"""
 
-    def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None, readonly=False,
-                 description="",
-                 debug_output=False, thinner=None, exclude_snapshot_patterns=[]):
+    # def __init__(self, logger, utc=False, snapshot_time_format="", hold_name="", ssh_config=None, ssh_to=None,
+    #              readonly=False,
+    #              description="",
+    #              debug_output=False, thinner=None, exclude_snapshot_patterns=None, tag_seperator='~'):
+    def __init__(self, logger, utc, snapshot_time_format, hold_name, ssh_config, ssh_to,
+                 readonly,
+                 description,
+                 debug_output, thinner, exclude_snapshot_patterns, tag_seperator):
 
         self.utc = utc
         self.snapshot_time_format = snapshot_time_format
+        self.tag_seperator = tag_seperator
         self.hold_name = hold_name
 
         self.description = description
 
         self.logger = logger
+
+        self._supported_send_options = None
+        self._supported_recv_options = None
 
         self.exclude_snapshot_patterns = exclude_snapshot_patterns
 
@@ -49,46 +58,56 @@ class ZfsNode(ExecuteNode):
             else:
                 self.verbose("Keep no old snaphots")
 
-        self.__thinner = thinner
+        self._thinner = thinner
 
         # list of ZfsPools
-        self.__pools = {}
-        self.__datasets = {}
+        self._pools = {}  # type: dict[str, ZfsPool]
+        self._datasets = {}  # type: dict[str, ZfsContainer | ZfsBookmark | ZfsSnapshot]
 
         self._progress_total_bytes = 0
         self._progress_start_time = time.time()
 
         ExecuteNode.__init__(self, ssh_config=ssh_config, ssh_to=ssh_to, readonly=readonly, debug_output=debug_output)
 
-    def thin(self, objects, keep_objects):
+    def thin_list(self, snapshots, keep_snapshots):
+        """Returns a list of snapshots to keep and remove, according to current time and thinner settings.
+
+        :return: ( keeps, removes )
+        :type snapshots: list[ZfsSnapshot]
+        :type keep_snapshots: list[ZfsSnapshot]
+        :rtype: ( list[ZfsSnapshot], list[ZfsSnapshot] )
+        """
         # NOTE: if thinning is disabled with --no-thinning, self.__thinner will be none.
-        if self.__thinner is not None:
+        if self._thinner is not None:
 
-            return self.__thinner.thin(objects, keep_objects, datetime_now(self.utc).timestamp())
+            return self._thinner.thin(snapshots, keep_snapshots, datetime_now(self.utc).timestamp())
         else:
-            return (keep_objects, [])
+            return (keep_snapshots, [])
 
-    @CachedProperty
+    @property
     def supported_send_options(self):
         """list of supported options, for optimizing sends"""
         # not every zfs implementation supports them all
 
-        ret = []
-        for option in ["-L", "-e", "-c"]:
-            if self.valid_command(["zfs", "send", option, "zfs_autobackup_option_test"]):
-                ret.append(option)
-        return ret
+        if self._supported_send_options is None:
+            self._supported_send_options = []
+            for option in ["-L", "-e", "-c"]:
+                if self.valid_command(["zfs", "send", option, "zfs_autobackup_option_test"]):
+                    self._supported_send_options.append(option)
+        return self._supported_send_options
 
-    @CachedProperty
+    @property
     def supported_recv_options(self):
         """list of supported options"""
         # not every zfs implementation supports them all
 
-        ret = []
-        for option in ["-s"]:
-            if self.valid_command(["zfs", "recv", option, "zfs_autobackup_option_test"]):
-                ret.append(option)
-        return ret
+        if self._supported_recv_options is None:
+            self._supported_recv_options = []
+            for option in ["-s"]:
+                if self.valid_command(["zfs", "recv", option, "zfs_autobackup_option_test"]):
+                    self._supported_recv_options.append(option)
+
+        return self._supported_recv_options
 
     def valid_command(self, cmd):
         """test if a specified zfs options are valid exit code. use this to determine support options"""
@@ -108,12 +127,67 @@ class ZfsNode(ExecuteNode):
 
         zpool_name = dataset.name.split("/")[0]
 
-        return self.__pools.setdefault(zpool_name, ZfsPool(self, zpool_name))
+        return self._pools.setdefault(zpool_name, ZfsPool(self, zpool_name))
 
     def get_dataset(self, name, force_exists=None):
-        """get a ZfsDataset() object from name. stores objects internally to enable caching"""
+        """get a ZfsDataset() object from name. stores objects internally to enable caching
+        :type name: str
+        :rtype: ZfsContainer | ZfsBookmark | ZfsSnapshot
+        """
 
-        return self.__datasets.setdefault(name, ZfsDataset(self, name, force_exists))
+        if name in self._datasets:
+            return self._datasets[name]
+
+        if '@' in name:
+
+            self._datasets[name] = ZfsSnapshot(self, name, force_exists=force_exists)
+        elif '#' in name:
+
+            self._datasets[name] = ZfsBookmark(self, name, force_exists=force_exists)
+        else:
+
+            self._datasets[name] = ZfsContainer(self, name, force_exists=force_exists)
+
+        return self._datasets[name]
+
+    def get_container(self, name, force_exists=None):
+        """get a ZfsContainer from name, asserting the name contains no @ or #.
+        :type name: str
+        :rtype: ZfsContainer
+        """
+        dataset = self.get_dataset(name, force_exists=force_exists)
+        assert isinstance(dataset, ZfsContainer)
+        return dataset
+
+    def get_snapshot(self, name, force_exists=None):
+        """get a ZfsSnapshot from name, asserting the name contains @.
+        :type name: str
+        :rtype: ZfsSnapshot
+        """
+        dataset = self.get_dataset(name, force_exists=force_exists)
+        assert isinstance(dataset, ZfsSnapshot)
+        return dataset
+
+    def get_bookmark(self, name, force_exists=None):
+        """get a ZfsBookmark from name, asserting the name contains #.
+        :type name: str
+        :rtype: ZfsBookmark
+        """
+        dataset = self.get_dataset(name, force_exists=force_exists)
+        assert isinstance(dataset, ZfsBookmark)
+        return dataset
+
+    def get_datasets(self, names, force_exists=None):
+        """get a list of ZfsDataset() object from names. stores objects internally to enable caching
+        :rtype: list[ZfsContainer | ZfsBookmark | ZfsSnapshot]
+
+        """
+
+        ret = []
+        for name in names:
+            ret.append(self.get_dataset(name, force_exists))
+
+        return ret
 
     # def reset_progress(self):
     #     """reset progress output counters"""
@@ -149,14 +223,15 @@ class ZfsNode(ExecuteNode):
                     self._progress_start_time = time.time()
                 elif progress_fields[1].isnumeric():
                     bytes_ = int(progress_fields[1])
-                    if self._progress_total_bytes:
+                    elapsed = time.time() - self._progress_start_time
+                    if self._progress_total_bytes and elapsed > 0 and bytes_ > 0:
                         percentage = min(100, int(bytes_ * 100 / self._progress_total_bytes))
-                        speed = int(bytes_ / (time.time() - self._progress_start_time) / (1024 * 1024))
+                        speed = int(bytes_ / elapsed / (1024 * 1024))
                         bytes_left = self._progress_total_bytes - bytes_
-                        minutes_left = int((bytes_left / (bytes_ / (time.time() - self._progress_start_time))) / 60)
+                        minutes_left = int(bytes_left / (bytes_ / elapsed) / 60)
 
                         self.logger.progress(
-                            "Transfer {}% {}MB/s (total {}MB, {} minutes left)".format(percentage, speed, int(
+                            "Transfering {}% {}MB/s (total {}MB, {} minutes left)".format(percentage, speed, int(
                                 self._progress_total_bytes / (1024 * 1024)), minutes_left))
 
             return
@@ -188,19 +263,25 @@ class ZfsNode(ExecuteNode):
     def consistent_snapshot(self, datasets, snapshot_name, min_changed_bytes, pre_snapshot_cmds=[],
                             post_snapshot_cmds=[], set_snapshot_properties=[]):
         """create a consistent (atomic) snapshot of specified datasets, per pool.
+        Args:
+            :type datasets: list[ZfsContainer]
         """
 
-        pools = {}
+        pools = {} # type: dict[str, list[ZfsSnapshot]]
 
         # collect snapshots that we want to make, per pool
         # self.debug(datasets)
         for dataset in datasets:
             if not dataset.is_changed_ours(min_changed_bytes):
-                dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].snapshot_name))
+                dataset.verbose("No changes since {}".format(dataset.our_snapshots[-1].suffix))
                 continue
 
             # force_exist, since we're making it
-            snapshot = self.get_dataset(dataset.name + "@" + snapshot_name, force_exists=True)
+            snapshot = self.get_snapshot(dataset.name + "@" + snapshot_name, force_exists=True)
+
+            if self.readonly:
+                snapshot.simulate_properties()
+
 
             pool = dataset.split_path()[0]
             if pool not in pools:
@@ -208,9 +289,7 @@ class ZfsNode(ExecuteNode):
 
             pools[pool].append(snapshot)
 
-            # update cache, but try to prevent an unneeded zfs list
-            if self.readonly or CachedProperty.is_cached(dataset, 'snapshots'):
-                dataset.snapshots.append(snapshot)  # NOTE: this will trigger zfs list if its not cached
+            dataset.cache_snapshot_bookmark(snapshot, force=self.readonly)
 
         if not pools:
             self.verbose("No changes anywhere: not creating snapshots.")
@@ -227,7 +306,7 @@ class ZfsNode(ExecuteNode):
                 for snapshot_property in set_snapshot_properties:
                     cmd += ['-o', snapshot_property]
 
-                cmd.extend(map(lambda snapshot_: str(snapshot_), snapshots))
+                cmd.extend(map(lambda snapshot_: snapshot_.name, snapshots))
 
                 self.verbose("Creating snapshots {} in pool {}".format(snapshot_name, pool_name))
                 self.run(cmd, readonly=False)
@@ -240,22 +319,21 @@ class ZfsNode(ExecuteNode):
                 except Exception as e:
                     pass
 
-    def selected_datasets(self, property_name, exclude_received, exclude_paths, exclude_unchanged):
+    def selected_datasets(self, property_name, exclude_paths, exclude_unchanged):
         """determine filesystems that should be backed up by looking at the special autobackup-property, systemwide
 
-           returns: (list of selected ZfsDataset sorted by createtxg, list of excluded ZfsDataset)
+           returns: ( list of selected ZfsContainer, list of excluded ZfsContainer)
         """
 
         self.debug("Getting selected datasets")
 
         # get all source filesystems that have the backup property
         lines = self.run(tab_split=True, readonly=True, cmd=[
-            "zfs", "get", "-t", "volume,filesystem", "-Hp",
-            property_name + ",createtxg"
+            "zfs", "get", "-t", "volume,filesystem", "-o", "name,value,source", "-H",
+            property_name
         ])
 
-
-        # The returnlist of selected ZfsDataset's:
+        # The returnlist of selected ZfsContainer's:
         selected_filesystems = []
         excluded_filesystems = []
 
@@ -263,14 +341,8 @@ class ZfsNode(ExecuteNode):
         sources = {}
 
         for line in lines:
-            (name, prop_name, value, raw_source) = line
-            if prop_name == "createtxg":
-                # createtxg for the last dataset
-                if selected_filesystems and selected_filesystems[-1].name == name:
-                    selected_filesystems[-1].createtxg = int(value)
-            if prop_name != property_name:
-                continue
-            dataset = self.get_dataset(name, force_exists=True)
+            (name, value, raw_source) = line
+            dataset = self.get_container(name, force_exists=True)
 
             # "resolve" inherited sources
             sources[name] = raw_source
@@ -283,14 +355,38 @@ class ZfsNode(ExecuteNode):
                 source = raw_source
 
             # determine it
-            selected=dataset.is_selected(value=value, source=source, inherited=inherited, exclude_received=exclude_received,
-                                   exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged)
+            selected = dataset.is_selected(value=value, source=source, inherited=inherited,
+                                           exclude_paths=exclude_paths, exclude_unchanged=exclude_unchanged)
 
-            if selected==True:
+            if selected == True:
                 selected_filesystems.append(dataset)
-            elif selected==False:
+            elif selected == False:
                 excluded_filesystems.append(dataset)
-            #returns None when no property is set.
+            # returns None when no property is set.
 
-        return (sorted(selected_filesystems, key=attrgetter("createtxg")),
-                excluded_filesystems)
+        return (selected_filesystems, excluded_filesystems)
+
+    def get_resume_snapshot(self, target_resume_token):
+        """returns snapshot that will be resumed by this resume token (run this
+        on source node with target-token)
+
+        Args:
+            :type target_resume_token: str
+            :rtype: ZfsSnapshot|None
+        """
+        # use zfs send -n option to determine this
+        # NOTE: on smartos stderr, on linux stdout
+        (stdout, stderr) = self.run(["zfs", "send", "-t", target_resume_token, "-n", "-v"], valid_exitcodes=[0, 255],
+                                    readonly=True, return_stderr=True)
+        if stdout:
+            lines = stdout
+        else:
+            lines = stderr
+        for line in lines:
+            matches = re.findall("toname = (.*@.*)", line)
+            if matches:
+                snapshot = self.get_snapshot(matches[0])
+                snapshot.debug("resume token belongs to this snapshot")
+                return snapshot
+
+        return None

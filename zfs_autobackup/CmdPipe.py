@@ -41,7 +41,7 @@ class CmdItem:
         self.exit_handler = exit_handler
         self.shell = shell
         self.process = None
-        self.next = None #next item in pipe, set by CmdPipe
+        self.next = None  # next item in pipe, set by CmdPipe
 
     def __str__(self):
         """return copy-pastable version of command."""
@@ -126,7 +126,7 @@ class CmdPipe:
         success = True
         for item in self.items:
             if item.exit_handler is not None:
-                success=item.exit_handler(item.process.returncode) and success
+                success = item.exit_handler(item.process.returncode) and success
 
         return success
 
@@ -144,21 +144,20 @@ class CmdPipe:
 
             for item in self.items:
                 if item.process.stdout in read_ready:
-                    line = item.process.stdout.readline().decode('utf-8').rstrip()
-                    if line != "":
-                        item.stdout_handler(line)
-                    else:
+                    raw = item.process.stdout.readline()
+                    if raw == b"":
                         eof_count = eof_count + 1
                         if item.next:
                             item.next.process.stdin.close()
+                    else:
+                        item.stdout_handler(raw.decode('utf-8').rstrip())
 
                 if item.process.stderr in read_ready:
-                    line = item.process.stderr.readline().decode('utf-8').rstrip()
-                    if line != "":
-                        item.stderr_handler(line)
-                    else:
+                    raw = item.process.stderr.readline()
+                    if raw == b"":
                         eof_count = eof_count + 1
-
+                    else:
+                        item.stderr_handler(raw.decode('utf-8').rstrip())
 
                 if item.process.poll() is not None:
                     done_count = done_count + 1
@@ -166,8 +165,6 @@ class CmdPipe:
             # all filehandles are eof and all processes are done (poll() is not None)
             if eof_count == len(selectors) and done_count == len(self.items):
                 break
-
-
 
     def __create(self):
         """create actual processes, do piping and return selectors."""

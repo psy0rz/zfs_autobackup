@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+HOST=root@ws2
+DST=/home/psy/zfs_autobackup
+
+rsync --delete -avx . "$HOST:$DST"
+
+ssh $HOST "cd $DST && ./tests/run_test $@"

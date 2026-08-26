@@ -2,28 +2,34 @@
 from __future__ import print_function
 
 import sys
+import time
+
+try:
+    import colorama
+    _COLORAMA_AVAILABLE = True
+except ImportError:
+    _COLORAMA_AVAILABLE = False
+
 
 class LogConsole:
     """Log-class that outputs to console, adding colors if needed"""
+
+    # ANSI escape used as a fallback when colorama isn't available
+    _CLEAR_LINE = "\033[2K\r"
 
     def __init__(self, show_debug, show_verbose, color):
         self.last_log = ""
         self.show_debug = show_debug
         self.show_verbose = show_verbose
-        self._progress_uncleared=False
+        self.show_progress=True
 
-        if color:
-            # try to use color, failback if colorama not available
-            self.colorama=False
-            try:
-                import colorama
-                global colorama
-                self.colorama = True
-            except ImportError:
-                pass
+        self._progress_uncleared = False
 
-        else:
-            self.colorama=False
+        self.colorama = color and _COLORAMA_AVAILABLE
+
+        self._failed=None
+        self._current=None
+        self._total=None
 
     def error(self, txt):
         self.clear_progress()
@@ -59,16 +65,43 @@ class LogConsole:
                 print("# " + txt)
             sys.stdout.flush()
 
-    def progress(self, txt):
+    def progress(self, txt, current=None, total=None, failed=None):
+        if not self.show_progress:
+            return
+
+        if current is not None:
+            self._current=current
+
+        if total is not None:
+            self._total=total
+
+        if failed is not None:
+            self._failed=failed
+
         """print progress output to stderr (stays on same line)"""
         self.clear_progress()
-        self._progress_uncleared=True
-        print(">>> {}\r".format(txt), end='', file=sys.stderr)
+        self._progress_uncleared = True
+
+        if self._current is None:
+            line=f">>> {txt}"
+        else:
+            if self._failed:
+                line=f">>> [{self._current}/{self._total}] {txt} ({self._failed} failed)"
+            else:
+                line=f">>> [{self._current}/{self._total}] {txt}"
+
+        print(line+"\r", end='', file=sys.stderr)
+
         sys.stderr.flush()
 
     def clear_progress(self):
+        if not self.show_progress:
+            return
+
         if self._progress_uncleared:
-            import colorama
-            print(colorama.ansi.clear_line(), end='', file=sys.stderr)
-            # sys.stderr.flush()
-            self._progress_uncleared=False
+            if self.colorama:
+                print(colorama.ansi.clear_line(), end='', file=sys.stderr)
+            else:
+                print(self._CLEAR_LINE, end='', file=sys.stderr)
+            self._progress_uncleared = False
+            sys.stderr.flush()

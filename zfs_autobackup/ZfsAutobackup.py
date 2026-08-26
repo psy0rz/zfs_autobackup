@@ -1,16 +1,14 @@
-
 import argparse
 from signal import signal, SIGPIPE
-from .util import output_redir, sigpipe_handler, datetime_now
-
-from .ZfsAuto import ZfsAuto
 
 from . import compressors
 from .ExecuteNode import ExecuteNode
 from .Thinner import Thinner
-from .ZfsDataset import ZfsDataset
+from .ZfsAuto import ZfsAuto
 from .ZfsNode import ZfsNode
-from .ThinnerRule import ThinnerRule
+from .sync_datasets import sync_datasets
+from .util import sigpipe_handler, datetime_now
+
 
 class ZfsAutobackup(ZfsAuto):
     """The main zfs-autobackup class. Start here, at run() :)"""
@@ -31,6 +29,15 @@ class ZfsAutobackup(ZfsAuto):
         if args.allow_empty:
             args.min_change = 0
 
+        # With --keep-source=0 nothing survives on the source between runs, so the
+        # per-dataset is_changed_ours() check has no reference snapshot to compare
+        # against — every dataset would get a fresh snapshot anyway. Force min-change=0
+        # to skip the our_snapshots / written@... lookups entirely (significant speedup
+        # on large dataset counts).
+        if args.keep_source == "0" and args.min_change > 0:
+            self.verbose("NOTE: --keep-source=0: forcing --min-change=0 (no source reference to compare against).")
+            args.min_change = 0
+
         # if args.destroy_incompatible:
         #     args.rollback = True
 
@@ -46,6 +53,10 @@ class ZfsAutobackup(ZfsAuto):
 
         if args.compress and args.zfs_compressed:
             self.warning("Using --compress with --zfs-compressed, might be inefficient.")
+
+        if args.decrypt:
+            self.warning(
+                "Properties will not be sent over for datasets that will be decrypted. (zfs bug https://github.com/openzfs/zfs/issues/16275)")
 
         return args
 
@@ -73,12 +84,17 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--no-guid-check', action='store_true',
                            help='Dont check guid of common snapshots. (faster)')
 
-
         group = parser.add_argument_group("Transfer options")
         group.add_argument('--no-send', action='store_true',
                            help='Don\'t transfer snapshots (useful for cleanups, or if you want a separate send-cronjob)')
         group.add_argument('--no-holds', action='store_true',
                            help='Don\'t hold snapshots. (Faster. Allows you to destroy common snapshot.)')
+        group.add_argument('--no-bookmarks', action='store_true',
+                           help='Don\'t use bookmarks.')
+        group.add_argument('--no-clone', action='store_true',
+                           help="Don't preserve clone relationships during replication. "
+                                "Source datasets that are clones will be replicated as full standalone datasets.")
+
         group.add_argument('--clear-refreservation', action='store_true',
                            help='Filter "refreservation" property. (recommended, saves space. same as '
                                 '--filter-properties refreservation)')
@@ -91,6 +107,7 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--set-properties', metavar='PROPERTY=VALUE,...', type=str,
                            help='List of propererties to override when receiving filesystems. (you can still restore '
                                 'them with zfs inherit -S)')
+
         group.add_argument('--rollback', action='store_true',
                            help='Rollback changes to the latest target snapshot before starting. (normally you can '
                                 'prevent changes by setting the readonly property on the target_path to on)')
@@ -110,12 +127,6 @@ class ZfsAutobackup(ZfsAuto):
         group.add_argument('--zfs-compressed', action='store_true',
                            help='Transfer blocks that already have zfs-compression as-is.')
 
-        group.add_argument('--clones', metavar='POLICY', default='never',
-                           choices=('never', 'simple'),
-                           help='Clones support. (The default policy "never" expands clones into full independent datasets. '
-                                '"simple" tries to reproduce the clone when the origin snapshot is already copied '
-                                'in the same target root)')
-
         group = parser.add_argument_group("Data transfer options")
         group.add_argument('--compress', metavar='TYPE', default=None, nargs='?', const='zstd-fast',
                            choices=compressors.choices(),
@@ -125,8 +136,8 @@ class ZfsAutobackup(ZfsAuto):
                            help='Limit data transfer rate in Bytes/sec (e.g. 128K. requires mbuffer.)')
         group.add_argument('--buffer', metavar='SIZE', default=None,
                            help='Add zfs send and recv buffers to smooth out IO bursts. (e.g. 128M. requires mbuffer)')
-        parser.add_argument('--buffer-chunk-size', metavar="BUFFERCHUNKSIZE", default=None,
-                            help='Tune chunk size when mbuffer is used. (requires mbuffer.)')
+        group.add_argument('--buffer-chunk-size', metavar="BUFFERCHUNKSIZE", default=None,
+                           help='Tune chunk size when mbuffer is used. (requires mbuffer.)')
         group.add_argument('--send-pipe', metavar="COMMAND", default=[], action='append',
                            help='pipe zfs send output through COMMAND (can be used multiple times)')
         group.add_argument('--recv-pipe', metavar="COMMAND", default=[], action='append',
@@ -147,104 +158,6 @@ class ZfsAutobackup(ZfsAuto):
         parser.add_argument('--raw', action='store_true', help=argparse.SUPPRESS)
 
         return parser
-
-    # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
-    def thin_missing_targets(self, target_dataset, used_target_datasets):
-        """thin target datasets that are missing on the source.
-        :type used_target_datasets: list[ZfsDataset]
-        :type target_dataset: ZfsDataset
-        """
-
-        self.debug("Thinning obsolete datasets")
-        missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
-                            dataset not in used_target_datasets]
-
-        count = 0
-        for dataset in missing_datasets:
-            self.debug("analyse missing {}".format(dataset))
-
-            count = count + 1
-            if self.args.progress:
-                self.progress("Analysing missing {}/{}".format(count, len(missing_datasets)))
-
-            try:
-                dataset.debug("Missing on source, thinning")
-                dataset.thin()
-
-            except Exception as e:
-                dataset.error("Error during thinning of missing datasets ({})".format(str(e)))
-
-        # if self.args.progress:
-        #     self.clear_progress()
-
-    # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
-    def destroy_missing_targets(self, target_dataset, used_target_datasets):
-        """destroy target datasets that are missing on the source and that meet the requirements
-        :type used_target_datasets: list[ZfsDataset]
-        :type target_dataset: ZfsDataset
-
-        """
-
-        self.debug("Destroying obsolete datasets")
-
-        missing_datasets = [dataset for dataset in target_dataset.recursive_datasets if
-                            dataset not in used_target_datasets]
-
-        count = 0
-        for dataset in missing_datasets:
-
-            count = count + 1
-            if self.args.progress:
-                self.progress("Analysing destroy missing {}/{}".format(count, len(missing_datasets)))
-
-            try:
-                # cant do anything without our own snapshots
-                if not dataset.our_snapshots:
-                    if dataset.datasets:
-                        # its not a leaf, just ignore
-                        dataset.debug("Destroy missing: ignoring")
-                    else:
-                        dataset.verbose(
-                            "Destroy missing: has no snapshots made by us (please destroy manually).")
-                else:
-                    # past the deadline?
-                    deadline_ttl = ThinnerRule("0s" + self.args.destroy_missing).ttl
-                    now = datetime_now(self.args.utc).timestamp()
-                    if dataset.our_snapshots[-1].timestamp + deadline_ttl > now:
-                        dataset.verbose("Destroy missing: Waiting for deadline.")
-                    else:
-
-                        dataset.debug("Destroy missing: Removing our snapshots.")
-
-                        # remove all our snaphots, except last, to safe space in case we fail later on
-                        for snapshot in dataset.our_snapshots[:-1]:
-                            snapshot.destroy(fail_exception=True)
-
-                        # does it have other snapshots?
-                        has_others = False
-                        for snapshot in dataset.snapshots:
-                            if not snapshot.is_ours():
-                                has_others = True
-                                break
-
-                        if has_others:
-                            dataset.verbose("Destroy missing: Still in use by other snapshots")
-                        else:
-                            if dataset.datasets:
-                                dataset.verbose("Destroy missing: Still has children here.")
-                            else:
-                                dataset.verbose("Destroy missing.")
-                                dataset.our_snapshots[-1].destroy(fail_exception=True)
-                                dataset.destroy(fail_exception=True)
-
-            except Exception as e:
-                # if self.args.progress:
-                #     self.clear_progress()
-
-                dataset.error("Error during --destroy-missing: {}".format(str(e)))
-
-        # if self.args.progress:
-        #     self.clear_progress()
 
     def get_send_pipes(self, logger):
         """determine the zfs send pipe"""
@@ -328,102 +241,24 @@ class ZfsAutobackup(ZfsAuto):
 
         return ret
 
-    def make_target_name(self, source_dataset):
-        """make target_name from a source_dataset"""
-        stripped=source_dataset.lstrip_path(self.args.strip_path)
-        if stripped!="":
-            return self.args.target_path + "/" + stripped
-        else:
-            return self.args.target_path
-
     def check_target_names(self, source_node, source_datasets, target_node):
         """check all target names for collesions etc due to strip-options"""
 
         self.debug("Checking target names:")
-        target_datasets={}
+        target_datasets = {}
         for source_dataset in source_datasets:
 
-            target_name = self.make_target_name(source_dataset)
+            target_name = source_dataset.map_to_target_path(self.args.target_path, self.args.strip_path)
             source_dataset.debug("-> {}".format(target_name))
 
             if target_name in target_datasets:
-                raise Exception("Target collision: Target path {} encountered twice, due to: {} and {}".format(target_name, source_dataset, target_datasets[target_name]))
+                raise Exception(
+                    "Target collision: Target path {} encountered twice, due to: {} and {}".format(target_name,
+                                                                                                   source_dataset,
+                                                                                                   target_datasets[
+                                                                                                       target_name]))
 
-            target_datasets[target_name]=source_dataset
-
-    # NOTE: this method also uses self.args. args that need extra processing are passed as function parameters:
-    def sync_datasets(self, source_node, source_datasets, target_node):
-        """Sync datasets, or thin-only on both sides
-        :type target_node: ZfsNode
-        :type source_datasets: list of ZfsDataset
-        :type source_node: ZfsNode
-        """
-
-        send_pipes = self.get_send_pipes(source_node.verbose)
-        recv_pipes = self.get_recv_pipes(target_node.verbose)
-
-        fail_count = 0
-        count = 0
-        target_datasets = []
-        for source_dataset in source_datasets:
-
-            # stats
-            if self.args.progress:
-                count = count + 1
-                self.progress("Analysing dataset {}/{} ({} failed)".format(count, len(source_datasets), fail_count))
-
-            try:
-                # determine corresponding target_dataset
-                target_name = self.make_target_name(source_dataset)
-                target_dataset = target_node.get_dataset(target_name)
-                target_datasets.append(target_dataset)
-
-                # ensure parents exists
-                # TODO: this isnt perfect yet, in some cases it can create parents when it shouldn't.
-                if not self.args.no_send \
-                        and target_dataset.parent \
-                        and target_dataset.parent not in target_datasets \
-                        and not target_dataset.parent.exists:
-                    target_dataset.debug("Creating unmountable parents")
-                    target_dataset.parent.create_filesystem(parents=True)
-
-                # determine common zpool features (cached, so no problem we call it often)
-                source_features = source_node.get_pool(source_dataset).features
-                target_features = target_node.get_pool(target_dataset).features
-                common_features = source_features and target_features
-
-                # sync the snapshots of this dataset
-                source_dataset.sync_snapshots(target_dataset, show_progress=self.args.progress,
-                                              features=common_features, filter_properties=self.filter_properties_list(),
-                                              set_properties=self.set_properties_list(),
-                                              ignore_recv_exit_code=self.args.ignore_transfer_errors,
-                                              holds=not self.args.no_holds, rollback=self.args.rollback,
-                                              also_other_snapshots=self.args.other_snapshots,
-                                              no_send=self.args.no_send,
-                                              destroy_incompatible=self.args.destroy_incompatible,
-                                              send_pipes=send_pipes, recv_pipes=recv_pipes,
-                                              decrypt=self.args.decrypt, encrypt=self.args.encrypt,
-                                              zfs_compressed=self.args.zfs_compressed, force=self.args.force,
-                                              guid_check=not self.args.no_guid_check,
-                                              clones=self.args.clones,
-                                              make_target_name=lambda source_dataset: self.make_target_name(source_dataset))
-            except Exception as e:
-
-                fail_count = fail_count + 1
-                source_dataset.error("FAILED: " + str(e))
-                if self.args.debug:
-                    self.verbose("Debug mode, aborting on first error")
-                    raise
-
-
-        target_path_dataset = target_node.get_dataset(self.args.target_path)
-        if not self.args.no_thinning:
-            self.thin_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
-
-        if self.args.destroy_missing is not None:
-            self.destroy_missing_targets(target_dataset=target_path_dataset, used_target_datasets=target_datasets)
-
-        return fail_count
+            target_datasets[target_name] = source_dataset
 
     def thin_source(self, source_datasets):
 
@@ -482,14 +317,17 @@ class ZfsAutobackup(ZfsAuto):
                                   ssh_config=self.args.ssh_config,
                                   ssh_to=self.args.ssh_source, readonly=self.args.test,
                                   debug_output=self.args.debug_output, description=description, thinner=source_thinner,
-                                  exclude_snapshot_patterns=self.args.exclude_snapshot_pattern)
+                                  exclude_snapshot_patterns=self.args.exclude_snapshot_pattern,
+                                  tag_seperator=self.tag_seperator)
 
             ################# select source datasets
             self.set_title("Selecting")
-            ( source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
-                                                            exclude_received=self.args.exclude_received,
-                                                            exclude_paths=self.exclude_paths,
-                                                            exclude_unchanged=self.args.exclude_unchanged)
+            if self.args.progress:
+                self.progress(f"Loading...")
+
+            (source_datasets, excluded_datasets) = source_node.selected_datasets(property_name=self.property_name,
+                                                                                 exclude_paths=self.exclude_paths,
+                                                                                 exclude_unchanged=self.args.exclude_unchanged)
             if not source_datasets and not excluded_datasets:
                 self.print_error_sources()
                 return 255
@@ -498,6 +336,9 @@ class ZfsAutobackup(ZfsAuto):
             if not self.args.no_snapshot:
                 self.set_title("Snapshotting")
                 snapshot_name = datetime_now(self.args.utc).strftime(self.snapshot_time_format)
+                if self.args.tag:
+                    snapshot_name = snapshot_name + self.tag_seperator + self.args.tag
+
                 source_node.consistent_snapshot(source_datasets, snapshot_name,
                                                 min_changed_bytes=self.args.min_change,
                                                 pre_snapshot_cmds=self.args.pre_snapshot_cmd,
@@ -520,26 +361,57 @@ class ZfsAutobackup(ZfsAuto):
                                       ssh_to=self.args.ssh_target,
                                       readonly=self.args.test, debug_output=self.args.debug_output,
                                       description="[Target]",
-                                      thinner=target_thinner)
+                                      exclude_snapshot_patterns=self.args.exclude_snapshot_pattern,
+                                      thinner=target_thinner, tag_seperator=self.tag_seperator)
                 target_node.verbose("Receive datasets under: {}".format(self.args.target_path))
 
-                self.set_title("Synchronising")
-
                 # check if exists, to prevent vague errors
-                target_dataset = target_node.get_dataset(self.args.target_path)
+                target_dataset = target_node.get_container(self.args.target_path)
                 if not target_dataset.exists:
                     raise (Exception(
                         "Target path '{}' does not exist. Please create this dataset first.".format(target_dataset)))
+
+                bookmark_tag = target_dataset.properties['guid']
+                target_node.verbose("Bookmark tag: {}".format(bookmark_tag))
+
+                self.set_title("Synchronising")
 
                 # check for collisions due to strip-path
                 self.check_target_names(source_node, source_datasets, target_node)
 
                 # do the actual sync
                 # NOTE: even with no_send, no_thinning and no_snapshot it does a usefull thing because it checks if the common snapshots and shows incompatible snapshots
-                fail_count = self.sync_datasets(
+                fail_count = sync_datasets(
+                    self.log,
                     source_node=source_node,
                     source_datasets=source_datasets,
-                    target_node=target_node)
+                    target_node=target_node,
+                    bookmark_tag=bookmark_tag,
+                    send_pipes=self.get_send_pipes(source_node.verbose),
+                    recv_pipes=self.get_recv_pipes(target_node.verbose),
+                    target_path=self.args.target_path,
+                    strip_path=self.args.strip_path,
+                    no_clone=self.args.no_clone,
+                    no_send=self.args.no_send,
+                    no_bookmarks=self.args.no_bookmarks,
+                    no_thinning=self.args.no_thinning,
+                    filter_properties=self.filter_properties_list(),
+                    set_properties=self.set_properties_list(),
+                    ignore_transfer_errors=self.args.ignore_transfer_errors,
+                    holds=not self.args.no_holds,
+                    rollback=self.args.rollback,
+                    other_snapshots=self.args.other_snapshots,
+                    destroy_incompatible=self.args.destroy_incompatible,
+                    decrypt=self.args.decrypt,
+                    encrypt=self.args.encrypt,
+                    zfs_compressed=self.args.zfs_compressed,
+                    force=self.args.force,
+                    guid_check=not self.args.no_guid_check,
+                    property_format=self.args.property_format,
+                    debug=self.args.debug,
+                    target_dataset_base=target_dataset,
+                    destroy_missing=self.args.destroy_missing,
+                    utc=self.args.utc)
 
             # no target specified, run in snapshot-only mode
             else:
@@ -581,7 +453,7 @@ def cli():
 
     signal(SIGPIPE, sigpipe_handler)
 
-    failed_datasets=ZfsAutobackup(sys.argv[1:], False).run()
+    failed_datasets = ZfsAutobackup(sys.argv[1:], False).run()
     sys.exit(min(failed_datasets, 255))
 
 

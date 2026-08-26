@@ -1,7 +1,7 @@
 name: Regression tests
 
 
-on: ["push", "pull_request"]
+on: [ "push", "pull_request" ]
 
 
 
@@ -25,3 +25,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: coveralls --service=github || true
+

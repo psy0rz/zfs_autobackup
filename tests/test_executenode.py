@@ -202,6 +202,25 @@ class TestExecuteNode(unittest2.TestCase):
 
         self.assertEqual(result, ["tEst"])
 
+    def test_script_remote_ssh_config_flat_argv(self):
+        """script() with ssh_to + ssh_config must build a flat argv (no nested lists).
+
+        Regression: previously used cmd.append(["-F", ssh_config]) which embedded a
+        list inside the argv and broke subprocess.Popen when actually executing.
+        """
+
+        node = ExecuteNode(ssh_to="user@somehost", ssh_config="/tmp/some_ssh_config")
+        cmd_pipe = node.script(lines=["echo test"], pipe=True)
+        argv = cmd_pipe.items[0].cmd
+
+        for i, arg in enumerate(argv):
+            self.assertIsInstance(arg, str, msg="argv[{}] should be str, got {!r}".format(i, arg))
+
+        # also verify the -F flag and value are present and adjacent
+        self.assertIn("-F", argv)
+        f_index = argv.index("-F")
+        self.assertEqual(argv[f_index + 1], "/tmp/some_ssh_config")
+
 
 
 

@@ -36,10 +36,16 @@ class ZfsAuto(CliBase):
             self.warning("--ignore-replicated has been renamed, using --exclude-unchanged")
             args.exclude_unchanged = True
 
+        if args.exclude_received:
+            self.log.error("--exclude-received is no longer needed. zfs-autobackup now filters all the autobackup:... properties for newly received datasets to solve this problem. To get rid of existing properties on the target do this one time: 'zfs inherit -r autobackup:backup1 pool/backup1'")
+            sys.exit(255)
+
         # Note: Before version v3.1-beta5, we always used exclude_received. This was a problem if you wanted to
         # replicate an existing backup to another host and use the same backupname/snapshots. However, exclude_received
         # may still need to be used to explicitly exclude a backup with the 'received' source property to avoid accidental
         # recursive replication of a zvol that is currently being received in another session (as it will have changes).
+
+        # Follow up note: This isnt a problem anymore since v4.0, we now filter the autobackup-property by default to prevent these difficult issues.
 
         self.exclude_paths = []
         if args.ssh_source == args.ssh_target:
@@ -47,27 +53,46 @@ class ZfsAuto(CliBase):
                 # target and source are the same, make sure to exclude target_path
                 self.verbose("NOTE: Source and target are on the same host, excluding target-path from selection.")
                 self.exclude_paths.append(args.target_path)
-            else:
-                if not args.exclude_received and not args.include_received:
-                    self.verbose("NOTE: Source and target are on the same host, adding --exclude-received to commandline. (use --include-received to overrule)")
-                    args.exclude_received = True
 
         if args.test:
             self.warning("TEST MODE - SIMULATING WITHOUT MAKING ANY CHANGES")
 
-        #format all the names
+        # format all the names
         self.property_name = args.property_format.format(args.backup_name)
         self.snapshot_time_format = args.snapshot_format.format(args.backup_name)
         self.hold_name = args.hold_format.format(args.backup_name)
+        self.tag_seperator = args.tag_seperator
 
         dt = datetime_now(args.utc)
 
         self.verbose("")
-        self.verbose("Current time {}           : {}".format(args.utc and "UTC" or "   ", dt.strftime("%Y-%m-%d %H:%M:%S")))
+        self.verbose(
+            "Current time {}           : {}".format(args.utc and "UTC" or "   ", dt.strftime("%Y-%m-%d %H:%M:%S")))
 
         self.verbose("Selecting dataset property : {}".format(self.property_name))
         self.verbose("Snapshot format            : {}".format(self.snapshot_time_format))
         self.verbose("Timezone                   : {}".format("UTC" if args.utc else "Local"))
+
+        seperator_test = datetime_now(False).strftime(self.snapshot_time_format)
+
+        # according to man 8 zfs:
+        valid_tags = "_.: -"
+        if self.tag_seperator == '' or any(c not in valid_tags for c in self.tag_seperator):
+            self.log.error("Invalid tag seperator. Allowed characters: '{}'".format(valid_tags))
+            sys.exit(255)
+
+        if self.tag_seperator in seperator_test:
+            self.log.error("Tag seperator '{}' may not be used in snapshot format: {}".format(self.tag_seperator,
+                                                                                              self.snapshot_time_format))
+            sys.exit(255)
+
+        if args.tag and self.tag_seperator in args.tag:
+            self.log.error(
+                "Tag '{}' may not contain tag seperator '{}'".format(args.tag, self.tag_seperator))
+            sys.exit(255)
+
+        if args.tag:
+            self.verbose("Tag                        : {}".format(self.tag_seperator + args.tag))
 
         return args
 
@@ -75,42 +100,47 @@ class ZfsAuto(CliBase):
 
         parser = super(ZfsAuto, self).get_parser()
 
-        #positional arguments
+        # positional arguments
         parser.add_argument('backup_name', metavar='BACKUP-NAME', default=None, nargs='?',
                             help='Name of the backup to select')
 
         parser.add_argument('target_path', metavar='TARGET-PATH', default=None, nargs='?',
                             help='Target ZFS filesystem (optional)')
 
-
-
         # SSH options
-        group=parser.add_argument_group("SSH options")
+        group = parser.add_argument_group("SSH options")
         group.add_argument('--ssh-config', metavar='CONFIG-FILE', default=None, help='Custom ssh client config')
         group.add_argument('--ssh-source', metavar='USER@HOST', default=None,
-                            help='Source host to pull backup from.')
+                           help='Source host to pull backup from.')
         group.add_argument('--ssh-target', metavar='USER@HOST', default=None,
-                            help='Target host to push backup to.')
+                           help='Target host to push backup to.')
 
-        group=parser.add_argument_group("String formatting options")
+        group = parser.add_argument_group("String formatting options")
         group.add_argument('--property-format', metavar='FORMAT', default="autobackup:{}",
-                            help='Dataset selection string format. Default: %(default)s')
+                           help='Name of the ZFS user-property used to select datasets for this backup. '
+                                'The literal "{}" is substituted with BACKUP-NAME. '
+                                'Default: %(default)s')
         group.add_argument('--snapshot-format', metavar='FORMAT', default="{}-%Y%m%d%H%M%S",
-                            help='ZFS Snapshot string format. Default: %(default)s')
+                           help='Format of the snapshot-name part after the "@". '
+                                'The literal "{}" is substituted with BACKUP-NAME, then strftime-codes '
+                                '(e.g. %%Y %%m %%d %%H %%M %%S) are expanded against the current time. '
+                                'Must not contain the tag-seperator. Default: %(default)s')
         group.add_argument('--hold-format', metavar='FORMAT', default="zfs_autobackup:{}",
-                            help='ZFS hold string format. Default: %(default)s')
+                           help='Name of the zfs-hold placed on snapshots to prevent accidental deletion. '
+                                'The literal "{}" is substituted with BACKUP-NAME. '
+                                'Default: %(default)s')
         group.add_argument('--strip-path', metavar='N', default=0, type=int,
                            help='Number of directories to strip from target path.')
+        group.add_argument('--tag-seperator', metavar='STRING', default="__",
+                           help="Tag seperator for snapshots and bookmarks. Default: %(default)s")
+        group.add_argument('--tag', metavar='TAG', default=None,
+                           help='Backup tag to add to snapshots names. (For administrative purposes)')
 
-        group=parser.add_argument_group("Selection options")
+        group = parser.add_argument_group("Selection options")
         group.add_argument('--ignore-replicated', action='store_true', help=argparse.SUPPRESS)
         group.add_argument('--exclude-unchanged', metavar='BYTES', default=0, type=int,
-                            help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
-        group.add_argument('--exclude-received', action='store_true',
-                            help='Exclude datasets that have the origin of their autobackup: property as "received". '
-                                 'This can avoid recursive replication between two backup partners.')
-        group.add_argument('--include-received', action='store_true',
-                            help=argparse.SUPPRESS)
+                           help='Exclude datasets that have less than BYTES data changed since any last snapshot. (Use with proxmox HA replication)')
+        group.add_argument('--exclude-received', action='store_true', help=argparse.SUPPRESS)
 
 
         def regex_argument_type(input_line):
@@ -119,16 +149,14 @@ class ZfsAuto(CliBase):
                 return re.compile(input_line)
             except:
                 raise ValueError("Could not parse argument '{}' as a regular expression".format(input_line))
-        group.add_argument('--exclude-snapshot-pattern', action='append', default=[], type=regex_argument_type, help="Regular expression to match snapshots that will be ignored.")
+
+        group.add_argument('--exclude-snapshot-pattern', action='append', default=[], type=regex_argument_type,
+                           help="Regular expression to match snapshots that will be ignored.")
 
         return parser
 
     def print_error_sources(self):
         self.error(
-            "No source filesystems selected, please do a 'zfs set autobackup:{0}=true' on the source datasets "
-            "you want to select.".format(
-                self.args.backup_name))
+            "No source filesystems selected, please do a 'zfs set {}=true' on the source datasets "
+            "you want to select.".format(self.property_name))
 
-    def make_target_name(self, source_dataset):
-        """make target_name from a source_dataset"""
-        return self.args.target_path + "/" + source_dataset.lstrip_path(self.args.strip_path)
