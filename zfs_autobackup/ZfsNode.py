@@ -90,10 +90,11 @@ class ZfsNode(ExecuteNode):
         # not every zfs implementation supports them all
 
         if self._supported_send_options is None:
-            self._supported_send_options = []
+            supported_options = []
             for option in ["-L", "-e", "-c"]:
                 if self.valid_command(["zfs", "send", option, "zfs_autobackup_option_test"]):
-                    self._supported_send_options.append(option)
+                    supported_options.append(option)
+            self._supported_send_options = supported_options
         return self._supported_send_options
 
     @property
@@ -102,10 +103,11 @@ class ZfsNode(ExecuteNode):
         # not every zfs implementation supports them all
 
         if self._supported_recv_options is None:
-            self._supported_recv_options = []
+            supported_options = []
             for option in ["-s"]:
                 if self.valid_command(["zfs", "recv", option, "zfs_autobackup_option_test"]):
-                    self._supported_recv_options.append(option)
+                    supported_options.append(option)
+            self._supported_recv_options = supported_options
 
         return self._supported_recv_options
 
@@ -113,9 +115,19 @@ class ZfsNode(ExecuteNode):
         """test if a specified zfs options are valid exit code. use this to determine support options"""
 
         try:
-            self.run(cmd, hide_errors=True, valid_exitcodes=[0, 1])
+            (_, error_lines, exit_code) = self.run(cmd, hide_errors=True, valid_exitcodes=[0, 1, 255],
+                                                   return_all=True)
         except ExecuteError:
             return False
+
+        if exit_code == 255:
+            if self.is_local():
+                return False
+
+            # ssh exits with 255 when the connection fails: the command never ran, so we dont know if the option
+            # is supported. Reporting it as unsupported would silently drop it for the rest of the run, for example
+            # zfs recv -s, after which an interrupted transfer cant be resumed and everything it received is lost.
+            raise (ExecuteError("SSH failed while testing for supported options: {}".format("; ".join(error_lines))))
 
         return True
 
