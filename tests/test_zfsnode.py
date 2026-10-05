@@ -227,6 +227,23 @@ test_target1
                        exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
         self.assertIsInstance(node.supported_recv_options, list)
 
+    def test_supportedrecvoptions_sshfailure(self):
+        logger = LogStub()
+        description = "[Target]"
+        # nonexisting.invalid never resolves, so ssh fails with exit code 255, just like over a dropped connection
+        node = ZfsNode(utc=False, snapshot_time_format="test-%Y%m%d%H%M%S", hold_name="zfs_autobackup:test",
+                       logger=logger, description=description, ssh_to='nonexisting.invalid', debug_output=False,
+                       ssh_config=None, exclude_snapshot_patterns=None, thinner=None, readonly=False, tag_seperator='_')
+
+        with self.subTest("ssh failure is an error, not an unsupported option"):
+            with self.assertRaises(ExecuteError):
+                node.valid_command(["zfs", "recv", "-s", "zfs_autobackup_option_test"])
+
+        with self.subTest("failed test is not cached as an empty list of options"):
+            with self.assertRaises(ExecuteError):
+                node.supported_recv_options
+            self.assertIsNone(node._supported_recv_options)
+
 
 if __name__ == '__main__':
     unittest.main()
