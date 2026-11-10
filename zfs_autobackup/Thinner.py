@@ -18,6 +18,11 @@ class Thinner:
 
         rule_strs = schedule_str.split(",")
         for rule_str in rule_strs:
+            # Tolerate whitespace around rules (e.g. "5, 1d1w") and ignore
+            # empty segments from stray commas (e.g. "5,").
+            rule_str = rule_str.strip()
+            if not rule_str:
+                continue
             if rule_str.lstrip('-').isdigit():
                 self.always_keep = int(rule_str)
                 if self.always_keep < 0:
