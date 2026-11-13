@@ -31,46 +31,41 @@ Install it on one machine only. It reaches the other side over SSH, so it works 
 * Works across operating systems: Tested with **Linux**, **FreeBSD/FreeNAS** and **SmartOS**.
 * Low learning curve: no complex daemons or services, no additional software or networking needed.
 * Plays nicely with existing replication systems. (Like Proxmox HA)
-* Automatically selects filesystems to backup by looking at a simple ZFS property.
-* Creates consistent snapshots. (takes all snapshots at once, atomicly.)
-* Multiple backups modes:
-    * Backup local data on the same server.
-    * "push" local data to a backup-server via SSH.
-    * "pull" remote data from a server via SSH and backup it locally.
-    * "pull+push": Zero trust between source and target.
-* Can be scheduled via simple cronjob or run directly from commandline.
+* Creates consistent snapshots. (takes all snapshots at once, atomically.)
 * Also supports complex backup geometries.
 * ZFS encryption support: Can decrypt / encrypt or even re-encrypt datasets during transfer.
 * Supports sending with compression. (Using pigz, zstd etc)
 * IO buffering to speed up transfer.
 * Bandwidth rate limiting.
 * Multiple backups from and to the same datasets are no problem.
-* Resillient to errors.
-* Ability to manually 'finish' failed backups to see whats going on.
-* Easy to debug and has a test-mode. Actual unix commands are printed.
+* Replicates clones, and keeps the clone relationship on the target.
+* Resilient to errors.
+* Ability to manually 'finish' failed backups to see what's going on.
 * Uses progressive thinning for older snapshots.
-* Uses zfs-holds on important snapshots to prevent accidental deletion.
+* Uses bookmarks and holds to protect the snapshots it needs.
 * Automatic resuming of failed transfers.
 * Easy migration from other zfs backup systems to zfs-autobackup.
 * Gracefully handles datasets that no longer exist on source.
 * Complete and clean logging.
+* Includes zfs-autoverify and zfs-check to verify your backups.
 * All code is regression tested against actual ZFS environments.
 * Easy installation:
     * Just install zfs-autobackup via pip.
-    * Only needs to be installed on one side.
-    * Written in python and uses zfs-commands, no special 3rd party dependency's or compiled libraries needed.
-    * No annoying config files or properties.
+    * Written in python and uses zfs-commands, no special 3rd party dependencies or compiled libraries needed.
 
 ## Getting started
 
+```sh
+pip install zfs-autobackup
+```
+
 Please look at our wiki to [Get started](https://github.com/psy0rz/zfs_autobackup/wiki).
 
-Or read the [Full manual](https://github.com/psy0rz/zfs_autobackup/wiki/Manual)
+Or read the [Full manual](https://github.com/psy0rz/zfs_autobackup/wiki/Manual).
 
-# Sponsor list
+## Sponsor list
 
 This project was sponsored by:
 
-* JetBrains
 * https://rsync.net
-* [DatuX](https://www.datux.nl) 
+* [DatuX](https://www.datux.nl)
