@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 226" width="880" height="226" role="img" aria-labelledby="title desc">
+  <title id="title">Four ways to connect</title>
+  <desc id="desc">Local, push, pull and pull+push. The orange dot marks the machine where zfs-autobackup runs.</desc>
+
+  <style>
+    .bg { fill: #f3f6f6; }
+    .host { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.5; }
+    .panel { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.2; }
+    text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #142228; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+    .muted { fill: #5a6b72; }
+    .ds { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.2; }
+    .ds-sel { fill: #d5ecee; stroke: #0d7480; stroke-width: 1.5; }
+    .ds-new { fill: #f6e5d0; stroke: #b8650f; stroke-width: 1.5; }
+    .t-accent { fill: #0d7480; }
+    .t-new { fill: #b8650f; }
+    .t-gone { fill: #b4383b; }
+    .wire { stroke: #b8650f; stroke-width: 2.5; fill: none; }
+    .wire-head { fill: #b8650f; }
+    .rail { stroke: #c9d4d7; stroke-width: 2; }
+    .snap { fill: #ffffff; stroke: #5a6b72; stroke-width: 2; }
+    .snap-common { fill: #0d7480; stroke: #0d7480; stroke-width: 2; }
+    .snap-new { fill: #b8650f; stroke: #b8650f; stroke-width: 2; }
+    .snap-ghost { fill: #f3f6f6; stroke: #b8650f; stroke-width: 2; stroke-dasharray: 3 3; }
+    .snap-gone { fill: #ffffff; stroke: #b4383b; stroke-width: 2; }
+    .x { stroke: #b4383b; stroke-width: 2.2; }
+    .link { stroke: #0d7480; stroke-width: 1.5; stroke-dasharray: 4 4; }
+    .band { fill: #f6e5d0; stroke: #b8650f; stroke-width: 1.5; }
+    .band-ghost { fill: none; stroke: #b8650f; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .server { fill: #ffffff; stroke: #5a6b72; stroke-width: 1.5; }
+    .server-line { stroke: #c9d4d7; stroke-width: 1.5; }
+    .runner { fill: #b8650f; }
+    .flow { stroke: #0d7480; stroke-width: 2.2; fill: none; }
+    .flow-head { fill: #0d7480; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0f1719; }
+      .host, .panel { fill: #172226; stroke: #2f4046; }
+      text { fill: #e3ecee; }
+      .muted { fill: #93a6ac; }
+      .ds { fill: #172226; stroke: #2f4046; }
+      .ds-sel { fill: #163a3f; stroke: #4fc0cb; }
+      .ds-new { fill: #3d2a14; stroke: #eba150; }
+      .t-accent { fill: #4fc0cb; }
+      .t-new { fill: #eba150; }
+      .t-gone { fill: #ec7b7d; }
+      .wire { stroke: #eba150; }
+      .wire-head { fill: #eba150; }
+      .rail { stroke: #2f4046; }
+      .snap { fill: #172226; stroke: #93a6ac; }
+      .snap-common { fill: #4fc0cb; stroke: #4fc0cb; }
+      .snap-new { fill: #eba150; stroke: #eba150; }
+      .snap-ghost { fill: #0f1719; stroke: #eba150; }
+      .snap-gone { fill: #172226; stroke: #ec7b7d; }
+      .x { stroke: #ec7b7d; }
+      .link { stroke: #4fc0cb; }
+      .band { fill: #3d2a14; stroke: #eba150; }
+      .band-ghost { stroke: #eba150; }
+      .server { fill: #172226; stroke: #93a6ac; }
+      .server-line { stroke: #2f4046; }
+      .runner { fill: #eba150; }
+      .flow { stroke: #4fc0cb; }
+      .flow-head { fill: #4fc0cb; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="880" height="226" rx="12"/>
+  <rect class="panel" x="20" y="20" width="195" height="170" rx="10"/>
+  <text x="36.0" y="48.0" font-size="16" font-weight="800" text-anchor="start">Local</text>
+  <text x="36.0" y="176.0" font-size="11" class="mono muted" text-anchor="start">no SSH needed</text>
+  <rect class="panel" x="235" y="20" width="195" height="170" rx="10"/>
+  <text x="251.0" y="48.0" font-size="16" font-weight="800" text-anchor="start">Push</text>
+  <text x="251.0" y="176.0" font-size="11" class="mono muted" text-anchor="start">--ssh-target</text>
+  <rect class="panel" x="450" y="20" width="195" height="170" rx="10"/>
+  <text x="466.0" y="48.0" font-size="16" font-weight="800" text-anchor="start">Pull</text>
+  <text x="466.0" y="176.0" font-size="11" class="mono muted" text-anchor="start">--ssh-source</text>
+  <rect class="panel" x="665" y="20" width="195" height="170" rx="10"/>
+  <text x="681.0" y="48.0" font-size="16" font-weight="800" text-anchor="start">Pull + push</text>
+  <text x="681.0" y="176.0" font-size="11" class="mono muted" text-anchor="start">--ssh-source --ssh-target</text>
+  <rect class="server" x="88" y="78" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="96" y1="92" x2="138" y2="92"/>
+  <line class="server-line" x1="96" y1="102" x2="138" y2="102"/>
+  <line class="server-line" x1="96" y1="112" x2="138" y2="112"/>
+  <circle class="runner" cx="146" cy="78" r="7"/>
+  <text x="117.0" y="142.0" font-size="12" class="muted" text-anchor="middle">pool A → pool B</text>
+  <rect class="server" x="253" y="78" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="261" y1="92" x2="303" y2="92"/>
+  <line class="server-line" x1="261" y1="102" x2="303" y2="102"/>
+  <line class="server-line" x1="261" y1="112" x2="303" y2="112"/>
+  <circle class="runner" cx="311" cy="78" r="7"/>
+  <text x="282.0" y="142.0" font-size="12" class="muted" text-anchor="middle">source</text>
+  <rect class="server" x="353" y="78" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="361" y1="92" x2="403" y2="92"/>
+  <line class="server-line" x1="361" y1="102" x2="403" y2="102"/>
+  <line class="server-line" x1="361" y1="112" x2="403" y2="112"/>
+  <text x="382.0" y="142.0" font-size="12" class="muted" text-anchor="middle">target</text>
+  <line class="flow" x1="315" y1="101" x2="345" y2="101"/>
+  <polygon class="flow-head" points="351.0,101.0 341.0,107.0 341.0,95.0"/>
+  <rect class="server" x="468" y="78" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="476" y1="92" x2="518" y2="92"/>
+  <line class="server-line" x1="476" y1="102" x2="518" y2="102"/>
+  <line class="server-line" x1="476" y1="112" x2="518" y2="112"/>
+  <text x="497.0" y="142.0" font-size="12" class="muted" text-anchor="middle">source</text>
+  <rect class="server" x="568" y="78" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="576" y1="92" x2="618" y2="92"/>
+  <line class="server-line" x1="576" y1="102" x2="618" y2="102"/>
+  <line class="server-line" x1="576" y1="112" x2="618" y2="112"/>
+  <circle class="runner" cx="626" cy="78" r="7"/>
+  <text x="597.0" y="142.0" font-size="12" class="muted" text-anchor="middle">target</text>
+  <line class="flow" x1="530" y1="101" x2="560" y2="101"/>
+  <polygon class="flow-head" points="566.0,101.0 556.0,107.0 556.0,95.0"/>
+  <rect class="server" x="675" y="78" width="44" height="46" rx="5"/>
+  <line class="server-line" x1="683" y1="92" x2="711" y2="92"/>
+  <line class="server-line" x1="683" y1="102" x2="711" y2="102"/>
+  <line class="server-line" x1="683" y1="112" x2="711" y2="112"/>
+  <text x="697.0" y="142.0" font-size="12" class="muted" text-anchor="middle">source</text>
+  <rect class="server" x="741" y="78" width="44" height="46" rx="5"/>
+  <line class="server-line" x1="749" y1="92" x2="777" y2="92"/>
+  <line class="server-line" x1="749" y1="102" x2="777" y2="102"/>
+  <line class="server-line" x1="749" y1="112" x2="777" y2="112"/>
+  <circle class="runner" cx="785" cy="78" r="7"/>
+  <text x="763.0" y="142.0" font-size="12" class="muted" text-anchor="middle">3rd host</text>
+  <rect class="server" x="807" y="78" width="44" height="46" rx="5"/>
+  <line class="server-line" x1="815" y1="92" x2="843" y2="92"/>
+  <line class="server-line" x1="815" y1="102" x2="843" y2="102"/>
+  <line class="server-line" x1="815" y1="112" x2="843" y2="112"/>
+  <text x="829.0" y="142.0" font-size="12" class="muted" text-anchor="middle">target</text>
+  <line class="flow" x1="720" y1="101" x2="733" y2="101"/>
+  <polygon class="flow-head" points="739.0,101.0 729.0,107.0 729.0,95.0"/>
+  <line class="flow" x1="786" y1="101" x2="799" y2="101"/>
+  <polygon class="flow-head" points="805.0,101.0 795.0,107.0 795.0,95.0"/>
+  <circle class="runner" cx="28" cy="212" r="6"/>
+  <text x="40.0" y="216.0" font-size="13" class="muted" text-anchor="start">= where zfs-autobackup runs</text>
+</svg>

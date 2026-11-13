@@ -9,18 +9,22 @@ ZFS-autobackup tries to be the most reliable and easiest to use tool, while havi
 
 You can either use it as a **backup** tool, **replication** tool or **snapshot** tool.
 
-You can select what to backup by setting a custom `ZFS property`. This makes it easy to add/remove specific datasets, or
-just backup your whole pool.
+There are no config files: just test your command on the commandline and copy/paste it to a cron or script. Use
+`--test` to see what it will do without changing anything, and `--debug` to see the actual ZFS commands it runs.
 
-Other settings are just specified on the commandline: Simply setup and test your zfs-autobackup command and fix all the
-issues you might encounter. When you're done you can just copy/paste your command to a cron or script.
+## How it works
 
-Since it's using ZFS commands, you can see what it's actually doing by specifying `--debug`. This also helps a lot if
-you run into some strange problem or errors. You can just copy-paste the command that fails and play around with it on
-the commandline. (something I missed in other tools)
+Mark the datasets you want to back up with a ZFS property, and run zfs-autobackup:
 
-An important feature that's missing from other tools is a reliable `--test` option: This allows you to see what
-zfs-autobackup will do and tune your parameters. It will do everything, except make changes to your system.
+![Source datasets with the autobackup property are sent to the target](doc/how-big-picture.svg)
+
+After the first full backup, every run only sends the changes since the last snapshot that both sides have:
+
+![Only the diff since the common snapshot is sent](doc/how-snapshots.svg)
+
+Install it on one machine only. It reaches the other side over SSH, so it works local, push, pull or pull+push:
+
+![Local, push, pull and pull+push](doc/how-connect.svg)
 
 ## Features
 

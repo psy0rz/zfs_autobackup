@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 236" width="900" height="236" role="img" aria-labelledby="title desc">
+  <title id="title">Snapshots of one dataset</title>
+  <desc id="desc">The new snapshot is sent as the diff from the common snapshot and applied on the target. Old snapshots are thinned on both sides.</desc>
+
+  <style>
+    .bg { fill: #f3f6f6; }
+    .host { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.5; }
+    .panel { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.2; }
+    text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #142228; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+    .muted { fill: #5a6b72; }
+    .ds { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.2; }
+    .ds-sel { fill: #d5ecee; stroke: #0d7480; stroke-width: 1.5; }
+    .ds-new { fill: #f6e5d0; stroke: #b8650f; stroke-width: 1.5; }
+    .t-accent { fill: #0d7480; }
+    .t-new { fill: #b8650f; }
+    .t-gone { fill: #b4383b; }
+    .wire { stroke: #b8650f; stroke-width: 2.5; fill: none; }
+    .wire-head { fill: #b8650f; }
+    .rail { stroke: #c9d4d7; stroke-width: 2; }
+    .snap { fill: #ffffff; stroke: #5a6b72; stroke-width: 2; }
+    .snap-common { fill: #0d7480; stroke: #0d7480; stroke-width: 2; }
+    .snap-new { fill: #b8650f; stroke: #b8650f; stroke-width: 2; }
+    .snap-ghost { fill: #f3f6f6; stroke: #b8650f; stroke-width: 2; stroke-dasharray: 3 3; }
+    .snap-gone { fill: #ffffff; stroke: #b4383b; stroke-width: 2; }
+    .x { stroke: #b4383b; stroke-width: 2.2; }
+    .link { stroke: #0d7480; stroke-width: 1.5; stroke-dasharray: 4 4; }
+    .band { fill: #f6e5d0; stroke: #b8650f; stroke-width: 1.5; }
+    .band-ghost { fill: none; stroke: #b8650f; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .server { fill: #ffffff; stroke: #5a6b72; stroke-width: 1.5; }
+    .server-line { stroke: #c9d4d7; stroke-width: 1.5; }
+    .runner { fill: #b8650f; }
+    .flow { stroke: #0d7480; stroke-width: 2.2; fill: none; }
+    .flow-head { fill: #0d7480; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0f1719; }
+      .host, .panel { fill: #172226; stroke: #2f4046; }
+      text { fill: #e3ecee; }
+      .muted { fill: #93a6ac; }
+      .ds { fill: #172226; stroke: #2f4046; }
+      .ds-sel { fill: #163a3f; stroke: #4fc0cb; }
+      .ds-new { fill: #3d2a14; stroke: #eba150; }
+      .t-accent { fill: #4fc0cb; }
+      .t-new { fill: #eba150; }
+      .t-gone { fill: #ec7b7d; }
+      .wire { stroke: #eba150; }
+      .wire-head { fill: #eba150; }
+      .rail { stroke: #2f4046; }
+      .snap { fill: #172226; stroke: #93a6ac; }
+      .snap-common { fill: #4fc0cb; stroke: #4fc0cb; }
+      .snap-new { fill: #eba150; stroke: #eba150; }
+      .snap-ghost { fill: #0f1719; stroke: #eba150; }
+      .snap-gone { fill: #172226; stroke: #ec7b7d; }
+      .x { stroke: #ec7b7d; }
+      .link { stroke: #4fc0cb; }
+      .band { fill: #3d2a14; stroke: #eba150; }
+      .band-ghost { stroke: #eba150; }
+      .server { fill: #172226; stroke: #93a6ac; }
+      .server-line { stroke: #2f4046; }
+      .runner { fill: #eba150; }
+      .flow { stroke: #4fc0cb; }
+      .flow-head { fill: #4fc0cb; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="900" height="236" rx="12"/>
+  <text x="860.0" y="28.0" font-size="12" class="muted" text-anchor="end">older → newer</text>
+  <text x="40.0" y="76.0" font-size="14" font-weight="700" text-anchor="start">Source</text>
+  <text x="40.0" y="94.0" font-size="11" class="mono muted" text-anchor="start">rpool/data</text>
+  <line class="rail" x1="190" y1="80" x2="870" y2="80"/>
+  <circle class="snap-gone" cx="230" cy="80" r="10"/>
+  <line class="x" x1="223" y1="73" x2="237" y2="87"/><line class="x" x1="237" y1="73" x2="223" y2="87"/>
+  <circle class="snap" cx="330" cy="80" r="10"/>
+  <circle class="snap" cx="430" cy="80" r="10"/>
+  <circle class="snap" cx="530" cy="80" r="10"/>
+  <rect class="band" x="640" y="71" width="160" height="18" rx="4"/>
+  <circle class="snap-common" cx="640" cy="80" r="10"/>
+  <circle class="snap-new" cx="800" cy="80" r="10"/>
+  <text x="230.0" y="56.0" font-size="12" class="t-gone" text-anchor="middle">thinned</text>
+  <text x="640.0" y="56.0" font-size="12" class="t-accent" font-weight="700" text-anchor="middle">common snapshot</text>
+  <text x="800.0" y="56.0" font-size="12" class="t-new" font-weight="700" text-anchor="middle">new snapshot</text>
+  <text x="720.0" y="108.0" font-size="12" class="t-new" text-anchor="middle">changes between them</text>
+  <text x="40.0" y="166.0" font-size="14" font-weight="700" text-anchor="start">Target</text>
+  <text x="40.0" y="184.0" font-size="11" class="mono muted" text-anchor="start">backup/pve01/…/data</text>
+  <line class="rail" x1="190" y1="170" x2="870" y2="170"/>
+  <circle class="snap-gone" cx="230" cy="170" r="10"/>
+  <line class="x" x1="223" y1="163" x2="237" y2="177"/><line class="x" x1="237" y1="163" x2="223" y2="177"/>
+  <circle class="snap" cx="330" cy="170" r="10"/>
+  <circle class="snap" cx="430" cy="170" r="10"/>
+  <circle class="snap" cx="530" cy="170" r="10"/>
+  <rect class="band-ghost" x="640" y="161" width="160" height="18" rx="4"/>
+  <circle class="snap-common" cx="640" cy="170" r="10"/>
+  <circle class="snap-ghost" cx="800" cy="170" r="10"/>
+  <text x="720.0" y="200.0" font-size="12" class="t-new" text-anchor="middle">applied on top of the common snapshot</text>
+  <text x="800.0" y="218.0" font-size="12" class="t-new" font-weight="700" text-anchor="middle">= new snapshot</text>
+  <text x="230.0" y="200.0" font-size="12" class="t-gone" text-anchor="middle">thinned</text>
+  <line class="link" x1="640" y1="92" x2="640" y2="158"/>
+  <text x="630.0" y="129.0" font-size="12" class="t-accent" text-anchor="end">same name + GUID</text>
+  <line class="wire" x1="720" y1="114" x2="720" y2="150"/>
+  <polygon class="wire-head" points="720.0,160.0 712.2,147.0 727.8,147.0"/>
+  <text x="732.0" y="136.0" font-size="12" class="t-new" font-weight="700" text-anchor="start">zfs send -i: only this diff</text>
+</svg>

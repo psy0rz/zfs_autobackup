@@ -1,0 +1,256 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1400" width="900" height="1400" role="img" aria-labelledby="title desc">
+  <title id="title">zfs-autobackup at a glance</title>
+  <desc id="desc">Infographic: the 5 steps of every run, the default thinning schedule, the four connection modes and key facts.</desc>
+
+  <style>
+    .bg { fill: #f3f6f6; }
+    .band { fill: #0d4e56; }
+    .panel { fill: #ffffff; stroke: #c9d4d7; stroke-width: 1.2; }
+    text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #142228; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+    .on-band { fill: #ffffff; }
+    .on-band-muted { fill: #b7dde1; }
+    .pill { fill: none; stroke: #7fcbd3; stroke-width: 1.5; }
+    .h2 { font-size: 22px; font-weight: 800; }
+    .muted { fill: #5a6b72; }
+    .accent { fill: #0d7480; }
+    .t-new { fill: #b8650f; }
+    .ring { fill: none; stroke: #c9d4d7; stroke-width: 3; }
+    .ring-arrow { fill: #c9d4d7; }
+    .node { fill: #0d7480; }
+    .node-num { fill: #ffffff; font-size: 20px; font-weight: 800; }
+    .hub { fill: #d5ecee; stroke: #0d7480; stroke-width: 1.5; }
+    .axis { stroke: #5a6b72; stroke-width: 1.5; }
+    .tick { stroke: #5a6b72; stroke-width: 1; }
+    .keep { fill: #0d7480; }
+    .keep-recent { fill: #b8650f; }
+    .bracket { fill: none; stroke: #5a6b72; stroke-width: 1.2; }
+    .server { fill: #ffffff; stroke: #5a6b72; stroke-width: 1.5; }
+    .server-line { stroke: #c9d4d7; stroke-width: 1.5; }
+    .runner { fill: #b8650f; }
+    .flow { stroke: #0d7480; stroke-width: 2.2; fill: none; }
+    .flow-head { fill: #0d7480; }
+    .big { font-size: 24px; font-weight: 800; fill: #0d7480; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0f1719; }
+      .band { fill: #0b3a40; }
+      .panel { fill: #172226; stroke: #2f4046; }
+      text { fill: #e3ecee; }
+      .muted { fill: #93a6ac; }
+      .accent, .big { fill: #4fc0cb; }
+      .t-new { fill: #eba150; }
+      .ring { stroke: #2f4046; }
+      .ring-arrow { fill: #2f4046; }
+      .node { fill: #2a9aa6; }
+      .hub { fill: #163a3f; stroke: #4fc0cb; }
+      .axis, .tick, .bracket { stroke: #93a6ac; }
+      .keep { fill: #4fc0cb; }
+      .keep-recent { fill: #eba150; }
+      .server { fill: #172226; stroke: #93a6ac; }
+      .server-line { stroke: #2f4046; }
+      .runner { fill: #eba150; }
+      .flow { stroke: #4fc0cb; }
+      .flow-head { fill: #4fc0cb; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="900" height="1400"/>
+  <rect class="band" x="0" y="0" width="900" height="210"/>
+  <text x="40.0" y="58.0" font-size="12" class="mono on-band-muted" text-anchor="start">OPEN SOURCE · PYTHON · ZFS</text>
+  <text x="40.0" y="112.0" font-size="52" class="on-band" font-weight="800" text-anchor="start">zfs-autobackup</text>
+  <text x="40.0" y="146.0" font-size="18" class="on-band-muted" text-anchor="start">Backup, replicate and snapshot ZFS datasets with one command.</text>
+  <rect class="pill" x="40.0" y="166" width="118.2" height="28" rx="14"/>
+  <text x="99.1" y="185.0" font-size="13" class="on-band" font-weight="600" text-anchor="middle">Backup tool</text>
+  <rect class="pill" x="168.2" y="166" width="159.2" height="28" rx="14"/>
+  <text x="247.8" y="185.0" font-size="13" class="on-band" font-weight="600" text-anchor="middle">Replication tool</text>
+  <rect class="pill" x="337.4" y="166" width="134.6" height="28" rx="14"/>
+  <text x="404.7" y="185.0" font-size="13" class="on-band" font-weight="600" text-anchor="middle">Snapshot tool</text>
+  <text x="40.0" y="258.0" font-size="22" class="h2" text-anchor="start">Every run: 5 steps</text>
+  <text x="40.0" y="282.0" font-size="14" class="muted" text-anchor="start">Run it by hand or from cron. Every run does the same steps.</text>
+  <circle class="ring" cx="450" cy="460" r="130"/>
+  <circle class="hub" cx="450" cy="460" r="62"/>
+  <text x="450.0" y="454.0" font-size="15" class="accent" font-weight="700" text-anchor="middle">one run</text>
+  <text x="450.0" y="474.0" font-size="12" class="muted" text-anchor="middle">of the command</text>
+  <polygon class="ring-arrow" points="526.4,354.8 510.1,353.4 520.0,339.8"/>
+  <polygon class="ring-arrow" points="573.6,500.2 570.0,484.3 586.0,489.5"/>
+  <polygon class="ring-arrow" points="450.0,590.0 464.0,581.6 464.0,598.4"/>
+  <polygon class="ring-arrow" points="326.4,500.2 338.7,510.9 322.7,516.1"/>
+  <polygon class="ring-arrow" points="373.6,354.8 367.2,369.9 357.3,356.3"/>
+  <circle class="node" cx="450.0" cy="330.0" r="24"/>
+  <text x="450.0" y="337.0" font-size="20" class="node-num" text-anchor="middle">1</text>
+  <text x="490.0" y="318.0" font-size="17" font-weight="800" text-anchor="start">Select</text>
+  <text x="490.0" y="337.0" font-size="13" class="muted" text-anchor="start">datasets with the</text>
+  <text x="490.0" y="354.0" font-size="13" class="muted" text-anchor="start">autobackup:name property</text>
+  <circle class="node" cx="573.6" cy="419.8" r="24"/>
+  <text x="573.6" y="426.8" font-size="20" class="node-num" text-anchor="middle">2</text>
+  <text x="611.6" y="409.8" font-size="17" font-weight="800" text-anchor="start">Snapshot</text>
+  <text x="611.6" y="428.8" font-size="13" class="muted" text-anchor="start">all datasets at once,</text>
+  <text x="611.6" y="445.8" font-size="13" class="muted" text-anchor="start">in one atomic command</text>
+  <circle class="node" cx="526.4" cy="565.2" r="24"/>
+  <text x="526.4" y="572.2" font-size="20" class="node-num" text-anchor="middle">3</text>
+  <text x="564.4" y="567.2" font-size="17" font-weight="800" text-anchor="start">Compare</text>
+  <text x="564.4" y="586.2" font-size="13" class="muted" text-anchor="start">find the common snapshot</text>
+  <text x="564.4" y="603.2" font-size="13" class="muted" text-anchor="start">on source and target</text>
+  <circle class="node" cx="373.6" cy="565.2" r="24"/>
+  <text x="373.6" y="572.2" font-size="20" class="node-num" text-anchor="middle">4</text>
+  <text x="335.6" y="567.2" font-size="17" font-weight="800" text-anchor="end">Send</text>
+  <text x="335.6" y="586.2" font-size="13" class="muted" text-anchor="end">only the diff since that</text>
+  <text x="335.6" y="603.2" font-size="13" class="muted" text-anchor="end">snapshot · resumable</text>
+  <circle class="node" cx="326.4" cy="419.8" r="24"/>
+  <text x="326.4" y="426.8" font-size="20" class="node-num" text-anchor="middle">5</text>
+  <text x="288.4" y="409.8" font-size="17" font-weight="800" text-anchor="end">Thin</text>
+  <text x="288.4" y="428.8" font-size="13" class="muted" text-anchor="end">remove old snapshots</text>
+  <text x="288.4" y="445.8" font-size="13" class="muted" text-anchor="end">on both sides</text>
+  <text x="40.0" y="660.0" font-size="22" class="h2" text-anchor="start">More snapshots of recent data, fewer of old data</text>
+  <text x="40.0" y="684.0" font-size="14" class="muted" text-anchor="start">Default schedule 10,1d1w,1w1m,1m1y. Every dot is a snapshot that stays. Time axis is logarithmic.</text>
+  <line class="axis" x1="70" y1="780" x2="830" y2="780"/>
+  <line class="tick" x1="830.0" y1="775" x2="830.0" y2="785"/>
+  <text x="830.0" y="804.0" font-size="12" class="muted" text-anchor="middle">now</text>
+  <line class="tick" x1="560.5" y1="775" x2="560.5" y2="785"/>
+  <text x="560.5" y="804.0" font-size="12" class="muted" text-anchor="middle">1 day</text>
+  <line class="tick" x1="400.5" y1="775" x2="400.5" y2="785"/>
+  <text x="400.5" y="804.0" font-size="12" class="muted" text-anchor="middle">1 week</text>
+  <line class="tick" x1="279.1" y1="775" x2="279.1" y2="785"/>
+  <text x="279.1" y="804.0" font-size="12" class="muted" text-anchor="middle">1 month</text>
+  <line class="tick" x1="70.0" y1="775" x2="70.0" y2="785"/>
+  <text x="70.0" y="804.0" font-size="12" class="muted" text-anchor="middle">1 year</text>
+  <circle class="keep-recent" cx="830.0" cy="754" r="4"/>
+  <circle class="keep-recent" cx="772.0" cy="754" r="4"/>
+  <circle class="keep-recent" cx="738.0" cy="754" r="4"/>
+  <circle class="keep-recent" cx="713.9" cy="754" r="4"/>
+  <circle class="keep-recent" cx="695.3" cy="754" r="4"/>
+  <circle class="keep-recent" cx="680.0" cy="754" r="4"/>
+  <circle class="keep-recent" cx="667.1" cy="754" r="4"/>
+  <circle class="keep-recent" cx="655.9" cy="754" r="4"/>
+  <circle class="keep-recent" cx="646.1" cy="754" r="4"/>
+  <circle class="keep-recent" cx="637.2" cy="754" r="4"/>
+  <circle class="keep" cx="560.5" cy="754" r="4"/>
+  <circle class="keep" cx="504.2" cy="754" r="4"/>
+  <circle class="keep" cx="470.8" cy="754" r="4"/>
+  <circle class="keep" cx="447.0" cy="754" r="4"/>
+  <circle class="keep" cx="428.5" cy="754" r="4"/>
+  <circle class="keep" cx="413.4" cy="754" r="4"/>
+  <circle class="keep" cx="400.5" cy="754" r="4"/>
+  <circle class="keep" cx="342.8" cy="754" r="4"/>
+  <circle class="keep" cx="308.9" cy="754" r="4"/>
+  <circle class="keep" cx="284.8" cy="754" r="4"/>
+  <circle class="keep" cx="220.0" cy="754" r="4"/>
+  <circle class="keep" cx="186.0" cy="754" r="4"/>
+  <circle class="keep" cx="162.0" cy="754" r="4"/>
+  <circle class="keep" cx="143.3" cy="754" r="4"/>
+  <circle class="keep" cx="128.0" cy="754" r="4"/>
+  <circle class="keep" cx="115.1" cy="754" r="4"/>
+  <circle class="keep" cx="103.9" cy="754" r="4"/>
+  <circle class="keep" cx="94.1" cy="754" r="4"/>
+  <circle class="keep" cx="85.3" cy="754" r="4"/>
+  <circle class="keep" cx="77.3" cy="754" r="4"/>
+  <circle class="keep" cx="70.0" cy="754" r="4"/>
+  <path class="bracket" d="M 631.2 740 L 631.2 734 L 836.0 734 L 836.0 740"/>
+  <text x="733.6" y="710.0" font-size="13" class="mono accent" font-weight="700" text-anchor="middle">10</text>
+  <text x="733.6" y="726.0" font-size="12" class="muted" text-anchor="middle">last 10</text>
+  <path class="bracket" d="M 394.5 740 L 394.5 734 L 566.5 734 L 566.5 740"/>
+  <text x="480.5" y="710.0" font-size="13" class="mono accent" font-weight="700" text-anchor="middle">1d1w</text>
+  <text x="480.5" y="726.0" font-size="12" class="muted" text-anchor="middle">1 per day, 1 week</text>
+  <path class="bracket" d="M 278.8 740 L 278.8 734 L 348.8 734 L 348.8 740"/>
+  <text x="313.8" y="710.0" font-size="13" class="mono accent" font-weight="700" text-anchor="middle">1w1m</text>
+  <text x="313.8" y="726.0" font-size="12" class="muted" text-anchor="middle">1 per week, 1 month</text>
+  <path class="bracket" d="M 64.0 740 L 64.0 734 L 226.0 734 L 226.0 740"/>
+  <text x="145.0" y="710.0" font-size="13" class="mono accent" font-weight="700" text-anchor="middle">1m1y</text>
+  <text x="145.0" y="726.0" font-size="12" class="muted" text-anchor="middle">1 per month, 1 year</text>
+  <text x="40.0" y="842.0" font-size="16" font-weight="700" text-anchor="start">About 31 snapshots cover a full year.</text>
+  <text x="40.0" y="862.0" font-size="14" class="muted" text-anchor="start">Source and target can have different schedules: --keep-source and --keep-target.</text>
+  <text x="40.0" y="910.0" font-size="22" class="h2" text-anchor="start">Four ways to connect</text>
+  <text x="40.0" y="934.0" font-size="14" class="muted" text-anchor="start">Install it on one machine. It runs the zfs commands on the other side over SSH.</text>
+  <rect class="panel" x="30" y="954" width="195" height="170" rx="10"/>
+  <text x="46.0" y="982.0" font-size="16" font-weight="800" text-anchor="start">Local</text>
+  <text x="46.0" y="1110.0" font-size="11" class="mono muted" text-anchor="start">no SSH needed</text>
+  <rect class="panel" x="245" y="954" width="195" height="170" rx="10"/>
+  <text x="261.0" y="982.0" font-size="16" font-weight="800" text-anchor="start">Push</text>
+  <text x="261.0" y="1110.0" font-size="11" class="mono muted" text-anchor="start">--ssh-target</text>
+  <rect class="panel" x="460" y="954" width="195" height="170" rx="10"/>
+  <text x="476.0" y="982.0" font-size="16" font-weight="800" text-anchor="start">Pull</text>
+  <text x="476.0" y="1110.0" font-size="11" class="mono muted" text-anchor="start">--ssh-source</text>
+  <rect class="panel" x="675" y="954" width="195" height="170" rx="10"/>
+  <text x="691.0" y="982.0" font-size="16" font-weight="800" text-anchor="start">Pull + push</text>
+  <text x="691.0" y="1110.0" font-size="11" class="mono muted" text-anchor="start">--ssh-source --ssh-target</text>
+  <rect class="server" x="98" y="1012" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="106" y1="1026" x2="148" y2="1026"/>
+  <line class="server-line" x1="106" y1="1036" x2="148" y2="1036"/>
+  <line class="server-line" x1="106" y1="1046" x2="148" y2="1046"/>
+  <circle class="runner" cx="156" cy="1012" r="7"/>
+  <text x="127.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">pool A → pool B</text>
+  <rect class="server" x="263" y="1012" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="271" y1="1026" x2="313" y2="1026"/>
+  <line class="server-line" x1="271" y1="1036" x2="313" y2="1036"/>
+  <line class="server-line" x1="271" y1="1046" x2="313" y2="1046"/>
+  <circle class="runner" cx="321" cy="1012" r="7"/>
+  <text x="292.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">source</text>
+  <rect class="server" x="363" y="1012" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="371" y1="1026" x2="413" y2="1026"/>
+  <line class="server-line" x1="371" y1="1036" x2="413" y2="1036"/>
+  <line class="server-line" x1="371" y1="1046" x2="413" y2="1046"/>
+  <text x="392.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">target</text>
+  <line class="flow" x1="325" y1="1035" x2="361" y2="1035"/>
+  <polygon class="flow-head" points="361.0,1035.0 351.0,1041.0 351.0,1029.0"/>
+  <rect class="server" x="478" y="1012" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="486" y1="1026" x2="528" y2="1026"/>
+  <line class="server-line" x1="486" y1="1036" x2="528" y2="1036"/>
+  <line class="server-line" x1="486" y1="1046" x2="528" y2="1046"/>
+  <text x="507.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">source</text>
+  <rect class="server" x="578" y="1012" width="58" height="46" rx="5"/>
+  <line class="server-line" x1="586" y1="1026" x2="628" y2="1026"/>
+  <line class="server-line" x1="586" y1="1036" x2="628" y2="1036"/>
+  <line class="server-line" x1="586" y1="1046" x2="628" y2="1046"/>
+  <circle class="runner" cx="636" cy="1012" r="7"/>
+  <text x="607.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">target</text>
+  <line class="flow" x1="540" y1="1035" x2="576" y2="1035"/>
+  <polygon class="flow-head" points="576.0,1035.0 566.0,1041.0 566.0,1029.0"/>
+  <rect class="server" x="685" y="1012" width="44" height="46" rx="5"/>
+  <line class="server-line" x1="693" y1="1026" x2="721" y2="1026"/>
+  <line class="server-line" x1="693" y1="1036" x2="721" y2="1036"/>
+  <line class="server-line" x1="693" y1="1046" x2="721" y2="1046"/>
+  <text x="707.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">source</text>
+  <rect class="server" x="751" y="1012" width="44" height="46" rx="5"/>
+  <line class="server-line" x1="759" y1="1026" x2="787" y2="1026"/>
+  <line class="server-line" x1="759" y1="1036" x2="787" y2="1036"/>
+  <line class="server-line" x1="759" y1="1046" x2="787" y2="1046"/>
+  <circle class="runner" cx="795" cy="1012" r="7"/>
+  <text x="773.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">3rd host</text>
+  <rect class="server" x="817" y="1012" width="44" height="46" rx="5"/>
+  <line class="server-line" x1="825" y1="1026" x2="853" y2="1026"/>
+  <line class="server-line" x1="825" y1="1036" x2="853" y2="1036"/>
+  <line class="server-line" x1="825" y1="1046" x2="853" y2="1046"/>
+  <text x="839.0" y="1076.0" font-size="12" class="muted" text-anchor="middle">target</text>
+  <line class="flow" x1="730" y1="1035" x2="749" y2="1035"/>
+  <polygon class="flow-head" points="749.0,1035.0 739.0,1041.0 739.0,1029.0"/>
+  <line class="flow" x1="796" y1="1035" x2="815" y2="1035"/>
+  <polygon class="flow-head" points="815.0,1035.0 805.0,1041.0 805.0,1029.0"/>
+  <circle class="runner" cx="46" cy="1144" r="6"/>
+  <text x="58.0" y="1148.0" font-size="13" class="muted" text-anchor="start">= where zfs-autobackup runs</text>
+  <rect class="panel" x="30" y="1210" width="195" height="66" rx="10"/>
+  <text x="46.0" y="1242.0" font-size="22" class="big" text-anchor="start">1 side</text>
+  <text x="46.0" y="1262.0" font-size="12" class="muted" text-anchor="start">install on one machine only</text>
+  <rect class="panel" x="245" y="1210" width="195" height="66" rx="10"/>
+  <text x="261.0" y="1242.0" font-size="22" class="big" text-anchor="start">0 configs</text>
+  <text x="261.0" y="1262.0" font-size="12" class="muted" text-anchor="start">select with a ZFS property</text>
+  <rect class="panel" x="460" y="1210" width="195" height="66" rx="10"/>
+  <text x="476.0" y="1242.0" font-size="22" class="big" text-anchor="start">Atomic</text>
+  <text x="476.0" y="1262.0" font-size="12" class="muted" text-anchor="start">all snapshots at one moment</text>
+  <rect class="panel" x="675" y="1210" width="195" height="66" rx="10"/>
+  <text x="691.0" y="1242.0" font-size="22" class="big" text-anchor="start">Resumes</text>
+  <text x="691.0" y="1262.0" font-size="12" class="muted" text-anchor="start">interrupted transfers go on</text>
+  <rect class="panel" x="30" y="1288" width="195" height="66" rx="10"/>
+  <text x="46.0" y="1320.0" font-size="22" class="big" text-anchor="start">--test</text>
+  <text x="46.0" y="1340.0" font-size="12" class="muted" text-anchor="start">see all, change nothing</text>
+  <rect class="panel" x="245" y="1288" width="195" height="66" rx="10"/>
+  <text x="261.0" y="1320.0" font-size="22" class="big" text-anchor="start">--debug</text>
+  <text x="261.0" y="1340.0" font-size="12" class="muted" text-anchor="start">shows every zfs command</text>
+  <rect class="panel" x="460" y="1288" width="195" height="66" rx="10"/>
+  <text x="476.0" y="1320.0" font-size="22" class="big" text-anchor="start">Encryption</text>
+  <text x="476.0" y="1340.0" font-size="12" class="muted" text-anchor="start">send raw, or (re)encrypt</text>
+  <rect class="panel" x="675" y="1288" width="195" height="66" rx="10"/>
+  <text x="691.0" y="1320.0" font-size="22" class="big" text-anchor="start">Real ZFS</text>
+  <text x="691.0" y="1340.0" font-size="12" class="muted" text-anchor="start">regression tested on pools</text>
+  <text x="40.0" y="1192.0" font-size="22" class="h2" text-anchor="start">Easy to start, safe to run</text>
+  <text x="40.0" y="1384.0" font-size="14" class="mono accent" font-weight="700" text-anchor="start">pip install zfs-autobackup</text>
+  <text x="860.0" y="1384.0" font-size="13" class="muted" text-anchor="end">github.com/psy0rz/zfs_autobackup</text>
+</svg>
